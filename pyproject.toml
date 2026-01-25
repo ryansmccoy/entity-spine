@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "entityspine"
-version = "0.3.1"
+version = "0.3.2"
 description = "Lightweight entity resolution - from company_tickers.json to enterprise"
 readme = "README.md"
 license = { text = "MIT" }

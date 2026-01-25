@@ -349,3 +349,62 @@ sec kg export --format parquet --output ./entities/
 ---
 
 *Last updated: January 2025 | EntitySpine v0.3.1 | py-sec-edgar integration*
+
+---
+
+## Integration Module (v0.3.1+)
+
+The integration module (`entityspine.integration`) provides a clean contract for py-sec-edgar:
+
+```python
+from entityspine.integration import (
+    FilingFacts,
+    FilingEvidence,
+    ingest_filing_facts,
+    ingest_filing,
+)
+from entityspine.integration.contracts import (
+    ExtractedEntity,
+    ExtractedIdentifier,
+    ExtractedRelationship,
+    ExtractedEvent,
+)
+from entityspine.stores import SqliteStore
+from datetime import date
+
+# Build facts from a 10-K filing
+facts = FilingFacts(
+    evidence=FilingEvidence(
+        accession_number="0001045810-24-000029",
+        form_type="10-K",
+        filed_date=date(2024, 2, 21),
+        cik="0001045810",
+    ),
+    registrant_name="NVIDIA Corporation",
+    registrant_cik="0001045810",
+    registrant_ticker="NVDA",
+    registrant_exchange="NASDAQ",
+    registrant_sic="3674",
+    entities=[
+        ExtractedEntity(name="Taiwan Semiconductor", entity_type="organization"),
+    ],
+    relationships=[
+        ExtractedRelationship(
+            source_name="NVIDIA Corporation",
+            target_name="Taiwan Semiconductor",
+            relationship_type="SUPPLIER",
+            evidence_snippet="TSMC manufactures all of our GPUs",
+        ),
+    ],
+)
+
+# Ingest into EntitySpine
+store = SqliteStore(":memory:")
+store.initialize()
+result = ingest_filing_facts(store, facts)
+
+print(f"Created {result.entities_created} entities, {result.relationships_created} relationships")
+# Created 2 entities, 1 relationships
+```
+
+See [src/entityspine/integration/](../src/entityspine/integration/) for the full implementation.

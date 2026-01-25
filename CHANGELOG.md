@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.2] - 2025-01-XX
+
+### Added
+- **Integration Module** (`entityspine.integration`) - Clean contract for py-sec-edgar integration:
+  - `FilingFacts` - Complete set of facts extracted from SEC filings
+  - `FilingEvidence` - Provenance linking facts to source filings
+  - `ExtractedEntity` - Entity mentions extracted from filing text
+  - `ExtractedIdentifier` - Identifiers extracted from filings
+  - `ExtractedRelationship` - Relationships extracted from filing text
+  - `ExtractedEvent` - Events extracted from 8-K filings
+  - `ingest_filing_facts()` - Main ingestion function
+  - `ingest_filing()` - Simplified ingestion for basic metadata
+  - Normalizers: `normalize_cik()`, `normalize_ticker()`, `normalize_accession_number()`
+- **Integration Tests** - 18 new tests for filing facts ingestion
+- **Documentation** - Updated FILING_FACTS_SCHEMA.md with integration module examples
+
+### Changed
+- Total test count: 285 → 303 passing (18 new integration tests)
+- pyproject.toml author and URLs updated for GitHub release
+
+---
+
 ## [0.3.1] - 2025-01-XX
 
 ### Fixed
