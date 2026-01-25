@@ -1444,30 +1444,103 @@ class Event:
     """
     Discrete business event node.
 
-    Represents M&A, legal events, cyber incidents, management changes, etc.
-    Graph-native design for KG completeness.
+    Represents corporate calendar events, M&A, legal events, compliance/sanctions,
+    management changes, and private equity events. Graph-native design for KG
+    completeness.
+
+    This model aligns with FactSet Events Calendar and SEC 8-K event categories
+    to enable loading of institutional-quality event data.
 
     Note: py-sec-edgar has its own event system. Event nodes here are for
     KG traversal and can be projected from py-sec-edgar events.
 
     Attributes:
         event_id: ULID primary key.
-        event_type: Type of event.
+        event_type: Type of event (earnings, dividend, M&A, sanctions, etc.).
         title: Event title/headline.
         description: Optional longer description.
-        status: Event status.
-        occurred_on: When the event happened (if known).
-        announced_on: When the event was announced.
-        payload: Additional structured data (stdlib dict).
-        source_system: Where the record came from.
-        source_id: ID in the source system.
-        evidence_filing_id: FK to filing that evidences this.
-        evidence_section_id: Section within filing.
-        evidence_snippet: Short evidence text.
-        confidence: Confidence score (0.0-1.0).
-        captured_at: When we observed this.
-        created_at: Record creation timestamp.
-        updated_at: Record update timestamp.
+        status: Event status (announced, completed, cancelled).
+
+        Temporal Fields:
+            occurred_on: When the event happened (if known).
+            announced_on: When the event was announced.
+            scheduled_on: Scheduled date (for calendar events like earnings).
+            effective_date: When the event takes effect (e.g., dividend ex-date).
+
+        Calendar Event Fields (FactSet Events aligned):
+            fiscal_year: Fiscal year for financial events.
+            fiscal_quarter: Fiscal quarter (1-4) for quarterly events.
+            report_time: Time of day for event ("BMO", "AMC", "DURING").
+            currency: Currency code for monetary amounts (ISO 4217).
+            amount: Monetary amount (dividend per share, deal value, etc.).
+
+        Entity References:
+            entity_id: Primary entity this event relates to.
+            related_entity_ids: Other entities involved (e.g., acquirer/target).
+
+        Evidence and Provenance:
+            source_system: Where the record came from.
+            source_id: ID in the source system.
+            evidence_filing_id: FK to filing that evidences this.
+            evidence_section_id: Section within filing.
+            evidence_snippet: Short evidence text.
+            confidence: Confidence score (0.0-1.0).
+            captured_at: When we observed this.
+            payload: Additional structured data.
+
+    Examples:
+        Create an earnings release event:
+
+        >>> from entityspine.domain.graph import Event
+        >>> from entityspine.domain.enums import EventType, EventStatus
+        >>> earnings = Event(
+        ...     event_type=EventType.EARNINGS_RELEASE,
+        ...     title="Apple Q4 2024 Earnings",
+        ...     entity_id="ent_apple",
+        ...     fiscal_year=2024,
+        ...     fiscal_quarter=4,
+        ...     scheduled_on=date(2024, 10, 31),
+        ...     report_time="AMC",  # After Market Close
+        ...     source_system="factset",
+        ... )
+        >>> earnings.is_calendar_event
+        True
+
+        Create a dividend event:
+
+        >>> dividend = Event(
+        ...     event_type=EventType.DIVIDEND_EX_DATE,
+        ...     title="MSFT Dividend Ex-Date",
+        ...     entity_id="ent_microsoft",
+        ...     effective_date=date(2024, 11, 20),
+        ...     amount=Decimal("0.75"),
+        ...     currency="USD",
+        ...     source_system="factset",
+        ... )
+
+        Create an M&A event:
+
+        >>> acquisition = Event(
+        ...     event_type=EventType.MERGER_ACQUISITION,
+        ...     title="Company A acquires Company B",
+        ...     entity_id="ent_acquirer",
+        ...     related_entity_ids=("ent_target",),
+        ...     announced_on=date(2024, 6, 15),
+        ...     amount=Decimal("10000000000"),  # $10B deal
+        ...     currency="USD",
+        ...     status=EventStatus.IN_PROGRESS,
+        ... )
+
+        Create a sanctions designation event:
+
+        >>> sanction = Event(
+        ...     event_type=EventType.SANCTION_DESIGNATION,
+        ...     title="Entity added to OFAC SDN List",
+        ...     entity_id="ent_sanctioned",
+        ...     effective_date=date(2024, 3, 1),
+        ...     payload={"list": "OFAC_SDN", "program": "RUSSIA-EO14024"},
+        ...     source_system="ofac",
+        ... )
     """
 
     event_type: EventType
@@ -1477,14 +1550,33 @@ class Event:
     description: str | None = None
     status: EventStatus = EventStatus.ANNOUNCED
 
-    # Temporal
+    # =========================================================================
+    # Temporal Fields
+    # =========================================================================
     occurred_on: date | None = None
     announced_on: date | None = None
+    scheduled_on: date | None = None  # For calendar events (earnings date, etc.)
+    effective_date: date | None = None  # When event takes effect (ex-date, etc.)
 
-    # Payload (stdlib dict, not Mapping for mutability during construction)
-    payload: dict | None = None
+    # =========================================================================
+    # Calendar Event Fields (FactSet Events aligned)
+    # =========================================================================
+    fiscal_year: int | None = None
+    fiscal_quarter: int | None = None  # 1-4 for quarterly events
+    report_time: str | None = None  # "BMO" (Before Market Open), "AMC", "DURING"
+    currency: str | None = None  # ISO 4217 currency code
+    amount: Decimal | None = None  # Dividend amount, deal value, etc.
 
-    # Evidence pointers
+    # =========================================================================
+    # Entity References
+    # =========================================================================
+    entity_id: str | None = None  # Primary entity this event relates to
+    related_entity_ids: tuple = field(default_factory=tuple)  # Other entities involved
+
+    # =========================================================================
+    # Evidence and Provenance
+    # =========================================================================
+    payload: dict | None = None  # Additional structured data
     evidence_filing_id: str | None = None
     evidence_section_id: str | None = None
     evidence_snippet: str | None = None
@@ -1503,11 +1595,125 @@ class Event:
         """Validate Event."""
         if not self.title or not self.title.strip():
             raise ValueError("Event title cannot be empty")
+        # Convert list to tuple for frozen dataclass
+        if isinstance(self.related_entity_ids, list):
+            object.__setattr__(self, "related_entity_ids", tuple(self.related_entity_ids))
+        # Validate fiscal quarter
+        if self.fiscal_quarter is not None and self.fiscal_quarter not in (1, 2, 3, 4):
+            raise ValueError(f"fiscal_quarter must be 1-4, got {self.fiscal_quarter}")
+        # Validate confidence
+        if not (0.0 <= self.confidence <= 1.0):
+            raise ValueError(f"confidence must be 0.0-1.0, got {self.confidence}")
+
+    # =========================================================================
+    # Properties
+    # =========================================================================
 
     @property
     def is_completed(self) -> bool:
         """Check if event is completed."""
         return self.status == EventStatus.COMPLETED
+
+    @property
+    def is_calendar_event(self) -> bool:
+        """
+        Check if this is a scheduled calendar event.
+
+        Calendar events are forward-looking events with known scheduled dates,
+        such as earnings releases, dividend dates, and shareholder meetings.
+
+        Returns:
+            True if this is a calendar-type event (earnings, dividend, meeting, etc.)
+
+        Examples:
+            >>> Event(EventType.EARNINGS_RELEASE, "Q4 Earnings").is_calendar_event
+            True
+            >>> Event(EventType.MERGER_ACQUISITION, "M&A Deal").is_calendar_event
+            False
+        """
+        calendar_types = {
+            EventType.EARNINGS_RELEASE,
+            EventType.EARNINGS_CALL,
+            EventType.EARNINGS_GUIDANCE,
+            EventType.DIVIDEND_DECLARED,
+            EventType.DIVIDEND_EX_DATE,
+            EventType.DIVIDEND_RECORD,
+            EventType.DIVIDEND_PAYMENT,
+            EventType.SPECIAL_DIVIDEND,
+            EventType.ANNUAL_MEETING,
+            EventType.ANALYST_DAY,
+            EventType.INVESTOR_CONFERENCE,
+            EventType.STOCK_SPLIT,
+            EventType.REVERSE_SPLIT,
+        }
+        return self.event_type in calendar_types
+
+    @property
+    def is_financial_event(self) -> bool:
+        """
+        Check if this is a financial/monetary event.
+
+        Financial events involve monetary values like dividends, M&A deals,
+        or funding rounds.
+
+        Returns:
+            True if this event type typically has a monetary amount.
+        """
+        financial_types = {
+            EventType.DIVIDEND_DECLARED,
+            EventType.DIVIDEND_EX_DATE,
+            EventType.DIVIDEND_PAYMENT,
+            EventType.SPECIAL_DIVIDEND,
+            EventType.MERGER_ACQUISITION,
+            EventType.FUNDING_ROUND,
+            EventType.IPO,
+            EventType.PRIVATE_PLACEMENT,
+            EventType.SECONDARY_OFFERING,
+            EventType.LBO,
+            EventType.CAPITAL,
+            EventType.SHARE_BUYBACK,
+        }
+        return self.event_type in financial_types
+
+    @property
+    def is_compliance_event(self) -> bool:
+        """
+        Check if this is a compliance/sanctions event.
+
+        Returns:
+            True if this is a sanction, regulatory, or compliance event.
+        """
+        compliance_types = {
+            EventType.SANCTION_DESIGNATION,
+            EventType.SANCTION_REMOVAL,
+            EventType.SANCTION_UPDATE,
+            EventType.COMPLIANCE_VIOLATION,
+            EventType.AUDIT_FINDING,
+            EventType.REGULATORY,
+            EventType.ENFORCEMENT,
+            EventType.INVESTIGATION,
+        }
+        return self.event_type in compliance_types
+
+    @property
+    def fiscal_period_str(self) -> str | None:
+        """
+        Get fiscal period as string (e.g., "Q4 2024", "FY 2024").
+
+        Returns:
+            Formatted fiscal period string, or None if not applicable.
+
+        Examples:
+            >>> event = Event(EventType.EARNINGS_RELEASE, "Earnings",
+            ...               fiscal_year=2024, fiscal_quarter=4)
+            >>> event.fiscal_period_str
+            'Q4 2024'
+        """
+        if self.fiscal_year is None:
+            return None
+        if self.fiscal_quarter is not None:
+            return f"Q{self.fiscal_quarter} {self.fiscal_year}"
+        return f"FY {self.fiscal_year}"
 
     def with_update(self, **kwargs) -> "Event":
         """Create a copy with updated fields."""

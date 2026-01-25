@@ -23,6 +23,8 @@ from entityspine.domain.candidate import ResolutionCandidate
 from entityspine.domain.claim import IdentifierClaim
 from entityspine.domain.entity import Entity
 from entityspine.domain.enums import (
+    # Observation enums (v2.2.5)
+    AccountingBasis,
     AddressType,
     AssetStatus,
     # v2.2.4 KG High-Confidence enums
@@ -35,6 +37,7 @@ from entityspine.domain.enums import (
     ContractType,
     EntityStatus,
     EntityType,
+    EstimateScope,
     EventStatus,
     EventType,
     GeoType,
@@ -42,16 +45,26 @@ from entityspine.domain.enums import (
     IdentifierScope,
     ListingStatus,
     MatchReason,
+    MetricCategory,
+    MetricCode,
+    ObservationType,
     ParticipantType,
+    PeriodType,
+    PerShareType,
     PositionType,
+    Presentation,
     ProductStatus,
     ProductType,
+    ProvenanceKind,
     RelationshipType,
     ResolutionStatus,
     ResolutionTier,
     ResolutionWarning,
     # Knowledge Graph enums
     RoleType,
+    # v2.3.0 Compliance/Sanctions enum
+    SanctionStatus,
+    ScopeType,
     SecurityStatus,
     SecurityType,
     TransactionCode,
@@ -128,6 +141,39 @@ from entityspine.domain.clustering import (
     BlockingConfig,
 )
 
+# Financial observation models
+from entityspine.domain.financial_observation import (
+    MetricCategory as OldMetricCategory,
+    MetricCode as OldMetricCode,
+    MetricVariant,
+    ObservationType as OldObservationType,
+    DataSourceType,
+    FiscalPeriodType,
+    FiscalPeriod as OldFiscalPeriod,
+    DataSource,
+    MetricDefinition,
+    FinancialObservation,
+    ObservationSet as OldObservationSet,
+    # Factory functions
+    create_factset_observation,
+    create_bloomberg_observation,
+    create_sec_observation,
+    create_analyst_estimate,
+    create_press_release_observation,
+)
+
+# v2.2.5 Observation models (new architecture)
+from entityspine.domain.observation import (
+    MetricSpec,
+    FiscalPeriod,
+    ProvenanceRef,
+    SourceKey,
+    EstimateInfo,
+    ValueWithUnits,
+    Observation,
+    ObservationSet,
+)
+
 from entityspine.domain.validators import (
     SCHEME_SCOPES,
     compute_address_hash,
@@ -167,6 +213,8 @@ from entityspine.domain.validators import (
 
 __all__ = [
     "SCHEME_SCOPES",
+    # Observation enums (v2.2.5)
+    "AccountingBasis",
     "Address",
     "AddressType",
     # v2.2.4 KG High-Confidence node types
@@ -194,10 +242,13 @@ __all__ = [
     "EntityStoreProtocol",
     # Enums
     "EntityType",
+    "EstimateInfo",
+    "EstimateScope",
     "Event",
     "EventStatus",
     "EventType",
     "FilingParticipant",
+    "FiscalPeriod",
     "FullStoreProtocol",
     "Geo",
     "GeoType",
@@ -209,16 +260,27 @@ __all__ = [
     "ListingStatus",
     "ListingStoreProtocol",
     "MatchReason",
+    "MetricCategory",
+    "MetricCode",
+    "MetricSpec",
     # Knowledge Graph models
     "NodeKind",
     "NodeRef",
+    "Observation",
+    "ObservationSet",
+    "ObservationType",
     "OwnershipPosition",
     "ParticipantType",
+    "PeriodType",
+    "PerShareType",
     "PersonRole",
     "PositionType",
+    "Presentation",
     "Product",
     "ProductStatus",
     "ProductType",
+    "ProvenanceKind",
+    "ProvenanceRef",
     "Relationship",
     "RelationshipType",
     "ResolutionCandidate",
@@ -230,14 +292,19 @@ __all__ = [
     "RoleAssignment",
     # Knowledge Graph enums
     "RoleType",
+    # v2.3.0 Compliance/Sanctions enum
+    "SanctionStatus",
+    "ScopeType",
     "SearchProtocol",
     "Security",
     "SecurityStatus",
     "SecurityStoreProtocol",
     "SecurityType",
+    "SourceKey",
     # Protocols (stdlib typing.Protocol)
     "StorageLifecycleProtocol",
     "TransactionCode",
+    "ValueWithUnits",
     "VendorNamespace",
     "ambiguous_result",
     "compute_address_hash",
