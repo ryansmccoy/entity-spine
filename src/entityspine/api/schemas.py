@@ -195,3 +195,94 @@ class ErrorResponse(BaseModel):
     error: str
     detail: str | None = None
     status_code: int
+
+
+# =============================================================================
+# Graph Response Models
+# =============================================================================
+
+
+class GraphNodeResponse(BaseModel):
+    """Node in a graph response."""
+
+    id: str
+    name: str
+    type: str
+    depth: int = 0
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class GraphEdgeResponse(BaseModel):
+    """Edge in a graph response."""
+
+    source: str
+    target: str
+    type: str
+    strength: float | None = None
+    description: str | None = None
+
+
+class NetworkResponse(BaseModel):
+    """Entity network response."""
+
+    center_id: str
+    center_name: str | None = None
+    nodes: list[GraphNodeResponse]
+    edges: list[GraphEdgeResponse]
+    node_count: int
+    edge_count: int
+
+
+class SubsidiaryResponse(BaseModel):
+    """Subsidiary in response."""
+
+    id: str
+    name: str
+    type: str
+    ownership_percent: float | None = None
+
+
+class SubsidiariesResponse(BaseModel):
+    """Subsidiaries list response."""
+
+    parent_id: str
+    subsidiaries: list[SubsidiaryResponse]
+    count: int
+
+
+class OfficerResponse(BaseModel):
+    """Officer/director in response."""
+
+    id: str
+    name: str
+    title: str | None = None
+    role_type: str
+    is_current: bool = True
+    start_date: str | None = None
+    end_date: str | None = None
+
+
+class OfficersResponse(BaseModel):
+    """Officers list response."""
+
+    company_id: str
+    officers: list[OfficerResponse]
+    count: int
+
+
+class PathStepResponse(BaseModel):
+    """Step in a path response."""
+
+    id: str
+    name: str
+    relationship: str | None = None
+
+
+class PathResponse(BaseModel):
+    """Path between entities response."""
+
+    source: str
+    target: str
+    found: bool
+    path: list[PathStepResponse]
+    distance: int

@@ -437,6 +437,212 @@ async def convert_identifier(
 
 
 # =============================================================================
+# Graph Endpoints (Tier 2+)
+# =============================================================================
+
+
+@app.get(
+    "/graph/network/{entity_id}",
+    response_model=dict,
+    tags=["Graph"],
+)
+async def get_entity_network(
+    entity_id: str,
+    resolver: Annotated[EntityResolver, Depends(get_resolver)],
+    max_depth: Annotated[int, Query(ge=1, le=5, description="Maximum traversal depth")] = 2,
+) -> dict:
+    """
+    Get the entity network/relationship graph.
+    
+    Returns nodes and edges for visualization.
+    Requires Tier 2+ for full functionality.
+    """
+    try:
+        from entityspine.services.graph_service import GraphService
+        graph = GraphService(resolver.store)
+        network = graph.get_entity_network(entity_id, max_depth=max_depth)
+        
+        nodes = [
+            {
+                "id": eid,
+                "name": e.primary_name,
+                "type": e.entity_type.value if hasattr(e.entity_type, 'value') else str(e.entity_type),
+                "depth": network.depth_map.get(eid, 0),
+            }
+            for eid, e in network.nodes.items()
+        ]
+        
+        edges = [
+            {
+                "source": edge.source_entity_id,
+                "target": edge.target_entity_id,
+                "type": edge.relationship_type.value if hasattr(edge.relationship_type, 'value') else str(edge.relationship_type),
+            }
+            for edge in network.edges
+        ]
+        
+        return {
+            "center_id": entity_id,
+            "center_name": network.center.primary_name if network.center else None,
+            "nodes": nodes,
+            "edges": edges,
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+        }
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail="Graph service requires Tier 2+ features",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e),
+        )
+
+
+@app.get(
+    "/graph/subsidiaries/{entity_id}",
+    response_model=dict,
+    tags=["Graph"],
+)
+async def get_subsidiaries(
+    entity_id: str,
+    resolver: Annotated[EntityResolver, Depends(get_resolver)],
+) -> dict:
+    """
+    Get subsidiaries of an entity.
+    """
+    try:
+        from entityspine.services.graph_service import GraphService
+        graph = GraphService(resolver.store)
+        subsidiaries = graph.get_subsidiaries(entity_id)
+        
+        return {
+            "parent_id": entity_id,
+            "subsidiaries": [
+                {
+                    "id": sub.entity.entity_id,
+                    "name": sub.entity.primary_name,
+                    "type": str(sub.relationship_type),
+                }
+                for sub in subsidiaries
+            ],
+            "count": len(subsidiaries),
+        }
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail="Graph service requires Tier 2+ features",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e),
+        )
+
+
+@app.get(
+    "/graph/officers/{entity_id}",
+    response_model=dict,
+    tags=["Graph"],
+)
+async def get_officers(
+    entity_id: str,
+    resolver: Annotated[EntityResolver, Depends(get_resolver)],
+    current_only: Annotated[bool, Query(description="Only current officers")] = True,
+) -> dict:
+    """
+    Get officers and directors of a company.
+    """
+    try:
+        from entityspine.services.graph_service import GraphService
+        graph = GraphService(resolver.store)
+        officers = graph.get_officers(entity_id, current_only=current_only)
+        
+        return {
+            "company_id": entity_id,
+            "officers": [
+                {
+                    "id": o.person.entity_id,
+                    "name": o.person.primary_name,
+                    "title": o.title,
+                    "role_type": o.role_type.value if hasattr(o.role_type, 'value') else str(o.role_type),
+                    "is_current": o.is_current,
+                    "start_date": str(o.start_date) if o.start_date else None,
+                    "end_date": str(o.end_date) if o.end_date else None,
+                }
+                for o in officers
+            ],
+            "count": len(officers),
+        }
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail="Graph service requires Tier 2+ features",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e),
+        )
+
+
+@app.get(
+    "/graph/path",
+    response_model=dict,
+    tags=["Graph"],
+)
+async def find_path(
+    resolver: Annotated[EntityResolver, Depends(get_resolver)],
+    source: Annotated[str, Query(description="Source entity ID")],
+    target: Annotated[str, Query(description="Target entity ID")],
+    max_depth: Annotated[int, Query(ge=1, le=10, description="Maximum path length")] = 5,
+) -> dict:
+    """
+    Find path between two entities.
+    """
+    try:
+        from entityspine.services.graph_service import GraphService
+        graph = GraphService(resolver.store)
+        path = graph.find_path(source, target, max_depth=max_depth)
+        
+        if not path.found:
+            return {
+                "source": source,
+                "target": target,
+                "found": False,
+                "path": [],
+                "distance": -1,
+            }
+        
+        return {
+            "source": source,
+            "target": target,
+            "found": True,
+            "path": [
+                {
+                    "id": step.entity.entity_id,
+                    "name": step.entity.primary_name,
+                    "relationship": str(step.relationship_type) if step.relationship_type else None,
+                }
+                for step in path.steps
+            ],
+            "distance": path.total_distance,
+        }
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail="Graph service requires Tier 2+ features",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e),
+        )
+
+
+# =============================================================================
 # Run directly for development
 # =============================================================================
 
