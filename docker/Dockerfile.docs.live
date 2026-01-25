@@ -1,0 +1,61 @@
+# EntitySpine Live Documentation with Auto-Regeneration
+# Periodically regenerates docs from code annotations using docbuilder
+#
+# Features:
+#   - Runs docbuilder to extract annotations from source code
+#   - Runs mkdocs to build static site
+#   - Cron job regenerates docs every 15 minutes
+#   - Source code mounted as volume for live updates
+#
+# USAGE:
+#   docker compose --profile docs-live up -d
+#
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies for cron and supervisor
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cron \
+    supervisor \
+    dos2unix \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install mkdocs and plugins
+RUN pip install --no-cache-dir \
+    mkdocs-material \
+    mkdocs-awesome-pages-plugin \
+    mkdocstrings[python] \
+    mkdocs-gen-files \
+    mkdocs-literate-nav
+
+# Install doc-automation dependencies
+RUN pip install --no-cache-dir \
+    jinja2>=3.1.0 \
+    click>=8.1.0 \
+    pyyaml>=6.0 \
+    rich>=13.0.0
+
+# Create directories
+RUN mkdir -p /app/docs /app/site /app/src /app/doc_automation /var/log/supervisor
+
+# Copy scripts
+COPY docker/scripts/regenerate_docs.sh /app/regenerate_docs.sh
+COPY docker/scripts/entrypoint.sh /app/entrypoint.sh
+COPY docker/scripts/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Fix line endings and permissions
+RUN dos2unix /app/regenerate_docs.sh /app/entrypoint.sh && \
+    chmod +x /app/regenerate_docs.sh /app/entrypoint.sh
+
+# Create cron job (default: every 15 minutes)
+RUN echo "*/15 * * * * /app/regenerate_docs.sh" > /etc/cron.d/docs-regen && \
+    chmod 0644 /etc/cron.d/docs-regen && \
+    crontab /etc/cron.d/docs-regen
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:80')" || exit 1
+
+ENTRYPOINT ["/app/entrypoint.sh"]

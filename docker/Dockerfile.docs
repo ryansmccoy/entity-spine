@@ -1,0 +1,29 @@
+# EntitySpine Documentation Container
+# Multi-stage build: Build MkDocs site then serve with nginx
+FROM python:3.12-slim AS builder
+
+WORKDIR /docs
+
+# Install mkdocs and plugins
+RUN pip install --no-cache-dir \
+    mkdocs-material \
+    mkdocs-awesome-pages-plugin \
+    mkdocstrings[python] \
+    mkdocs-gen-files \
+    mkdocs-literate-nav
+
+# Copy docs, mkdocs config, and source
+COPY docs/ /docs/docs/
+COPY mkdocs.yml /docs/
+COPY src/ /docs/src/
+
+# Build static site
+RUN mkdocs build
+
+# Production: Serve with nginx
+FROM nginx:alpine
+COPY --from=builder /docs/site /usr/share/nginx/html
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:80 || exit 1
