@@ -1,0 +1,195 @@
+# EntitySpine Documentation
+
+# Project information
+site_name: EntitySpine
+site_description: Lightweight entity resolution - from company_tickers.json to enterprise
+site_author: Ryan McCoy
+site_url: https://entityspine.readthedocs.io/
+
+# Repository
+repo_name: entity-spine
+repo_url: https://github.com/ryansmccoy/entity-spine
+
+# Configuration
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - scheme: default
+      primary: deep-purple
+      accent: deep-purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep-purple
+      accent: deep-purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+
+# Extra CSS for custom styling
+extra_css:
+  - stylesheets/extra.css
+
+# Plugins
+plugins:
+  - search:
+      separator: '[\s\-\.]+'
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            # Docstring parsing
+            docstring_style: google
+            docstring_section_style: spacy
+            show_docstring_attributes: true
+            show_docstring_functions: true
+            show_docstring_classes: true
+            show_docstring_modules: true
+            show_docstring_description: true
+            show_docstring_examples: true
+            show_docstring_other_parameters: true
+            show_docstring_parameters: true
+            show_docstring_raises: true
+            show_docstring_returns: true
+            show_docstring_warns: true
+            show_docstring_yields: true
+            # Source code
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_root_members_full_path: false
+            # Type annotations
+            show_signature_annotations: true
+            separate_signature: true
+            signature_crossrefs: true
+            # Symbol types
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            # Members
+            members_order: source
+            merge_init_into_class: true
+            inherited_members: true
+            # Other
+            heading_level: 2
+            show_category_heading: true
+            show_if_no_docstring: false
+
+# Extensions
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+# Navigation
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Core Concepts: getting-started/concepts.md
+  - User Guide:
+    - Entity Resolution: user-guide/entity-resolution.md
+    - Identifier Management: user-guide/identifiers.md
+    - Knowledge Graph: user-guide/knowledge-graph.md
+    - Data Loading:
+      - Overview: user-guide/data-loading/index.md
+      - FactSet Data: user-guide/data-loading/factset.md
+      - Bloomberg Data: user-guide/data-loading/bloomberg.md
+      - SEC EDGAR: user-guide/data-loading/sec-edgar.md
+    - Storage Tiers: user-guide/storage-tiers.md
+  - API Reference:
+    - Domain Models:
+      - Overview: api/domain/index.md
+      - Entity: api/domain/entity.md
+      - Security: api/domain/security.md
+      - Listing: api/domain/listing.md
+      - IdentifierClaim: api/domain/claim.md
+      - Event: api/domain/event.md
+      - Enums: api/domain/enums.md
+    - Knowledge Graph:
+      - EntityRelationship: api/graph/relationship.md
+      - PersonRole: api/graph/person-role.md
+      - OwnershipPosition: api/graph/ownership.md
+    - Data Layer:
+      - Schema Detector: api/data/schema-detector.md
+      - FactSet Loaders: api/data/factset.md
+    - Stores:
+      - Tier 0 (JSON): api/stores/json.md
+      - Tier 1 (SQLite): api/stores/sqlite.md
+      - Tier 2 (DuckDB): api/stores/duckdb.md
+  - Integration Guide:
+    - FactSet Integration: integration/factset.md
+    - Multi-Vendor Crosswalks: integration/crosswalks.md
+    - Compliance & Sanctions: integration/compliance.md
+  - Examples:
+    - Basic Usage: examples/basic-usage.md
+    - Entity Resolution: examples/resolution.md
+    - Corporate Hierarchy: examples/hierarchy.md
+    - FactSet Loading: examples/factset-loading.md
+  - Development:
+    - Contributing: development/contributing.md
+    - Architecture: development/architecture.md
+    - Changelog: CHANGELOG.md
+
+# Extra configuration
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ryansmccoy/entity-spine
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/entityspine/
+  version:
+    provider: mike
+  analytics:
+    provider: google
+    property: G-XXXXXXXXXX  # Replace with actual tracking ID
+
+# Watch for changes during development
+watch:
+  - src/entityspine
+  - docs
