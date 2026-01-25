@@ -10,7 +10,55 @@ cd entityspine
 python examples/01_end_to_end_sec_filing_to_kg.py
 ```
 
-## Example Index
+## Tier Examples (Start Here!)
+
+These examples demonstrate what you get at each tier level:
+
+| Tier | Example | Dependencies | Capabilities |
+|------|---------|--------------|--------------|
+| 0 | [tier0_json_memory.py](tier0_json_memory.py) | None (stdlib) | In-memory store, JSON persistence |
+| 1 | [tier1_sqlite.py](tier1_sqlite.py) | None (stdlib) | SQLite, SQL queries, temporal data |
+| 2 | [tier2_duckdb_analytics.py](tier2_duckdb_analytics.py) | duckdb | Columnar analytics, Parquet export |
+| 3 | [tier3_postgresql.py](tier3_postgresql.py) | asyncpg | Production DB, pg_trgm fuzzy search |
+| 4/5 | [tier4_elasticsearch_neo4j.py](tier4_elasticsearch_neo4j.py) | elasticsearch, neo4j | Full-text search, graph traversal |
+
+```bash
+# Try Tier 0 (zero dependencies)
+python examples/tier0_json_memory.py
+
+# Try Tier 1 (still zero deps!)
+python examples/tier1_sqlite.py
+
+# Try Tier 2 (needs: pip install duckdb)
+python examples/tier2_duckdb_analytics.py
+
+# Try Tier 3 (needs: pip install asyncpg + PostgreSQL server)
+python examples/tier3_postgresql.py
+
+# Try Tier 4/5 (needs: pip install elasticsearch neo4j + servers)
+python examples/tier4_elasticsearch_neo4j.py
+```
+
+## Ingestion Examples
+
+Learn how to load data into EntitySpine:
+
+| Example | Description |
+|---------|-------------|
+| [ingestion_patterns.py](ingestion_patterns.py) | All 7 ingestion patterns (manual, CSV, API, streaming, etc.) |
+| [sec_data_pipeline.py](sec_data_pipeline.py) | Complete SEC EDGAR data pipeline |
+
+```bash
+# Learn all ingestion patterns
+python examples/ingestion_patterns.py
+
+# Run SEC data pipeline
+python examples/sec_data_pipeline.py
+python examples/sec_data_pipeline.py --tier 3  # With PostgreSQL
+python examples/sec_data_pipeline.py --tier 5  # With ES + Neo4j
+```
+
+## Feature Examples
 
 | # | Example | Description |
 |---|---------|-------------|
