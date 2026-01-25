@@ -3,14 +3,45 @@ ResolutionResult domain model (stdlib dataclass).
 
 STDLIB ONLY - NO PYDANTIC.
 
-v2.2.3 DESIGN:
-- Tier Capability Honesty - results include warnings when tier can't honor as_of/mic
-- Candidate-based resolution - lightweight candidates for efficient multi-match
-- Full object hydration on demand
+Entity resolution transforms messy real-world identifiers ("AAPL", "Apple Inc.",
+"CIK 320193") into canonical Entity/Security/Listing objects. ResolutionResult
+captures the outcome of this resolution with full transparency about what the
+resolver could and couldn't do.
 
-Per 05_TIER_CAPABILITIES_AND_LIMITS.md:
-- Tier 0/1 must emit warnings when as_of or mic cannot be honored
-- Must include limits dict describing what tier cannot do
+Key Design Concepts:
+
+1. **Tier Capability Honesty**
+   Different storage tiers have different capabilities. ResolutionResult
+   transparently communicates what the tier could/couldn't honor:
+   
+   - Tier 0 (JSON): Current data only, no temporal resolution
+   - Tier 1 (SQLite): Some temporal data, limited fuzzy matching
+   - Tier 2+ (DuckDB/PostgreSQL): Full temporal, fuzzy, MIC filtering
+   
+   When a feature is requested but unavailable, warnings are added
+   (not silent failures).
+
+2. **Candidate-Based Resolution**
+   Instead of returning just one match, resolution produces ranked candidates:
+   
+   - Multiple potential matches (e.g., "MS" → Morgan Stanley vs Microsoft)
+   - Confidence scores for each candidate
+   - Let the caller decide threshold for "confident" match
+
+3. **Temporal Awareness**
+   Point-in-time queries via as_of parameter, but honest about limitations:
+   
+   - as_of_honored: Was the date parameter actually used?
+   - warnings: Explain if/why temporal filtering wasn't applied
+
+Example:
+    >>> from entityspine.domain import ResolutionResult, ResolutionStatus
+    >>> result = resolve("AAPL", as_of=date(2020, 1, 1))
+    >>> if result.found:
+    ...     print(result.entity.primary_name)
+    >>> if result.has_warnings:
+    ...     for w in result.warnings:
+    ...         print(f"Warning: {w}")
 """
 
 from dataclasses import dataclass, field
@@ -28,45 +59,75 @@ from entityspine.domain.timestamps import utc_now
 class ResolutionResult:
     """
     Result of an entity resolution attempt.
-
-    NOTE: This is NOT frozen because it's mutable (add_candidate, etc.)
-
-    v2.2.3 DESIGN:
-    - Supports both full object hydration AND lightweight candidates
-    - entity/security/listing fields for backward compat
-    - candidates field for efficient multi-match
-
-    TIER CAPABILITY HONESTY:
-    - If as_of requested but tier can't honor it, warnings includes AS_OF_IGNORED
-    - tier field indicates which storage tier provided the result
-    - limits dict describes what the tier cannot do
-
-    Standard Warnings (per 05_TIER_CAPABILITIES_AND_LIMITS.md):
-    - "as_of parameter ignored: listing validity data not available"
-    - "mic parameter ignored: exchange data not available"
-    - "fuzzy matching not available in Tier 0"
-
-    Standard Limits:
-    - temporal_resolution: "current_only" | "best_effort" | "full"
-    - mic_filtering: "not_available" | "partial" | "full"
-    - fuzzy_matching: "not_available" | "like_only" | "fts"
-
+    
+    ResolutionResult encapsulates everything about a resolution attempt:
+    the query, what was found, confidence scores, warnings about
+    limitations, and timing information.
+    
+    Note:
+        This is NOT frozen (mutable) because resolution builds results
+        incrementally via add_candidate(), add_warning(), etc.
+    
+    Design Principles:
+        - **Transparent**: Never silently ignore parameters - add warnings
+        - **Candidate-based**: Return ranked options, not just best guess
+        - **Tier-honest**: Document what the storage tier couldn't do
+        - **Measurable**: Track timing and confidence for monitoring
+    
     Attributes:
-        entity: Resolved entity (hydrated)
-        security: Resolved security (hydrated)
-        listing: Resolved listing (hydrated)
-        candidates: Lightweight match candidates
-        status: Resolution status
-        tier: Storage tier that provided this result
-        query: Original query
-        as_of: Requested point-in-time
-        as_of_honored: Whether as_of was actually used
-        warnings: List of warning messages
-        limits: Dict of tier limitations
-        redirect_chain: Entity IDs followed during redirect resolution
-        confidence: Confidence score 0.0-1.0
-        resolved_at: When resolution was performed
-        elapsed_ms: Time taken in milliseconds
+        query: The original search string (ticker, name, identifier).
+        status: Resolution outcome (FOUND, NOT_FOUND, AMBIGUOUS, ERROR).
+        tier: Which storage tier provided this result.
+        entity: The resolved Entity object (if found).
+        security: The resolved Security object (if applicable).
+        listing: The resolved Listing object (if applicable).
+        candidates: All resolution candidates with scores.
+        as_of: Requested point-in-time date (for temporal queries).
+        as_of_honored: Whether as_of was actually applied.
+        warnings: Transparency warnings about limitations.
+        limits: Dict describing tier capability limitations.
+        redirect_chain: Entity IDs followed during redirect resolution.
+        confidence: Overall confidence score (0.0 to 1.0).
+        resolved_at: Timestamp when resolution was performed.
+        elapsed_ms: Time taken for resolution in milliseconds.
+    
+    Examples:
+        Simple successful resolution:
+        
+        >>> result = resolver.resolve("AAPL")
+        >>> result.found
+        True
+        >>> result.entity.primary_name
+        'Apple Inc.'
+        >>> result.confidence
+        1.0
+        
+        Resolution with ambiguity:
+        
+        >>> result = resolver.resolve("MS")
+        >>> result.status
+        <ResolutionStatus.AMBIGUOUS: 'ambiguous'>
+        >>> result.candidate_count
+        2
+        >>> for c in result.candidates:
+        ...     print(f"{c.entity_name}: {c.score:.2f}")
+        Morgan Stanley: 0.85
+        Microsoft Corporation: 0.80
+        
+        Temporal query with tier limitation:
+        
+        >>> result = resolver.resolve("META", as_of=date(2020, 1, 1))
+        >>> result.as_of_honored
+        False  # Tier 0 can't do temporal
+        >>> result.warnings
+        ['as_of parameter ignored: listing validity data not available']
+        >>> result.limits
+        {'temporal_resolution': 'current_only', 'fuzzy_matching': 'not_available'}
+    
+    See Also:
+        - ResolutionCandidate: Individual match candidates with scores
+        - Entity, Security, Listing: The resolved domain objects
+        - EntityResolver: The service that produces these results
     """
 
     # Query info
