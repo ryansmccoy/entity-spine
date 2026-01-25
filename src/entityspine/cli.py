@@ -486,9 +486,9 @@ if HAS_CLI_DEPS:
     @filings_app.command("parse")
     def filings_parse(
         accession: Annotated[str, typer.Argument(help="Filing accession number")],
-        sections: Annotated[bool, typer.Option("--sections", help="Extract sections")] = False,
-        exhibits: Annotated[bool, typer.Option("--exhibits", help="Extract exhibits")] = False,
-        output: Annotated[str, typer.Option("--output", "-o", help="Output format")] = "summary",
+        _sections: Annotated[bool, typer.Option("--sections", help="Extract sections")] = False,
+        _exhibits: Annotated[bool, typer.Option("--exhibits", help="Extract exhibits")] = False,
+        _output: Annotated[str, typer.Option("--output", "-o", help="Output format")] = "summary",
     ):
         """
         Parse and analyze an SEC filing.

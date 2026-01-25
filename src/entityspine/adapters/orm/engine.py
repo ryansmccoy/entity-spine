@@ -14,7 +14,7 @@ from sqlalchemy import event
 from sqlmodel import Session, SQLModel, create_engine
 
 
-def _set_sqlite_pragma(dbapi_conn, connection_record):
+def _set_sqlite_pragma(dbapi_conn, _connection_record):
     """Set SQLite pragmas for better performance and safety."""
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA foreign_keys = ON")
