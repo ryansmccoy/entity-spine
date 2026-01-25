@@ -11,13 +11,11 @@ Table naming convention:
 """
 
 from datetime import date, datetime
-from typing import Optional
 
-from sqlmodel import Field, SQLModel, Relationship, JSON, Column
+from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
-from entityspine.core.ulid import generate_ulid
 from entityspine.core.timestamps import utc_now
-
+from entityspine.core.ulid import generate_ulid
 
 # =============================================================================
 # Entity Table
@@ -30,7 +28,7 @@ class EntityTable(SQLModel, table=True):
 
     Maps to: entityspine.models.Entity
     DB table: entities
-    
+
     Note v2.2.3:
     - cik/lei/ein/identifiers columns kept for backward compat but domain model
       doesn't expose them. Use IdentifierClaim/ClaimTable for identifiers.
@@ -44,23 +42,23 @@ class EntityTable(SQLModel, table=True):
     status: str = Field(default="active", index=True)
 
     # Legacy identifier fields (kept for backward compat, use ClaimTable instead)
-    cik: Optional[str] = Field(default=None, index=True)
-    lei: Optional[str] = Field(default=None, index=True)
-    ein: Optional[str] = Field(default=None)
+    cik: str | None = Field(default=None, index=True)
+    lei: str | None = Field(default=None, index=True)
+    ein: str | None = Field(default=None)
 
     # Entity details
-    jurisdiction: Optional[str] = Field(default=None)
-    sic_code: Optional[str] = Field(default=None)
-    incorporation_date: Optional[date] = Field(default=None)
+    jurisdiction: str | None = Field(default=None)
+    sic_code: str | None = Field(default=None)
+    incorporation_date: date | None = Field(default=None)
 
     # Record provenance (v2.2.3)
-    source_system: Optional[str] = Field(default="unknown")
-    source_id: Optional[str] = Field(default=None)
+    source_system: str | None = Field(default="unknown")
+    source_id: str | None = Field(default=None)
 
     # Redirect support
-    redirect_to: Optional[str] = Field(default=None, foreign_key="entities.entity_id")
-    redirect_reason: Optional[str] = Field(default=None)
-    merged_at: Optional[datetime] = Field(default=None)
+    redirect_to: str | None = Field(default=None, foreign_key="entities.entity_id")
+    redirect_reason: str | None = Field(default=None)
+    merged_at: datetime | None = Field(default=None)
 
     # JSON fields for flexible data
     identifiers: dict = Field(default_factory=dict, sa_column=Column(JSON))
@@ -87,7 +85,7 @@ class SecurityTable(SQLModel, table=True):
 
     Maps to: entityspine.models.Security
     DB table: securities
-    
+
     v2.2.3: isin/cusip/sedol/figi columns kept for backward compatibility
     but identifiers are now tracked via ClaimTable. Use IdentifierClaim
     as the canonical source of truth.
@@ -98,18 +96,18 @@ class SecurityTable(SQLModel, table=True):
     security_id: str = Field(default_factory=generate_ulid, primary_key=True)
     entity_id: str = Field(foreign_key="entities.entity_id", index=True)
     security_type: str = Field(default="common_stock")
-    description: Optional[str] = Field(default=None)
+    description: str | None = Field(default=None)
 
     # Legacy identifier columns - kept for backward compatibility
     # v2.2.3: Use IdentifierClaim for identifier tracking
-    isin: Optional[str] = Field(default=None, index=True)
-    cusip: Optional[str] = Field(default=None, index=True)
-    sedol: Optional[str] = Field(default=None)
-    figi: Optional[str] = Field(default=None)
+    isin: str | None = Field(default=None, index=True)
+    cusip: str | None = Field(default=None, index=True)
+    sedol: str | None = Field(default=None)
+    figi: str | None = Field(default=None)
 
     # v2.2.3: Record provenance
-    source_system: Optional[str] = Field(default="unknown")
-    source_id: Optional[str] = Field(default=None)
+    source_system: str | None = Field(default="unknown")
+    source_id: str | None = Field(default=None)
 
     # JSON metadata
     metadata_: dict = Field(default_factory=dict, sa_column=Column("metadata", JSON))
@@ -119,7 +117,7 @@ class SecurityTable(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
     # Relationships
-    entity: Optional[EntityTable] = Relationship(back_populates="securities")
+    entity: EntityTable | None = Relationship(back_populates="securities")
     listings: list["ListingTable"] = Relationship(back_populates="security")
 
 
@@ -146,15 +144,15 @@ class ListingTable(SQLModel, table=True):
     exchange: str = Field(index=True)
 
     # Exchange identifiers
-    mic: Optional[str] = Field(default=None)
+    mic: str | None = Field(default=None)
 
     # Validity period
-    start_date: Optional[date] = Field(default=None)
-    end_date: Optional[date] = Field(default=None)
+    start_date: date | None = Field(default=None)
+    end_date: date | None = Field(default=None)
 
     # Properties
     is_primary: bool = Field(default=False)
-    currency: Optional[str] = Field(default=None)
+    currency: str | None = Field(default=None)
 
     # JSON metadata
     metadata_: dict = Field(default_factory=dict, sa_column=Column("metadata", JSON))
@@ -164,7 +162,7 @@ class ListingTable(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
     # Relationships
-    security: Optional[SecurityTable] = Relationship(back_populates="listings")
+    security: SecurityTable | None = Relationship(back_populates="listings")
 
 
 # =============================================================================
@@ -188,14 +186,14 @@ class ClaimTable(SQLModel, table=True):
     value: str = Field(index=True)
 
     # Validity period
-    valid_from: Optional[date] = Field(default=None)
-    valid_to: Optional[date] = Field(default=None)
+    valid_from: date | None = Field(default=None)
+    valid_to: date | None = Field(default=None)
 
     # Provenance
     source: str = Field(default="unknown")
     confidence: float = Field(default=1.0)
     status: str = Field(default="active", index=True)
-    notes: Optional[str] = Field(default=None)
+    notes: str | None = Field(default=None)
 
     # JSON metadata
     metadata_: dict = Field(default_factory=dict, sa_column=Column("metadata", JSON))
@@ -205,4 +203,4 @@ class ClaimTable(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
     # Relationships
-    entity: Optional[EntityTable] = Relationship(back_populates="claims")
+    entity: EntityTable | None = Relationship(back_populates="claims")

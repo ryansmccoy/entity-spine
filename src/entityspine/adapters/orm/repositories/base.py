@@ -9,7 +9,7 @@ All repositories inherit from this to get standard operations:
 - delete
 """
 
-from typing import Generic, TypeVar, Optional, Type
+from typing import Generic, TypeVar
 
 from sqlmodel import Session, SQLModel, select
 
@@ -28,7 +28,7 @@ class BaseRepository(Generic[T]):
         model: SQLModel table class.
     """
 
-    def __init__(self, session: Session, model: Type[T]):
+    def __init__(self, session: Session, model: type[T]):
         """
         Initialize repository.
 
@@ -44,7 +44,7 @@ class BaseRepository(Generic[T]):
         """Get the database session."""
         return self._session
 
-    def get_by_id(self, id_value: str) -> Optional[T]:
+    def get_by_id(self, id_value: str) -> T | None:
         """
         Get record by primary key.
 

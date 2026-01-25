@@ -23,7 +23,6 @@ Tickers belong on Listing because:
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import Field, model_validator
 
@@ -112,15 +111,15 @@ class Entity(EntitySpineModel):
     )
 
     # Entity details (NOT identifiers - those go in claims)
-    jurisdiction: Optional[str] = Field(
+    jurisdiction: str | None = Field(
         default=None,
         description="Country/state of incorporation (e.g., US-DE)",
     )
-    sic_code: Optional[str] = Field(
+    sic_code: str | None = Field(
         default=None,
         description="Standard Industrial Classification code",
     )
-    incorporation_date: Optional[date] = Field(
+    incorporation_date: date | None = Field(
         default=None,
         description="Date of incorporation/formation",
     )
@@ -130,21 +129,21 @@ class Entity(EntitySpineModel):
         default="unknown",
         description="System that created this RECORD (not identifier source)",
     )
-    source_id: Optional[str] = Field(
+    source_id: str | None = Field(
         default=None,
         description="ID in the source system",
     )
 
     # Redirect support (for merged/renamed entities)
-    redirect_to: Optional[str] = Field(
+    redirect_to: str | None = Field(
         default=None,
         description="Target entity_id for redirects",
     )
-    redirect_reason: Optional[str] = Field(
+    redirect_reason: str | None = Field(
         default=None,
         description="Reason for redirect (merged, renamed, etc.)",
     )
-    merged_at: Optional[datetime] = Field(
+    merged_at: datetime | None = Field(
         default=None,
         description="When entity was merged (UTC)",
     )
@@ -187,10 +186,10 @@ class Entity(EntitySpineModel):
     def with_update(self, **kwargs) -> "Entity":
         """
         Create a new Entity with updated fields.
-        
+
         Args:
             **kwargs: Fields to update
-            
+
         Returns:
             New Entity with updated fields and updated_at timestamp
         """
@@ -201,26 +200,26 @@ class Entity(EntitySpineModel):
     def add_alias(self, alias: str) -> "Entity":
         """
         Create a new Entity with an additional alias.
-        
+
         Args:
             alias: New alias to add
-            
+
         Returns:
             New Entity with alias added (if not already present)
         """
         if alias in self.aliases or alias == self.primary_name:
             return self
-        new_aliases = list(self.aliases) + [alias]
+        new_aliases = [*list(self.aliases), alias]
         return self.with_update(aliases=new_aliases)
 
     def merge_into(self, target_entity_id: str, reason: str = "merged") -> "Entity":
         """
         Create a merged version of this entity pointing to the target.
-        
+
         Args:
             target_entity_id: Entity ID to redirect to
             reason: Reason for the merge
-            
+
         Returns:
             New Entity with redirect set and status=MERGED
         """
@@ -234,23 +233,27 @@ class Entity(EntitySpineModel):
     # =========================================================================
     # Domain Model Conversion (v2.2.3 - Pydantic as thin wrapper)
     # =========================================================================
-    
+
     def to_domain(self) -> "entityspine.domain.Entity":
         """
         Convert Pydantic model to domain dataclass.
-        
+
         The domain dataclass is the canonical representation.
         Pydantic models are thin wrappers for validation/serialization.
-        
+
         Returns:
             Domain Entity dataclass
         """
-        from entityspine.domain import Entity as DomainEntity, EntityType as DomainEntityType, EntityStatus as DomainEntityStatus
-        
+        from entityspine.domain import Entity as DomainEntity
+        from entityspine.domain import EntityStatus as DomainEntityStatus
+        from entityspine.domain import EntityType as DomainEntityType
+
         # Handle enum values - Pydantic may store as str or Enum
-        entity_type_val = self.entity_type.value if hasattr(self.entity_type, 'value') else self.entity_type
-        status_val = self.status.value if hasattr(self.status, 'value') else self.status
-        
+        entity_type_val = (
+            self.entity_type.value if hasattr(self.entity_type, "value") else self.entity_type
+        )
+        status_val = self.status.value if hasattr(self.status, "value") else self.status
+
         return DomainEntity(
             entity_id=self.entity_id,
             primary_name=self.primary_name,
@@ -268,15 +271,15 @@ class Entity(EntitySpineModel):
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
-    
+
     @classmethod
     def from_domain(cls, entity: "entityspine.domain.Entity") -> "Entity":
         """
         Create Pydantic model from domain dataclass.
-        
+
         Args:
             entity: Domain Entity dataclass
-            
+
         Returns:
             Pydantic Entity model
         """

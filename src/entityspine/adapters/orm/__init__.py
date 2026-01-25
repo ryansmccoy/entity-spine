@@ -22,29 +22,29 @@ SQLModel = Pydantic + SQLAlchemy, providing:
 - Async support for PostgreSQL (Tier 3)
 """
 
-from entityspine.adapters.orm.tables import (
-    EntityTable,
-    SecurityTable,
-    ListingTable,
-    ClaimTable,
-)
 from entityspine.adapters.orm.engine import (
     create_sqlite_engine,
     create_tables,
     get_session,
 )
 from entityspine.adapters.orm.sqlmodel_store import SqlModelStore
+from entityspine.adapters.orm.tables import (
+    ClaimTable,
+    EntityTable,
+    ListingTable,
+    SecurityTable,
+)
 
 __all__ = [
+    "ClaimTable",
     # Tables
     "EntityTable",
-    "SecurityTable",
     "ListingTable",
-    "ClaimTable",
+    "SecurityTable",
+    # Store
+    "SqlModelStore",
     # Engine
     "create_sqlite_engine",
     "create_tables",
     "get_session",
-    # Store
-    "SqlModelStore",
 ]

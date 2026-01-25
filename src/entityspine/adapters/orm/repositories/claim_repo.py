@@ -3,13 +3,12 @@ Claim repository for database operations.
 """
 
 from datetime import date
-from typing import Optional
 
-from sqlmodel import Session, select, col, or_
+from sqlmodel import Session, or_, select
 
 from entityspine.adapters.orm.repositories.base import BaseRepository
 from entityspine.adapters.orm.tables import ClaimTable
-from entityspine.adapters.pydantic.claim import IdentifierClaim, IdentifierScheme, ClaimStatus
+from entityspine.adapters.pydantic.claim import ClaimStatus, IdentifierClaim, IdentifierScheme
 
 
 class ClaimRepository(BaseRepository[ClaimTable]):
@@ -79,7 +78,9 @@ class ClaimRepository(BaseRepository[ClaimTable]):
         return ClaimTable(
             claim_id=claim.claim_id,
             entity_id=claim.entity_id,
-            scheme=claim.scheme.value if isinstance(claim.scheme, IdentifierScheme) else claim.scheme,
+            scheme=claim.scheme.value
+            if isinstance(claim.scheme, IdentifierScheme)
+            else claim.scheme,
             value=claim.value,
             valid_from=claim.valid_from,
             valid_to=claim.valid_to,

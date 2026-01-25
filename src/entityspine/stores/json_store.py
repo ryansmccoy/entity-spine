@@ -23,25 +23,20 @@ import json
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Optional, Dict, Any
 
-from entityspine.core.ulid import generate_ulid
-from entityspine.core.timestamps import utc_now
 from entityspine.core.identifier import looks_like_cik, looks_like_ticker
+from entityspine.core.ulid import generate_ulid
 
 # v2.2.3: Use DOMAIN dataclasses (stdlib-only, zero deps)
 from entityspine.domain import (
     Entity,
-    EntityType,
     EntityStatus,
-    Security,
-    SecurityType,
-    SecurityStatus,
-    Listing,
-    ListingStatus,
+    EntityType,
     IdentifierClaim,
     IdentifierScheme,
-    ClaimStatus,
+    Listing,
+    Security,
+    SecurityType,
     VendorNamespace,
 )
 
@@ -54,7 +49,7 @@ class JsonEntityStore:
 
     Stores entities in memory with optional JSON file persistence.
     Implements EntityStoreProtocol and StorageLifecycleProtocol.
-    
+
     v2.2.3: Returns DOMAIN dataclasses (not Pydantic models).
 
     Limitations (TIER CAPABILITY HONESTY):
@@ -78,7 +73,7 @@ class JsonEntityStore:
     tier_name: str = "JSON"
     supports_temporal: bool = False
 
-    def __init__(self, json_path: Optional[Path] = None):
+    def __init__(self, json_path: Path | None = None):
         """
         Initialize JSON store.
 
@@ -121,9 +116,7 @@ class JsonEntityStore:
             self._load_from_file()
 
         self._initialized = True
-        logger.info(
-            f"JsonEntityStore initialized with {len(self._entities)} entities"
-        )
+        logger.info(f"JsonEntityStore initialized with {len(self._entities)} entities")
 
     def close(self) -> None:
         """
@@ -161,10 +154,7 @@ class JsonEntityStore:
         count = 0
 
         # Handle both dict and list formats
-        if isinstance(data, dict):
-            items = data.values()
-        else:
-            items = data
+        items = data.values() if isinstance(data, dict) else data
 
         for item in items:
             try:
@@ -268,9 +258,7 @@ class JsonEntityStore:
 
         return security_id, listing_id
 
-    def _ensure_listing_for_entity(
-        self, entity_id: str, ticker: str, name: str
-    ) -> None:
+    def _ensure_listing_for_entity(self, entity_id: str, ticker: str, name: str) -> None:
         """Ensure a listing exists for an entity/ticker combination."""
         ticker_normalized = ticker.upper().replace("-", ".")
 
@@ -290,7 +278,7 @@ class JsonEntityStore:
     # EntityStoreProtocol - Entity Operations
     # =========================================================================
 
-    def get_entity(self, entity_id: str) -> Optional[Entity]:
+    def get_entity(self, entity_id: str) -> Entity | None:
         """
         Get entity by ID, following redirects.
 
@@ -307,7 +295,7 @@ class JsonEntityStore:
         # Follow redirect chain (max 10 to prevent infinite loops)
         return self._follow_redirects(entity)
 
-    def get_entity_raw(self, entity_id: str) -> Optional[Entity]:
+    def get_entity_raw(self, entity_id: str) -> Entity | None:
         """
         Get entity by ID WITHOUT following redirects.
 
@@ -433,11 +421,7 @@ class JsonEntityStore:
             All listings for the security.
         """
         listing_ids = self._listing_by_security.get(security_id, set())
-        return [
-            self._listings[lid]
-            for lid in listing_ids
-            if lid in self._listings
-        ]
+        return [self._listings[lid] for lid in listing_ids if lid in self._listings]
 
     # =========================================================================
     # EntityStoreProtocol - Claim Operations
@@ -481,18 +465,14 @@ class JsonEntityStore:
     # SecurityStoreProtocol
     # =========================================================================
 
-    def get_security(self, security_id: str) -> Optional[Security]:
+    def get_security(self, security_id: str) -> Security | None:
         """Get security by ID."""
         return self._securities.get(security_id)
 
     def get_securities_by_entity(self, entity_id: str) -> list[Security]:
         """Get all securities issued by an entity."""
         security_ids = self._security_by_entity.get(entity_id, set())
-        return [
-            self._securities[sid]
-            for sid in security_ids
-            if sid in self._securities
-        ]
+        return [self._securities[sid] for sid in security_ids if sid in self._securities]
 
     def save_security(self, security: Security) -> None:
         """Save or update security."""
@@ -640,9 +620,7 @@ class JsonEntityStore:
             target = self._entities.get(current.redirect_to)
             if not target:
                 # Broken redirect
-                logger.warning(
-                    f"Broken redirect: {current.entity_id} -> {current.redirect_to}"
-                )
+                logger.warning(f"Broken redirect: {current.entity_id} -> {current.redirect_to}")
                 return current
 
             seen.add(current.redirect_to)
@@ -658,7 +636,7 @@ class JsonEntityStore:
             return
 
         try:
-            with open(self.json_path, "r", encoding="utf-8") as f:
+            with open(self.json_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             # Load entities
@@ -707,33 +685,39 @@ class JsonEntityStore:
         try:
             entities_data = []
             for entity in self._entities.values():
-                entities_data.append({
-                    "entity_id": entity.entity_id,
-                    "primary_name": entity.primary_name,
-                    "cik": entity.cik,
-                    "identifiers": entity.identifiers,
-                    "aliases": entity.aliases,
-                    "redirect_to": entity.redirect_to,
-                })
+                entities_data.append(
+                    {
+                        "entity_id": entity.entity_id,
+                        "primary_name": entity.primary_name,
+                        "cik": entity.cik,
+                        "identifiers": entity.identifiers,
+                        "aliases": entity.aliases,
+                        "redirect_to": entity.redirect_to,
+                    }
+                )
 
             securities_data = []
             for security in self._securities.values():
-                securities_data.append({
-                    "security_id": security.security_id,
-                    "entity_id": security.entity_id,
-                    "security_type": security.security_type,
-                    "description": security.description,
-                })
+                securities_data.append(
+                    {
+                        "security_id": security.security_id,
+                        "entity_id": security.entity_id,
+                        "security_type": security.security_type,
+                        "description": security.description,
+                    }
+                )
 
             listings_data = []
             for listing in self._listings.values():
-                listings_data.append({
-                    "listing_id": listing.listing_id,
-                    "security_id": listing.security_id,
-                    "ticker": listing.ticker,
-                    "exchange": listing.exchange,
-                    "is_primary": listing.is_primary,
-                })
+                listings_data.append(
+                    {
+                        "listing_id": listing.listing_id,
+                        "security_id": listing.security_id,
+                        "ticker": listing.ticker,
+                        "exchange": listing.exchange,
+                        "is_primary": listing.is_primary,
+                    }
+                )
 
             data = {
                 "version": "2.0",

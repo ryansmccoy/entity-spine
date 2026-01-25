@@ -1,12 +1,10 @@
 """Custom exceptions for EntitySpine."""
 
-from typing import Optional
-
 
 class EntitySpineError(Exception):
     """Base exception for EntitySpine."""
 
-    def __init__(self, message: str, details: Optional[dict] = None) -> None:
+    def __init__(self, message: str, details: dict | None = None) -> None:
         super().__init__(message)
         self.message = message
         self.details = details or {}

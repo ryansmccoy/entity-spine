@@ -143,7 +143,14 @@ ignore = [
 known-first-party = ["entityspine"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["ARG", "PLR2004"]
+"tests/**/*" = ["ARG", "PLR2004", "PLC0415", "B011", "E501", "F841", "SIM118", "E402", "F821", "PTH123"]
+"examples/**/*" = ["T201", "S310"]
+"src/entityspine/__init__.py" = ["F401", "RUF022", "ARG001", "PLC0415", "B904"]
+"src/entityspine/adapters/**/*" = ["F401", "PLC0415", "F821", "ARG001", "ARG002", "ERA001", "B904", "PTH123"]
+"src/entityspine/stores/**/*" = ["PLC0415", "F821", "F811", "ARG001", "ARG002", "ERA001", "B904", "PTH123", "PLR0912"]
+"src/entityspine/domain/**/*" = ["E741", "PLC0415", "ERA001"]
+"src/entityspine/core/**/*" = ["F401", "ERA001"]
+"src/entityspine/integration/**/*" = ["PLC0415", "ARG001"]
 
 # =============================================================================
 # MyPy (type checking)

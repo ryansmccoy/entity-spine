@@ -7,46 +7,38 @@ These factory functions provide convenient ways to create domain objects
 with common configurations and proper validation.
 """
 
-from datetime import date, datetime
-from typing import Optional, List
-
+from entityspine.domain.candidate import ResolutionCandidate
+from entityspine.domain.claim import IdentifierClaim
+from entityspine.domain.entity import Entity
 from entityspine.domain.enums import (
     EntityType,
-    EntityStatus,
-    SecurityType,
-    SecurityStatus,
-    ListingStatus,
     IdentifierScheme,
-    ClaimStatus,
-    VendorNamespace,
+    MatchReason,
     ResolutionStatus,
     ResolutionTier,
-    MatchReason,
+    SecurityType,
+    VendorNamespace,
 )
-from entityspine.domain.entity import Entity
-from entityspine.domain.security import Security
 from entityspine.domain.listing import Listing
-from entityspine.domain.claim import IdentifierClaim
-from entityspine.domain.candidate import ResolutionCandidate
 from entityspine.domain.resolution import ResolutionResult
-from entityspine.domain.timestamps import utc_now
-
+from entityspine.domain.security import Security
 
 # =============================================================================
 # Entity Factories
 # =============================================================================
 
+
 def create_entity(
     primary_name: str,
-    entity_id: Optional[str] = None,
+    entity_id: str | None = None,
     entity_type: EntityType = EntityType.ORGANIZATION,
     source_system: str = "unknown",
-    source_id: Optional[str] = None,
+    source_id: str | None = None,
     **kwargs,
 ) -> Entity:
     """
     Create an Entity with common defaults.
-    
+
     Args:
         primary_name: Legal/trading name
         entity_id: Optional ULID (auto-generated if not provided)
@@ -72,16 +64,17 @@ def create_entity(
 # Security Factories
 # =============================================================================
 
+
 def create_security(
     entity_id: str,
-    security_id: Optional[str] = None,
+    security_id: str | None = None,
     security_type: SecurityType = SecurityType.COMMON_STOCK,
-    description: Optional[str] = None,
+    description: str | None = None,
     **kwargs,
 ) -> Security:
     """
     Create a Security with common defaults.
-    
+
     Args:
         entity_id: FK to issuing Entity
         security_id: Optional ULID (auto-generated if not provided)
@@ -105,18 +98,19 @@ def create_security(
 # Listing Factories
 # =============================================================================
 
+
 def create_listing(
     security_id: str,
     ticker: str,
-    listing_id: Optional[str] = None,
+    listing_id: str | None = None,
     exchange: str = "",
-    mic: Optional[str] = None,
+    mic: str | None = None,
     is_primary: bool = False,
     **kwargs,
 ) -> Listing:
     """
     Create a Listing with common defaults.
-    
+
     Args:
         security_id: FK to Security
         ticker: Ticker symbol
@@ -144,12 +138,13 @@ def create_listing(
 # Claim Factories
 # =============================================================================
 
+
 def create_claim(
     scheme: IdentifierScheme,
     value: str,
-    entity_id: Optional[str] = None,
-    security_id: Optional[str] = None,
-    listing_id: Optional[str] = None,
+    entity_id: str | None = None,
+    security_id: str | None = None,
+    listing_id: str | None = None,
     namespace: VendorNamespace = VendorNamespace.INTERNAL,
     source: str = "unknown",
     confidence: float = 1.0,
@@ -157,7 +152,7 @@ def create_claim(
 ) -> IdentifierClaim:
     """
     Create an IdentifierClaim with common defaults.
-    
+
     Args:
         scheme: Identifier scheme
         value: Identifier value (will be normalized)
@@ -190,19 +185,20 @@ def create_claim(
 # Candidate Factories
 # =============================================================================
 
+
 def create_candidate(
     score: float,
     match_reason: MatchReason,
-    entity_id: Optional[str] = None,
-    security_id: Optional[str] = None,
-    listing_id: Optional[str] = None,
-    matched_scheme: Optional[str] = None,
-    matched_value: Optional[str] = None,
+    entity_id: str | None = None,
+    security_id: str | None = None,
+    listing_id: str | None = None,
+    matched_scheme: str | None = None,
+    matched_value: str | None = None,
     **kwargs,
 ) -> ResolutionCandidate:
     """
     Create a ResolutionCandidate.
-    
+
     Args:
         score: Match confidence score 0.0-1.0
         match_reason: Why this candidate matched
@@ -235,19 +231,20 @@ def create_candidate(
 # Resolution Result Factories
 # =============================================================================
 
+
 def found_result(
     entity: Entity,
     query: str,
     tier: ResolutionTier,
     elapsed_ms: float = 0.0,
-    warnings: Optional[List[str]] = None,
-    security: Optional[Security] = None,
-    listing: Optional[Listing] = None,
+    warnings: list[str] | None = None,
+    security: Security | None = None,
+    listing: Listing | None = None,
     **kwargs,
 ) -> ResolutionResult:
     """
     Create a successful resolution result.
-    
+
     Args:
         entity: The resolved entity
         query: Original query string
@@ -276,12 +273,12 @@ def not_found_result(
     query: str,
     tier: ResolutionTier,
     elapsed_ms: float = 0.0,
-    warnings: Optional[List[str]] = None,
+    warnings: list[str] | None = None,
     **kwargs,
 ) -> ResolutionResult:
     """
     Create a not-found resolution result.
-    
+
     Args:
         query: Original query string
         tier: Storage tier that performed the resolution
@@ -304,14 +301,14 @@ def not_found_result(
 def ambiguous_result(
     query: str,
     tier: ResolutionTier,
-    candidates: List[ResolutionCandidate],
+    candidates: list[ResolutionCandidate],
     elapsed_ms: float = 0.0,
-    warnings: Optional[List[str]] = None,
+    warnings: list[str] | None = None,
     **kwargs,
 ) -> ResolutionResult:
     """
     Create an ambiguous resolution result with multiple candidates.
-    
+
     Args:
         query: Original query string
         tier: Storage tier that performed the resolution
@@ -323,7 +320,7 @@ def ambiguous_result(
     warnings_list = warnings or []
     if "ambiguous_match" not in str(warnings_list):
         warnings_list.append("Multiple candidates matched query")
-    
+
     return ResolutionResult(
         entity=None,
         status=ResolutionStatus.AMBIGUOUS,

@@ -5,21 +5,22 @@ These mappers are used by all RDBMS providers (SQLite, PostgreSQL, MySQL, etc.)
 to convert between domain dataclasses and row dictionaries.
 """
 
-import pytest
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
+import pytest
 
 # =============================================================================
 # Core Model Mappers (v2.2.4)
 # =============================================================================
+
 
 class TestEntityMappers:
     """Test Entity to/from row conversion (v2.2.4)."""
 
     def test_entity_to_row(self):
         """Test converting Entity dataclass to row dict."""
-        from entityspine.domain import Entity, EntityType, EntityStatus
+        from entityspine.domain import Entity, EntityStatus, EntityType
         from entityspine.stores.mappers import entity_to_row
 
         entity = Entity(
@@ -52,7 +53,7 @@ class TestEntityMappers:
 
     def test_entity_to_row_minimal(self):
         """Test converting Entity with minimal fields."""
-        from entityspine.domain import Entity, EntityType, EntityStatus
+        from entityspine.domain import Entity, EntityStatus, EntityType
         from entityspine.stores.mappers import entity_to_row
 
         entity = Entity(
@@ -72,9 +73,10 @@ class TestEntityMappers:
 
     def test_row_to_entity(self):
         """Test converting row dict to Entity dataclass."""
-        from entityspine.domain import EntityType, EntityStatus
-        from entityspine.stores.mappers import row_to_entity
         import json
+
+        from entityspine.domain import EntityStatus, EntityType
+        from entityspine.stores.mappers import row_to_entity
 
         row = {
             "entity_id": "ent_003",
@@ -107,7 +109,7 @@ class TestEntityMappers:
 
     def test_entity_round_trip(self):
         """Entity should survive round-trip conversion."""
-        from entityspine.domain import Entity, EntityType, EntityStatus
+        from entityspine.domain import Entity, EntityStatus, EntityType
         from entityspine.stores.mappers import entity_to_row, row_to_entity
 
         original = Entity(
@@ -142,7 +144,7 @@ class TestSecurityMappers:
 
     def test_security_to_row(self):
         """Test converting Security dataclass to row dict."""
-        from entityspine.domain import Security, SecurityType, SecurityStatus
+        from entityspine.domain import Security, SecurityStatus, SecurityType
         from entityspine.stores.mappers import security_to_row
 
         security = Security(
@@ -169,7 +171,7 @@ class TestSecurityMappers:
 
     def test_security_to_row_minimal(self):
         """Test converting Security with minimal fields."""
-        from entityspine.domain import Security, SecurityType, SecurityStatus
+        from entityspine.domain import Security, SecurityType
         from entityspine.stores.mappers import security_to_row
 
         security = Security(
@@ -187,7 +189,7 @@ class TestSecurityMappers:
 
     def test_row_to_security(self):
         """Test converting row dict to Security dataclass."""
-        from entityspine.domain import SecurityType, SecurityStatus
+        from entityspine.domain import SecurityStatus, SecurityType
         from entityspine.stores.mappers import row_to_security
 
         row = {
@@ -212,8 +214,8 @@ class TestSecurityMappers:
 
     def test_security_round_trip(self):
         """Security should survive round-trip conversion."""
-        from entityspine.domain import Security, SecurityType, SecurityStatus
-        from entityspine.stores.mappers import security_to_row, row_to_security
+        from entityspine.domain import Security, SecurityStatus, SecurityType
+        from entityspine.stores.mappers import row_to_security, security_to_row
 
         original = Security(
             security_id="sec_rt",
@@ -274,7 +276,7 @@ class TestListingMappers:
 
     def test_listing_to_row_minimal(self):
         """Test converting Listing with minimal fields."""
-        from entityspine.domain import Listing, ListingStatus
+        from entityspine.domain import Listing
         from entityspine.stores.mappers import listing_to_row
 
         listing = Listing(
@@ -362,7 +364,10 @@ class TestIdentifierClaimMappers:
     def test_claim_to_row(self):
         """Test converting IdentifierClaim dataclass to row dict."""
         from entityspine.domain import (
-            IdentifierClaim, IdentifierScheme, VendorNamespace, ClaimStatus
+            ClaimStatus,
+            IdentifierClaim,
+            IdentifierScheme,
+            VendorNamespace,
         )
         from entityspine.stores.mappers import claim_to_row
 
@@ -373,7 +378,7 @@ class TestIdentifierClaimMappers:
             value="0001234567",
             namespace=VendorNamespace.SEC,
             source_ref="10-K filing",
-            captured_at=datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc),
+            captured_at=datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC),
             valid_from=date(2020, 1, 1),
             source="sec-edgar",
             confidence=1.0,
@@ -397,7 +402,10 @@ class TestIdentifierClaimMappers:
     def test_claim_to_row_for_security(self):
         """Test IdentifierClaim attached to a security."""
         from entityspine.domain import (
-            IdentifierClaim, IdentifierScheme, VendorNamespace, ClaimStatus
+            ClaimStatus,
+            IdentifierClaim,
+            IdentifierScheme,
+            VendorNamespace,
         )
         from entityspine.stores.mappers import claim_to_row
 
@@ -423,7 +431,7 @@ class TestIdentifierClaimMappers:
 
     def test_row_to_claim(self):
         """Test converting row dict to IdentifierClaim dataclass."""
-        from entityspine.domain import IdentifierScheme, VendorNamespace, ClaimStatus
+        from entityspine.domain import ClaimStatus, IdentifierScheme, VendorNamespace
         from entityspine.stores.mappers import row_to_claim
 
         row = {
@@ -458,7 +466,10 @@ class TestIdentifierClaimMappers:
     def test_claim_round_trip(self):
         """IdentifierClaim should survive round-trip conversion."""
         from entityspine.domain import (
-            IdentifierClaim, IdentifierScheme, VendorNamespace, ClaimStatus
+            ClaimStatus,
+            IdentifierClaim,
+            IdentifierScheme,
+            VendorNamespace,
         )
         from entityspine.stores.mappers import claim_to_row, row_to_claim
 
@@ -491,9 +502,12 @@ class TestIdentifierClaimMappers:
     def test_legacy_aliases(self):
         """Test that legacy identifier_to_row/row_to_identifier aliases work."""
         from entityspine.stores.mappers import (
-            identifier_to_row, row_to_identifier, claim_to_row, row_to_claim
+            claim_to_row,
+            identifier_to_row,
+            row_to_claim,
+            row_to_identifier,
         )
-        
+
         # Verify the aliases point to the same functions
         assert identifier_to_row is claim_to_row
         assert row_to_identifier is row_to_claim
@@ -504,7 +518,7 @@ class TestCaseMappers:
 
     def test_case_to_row(self):
         """Test converting Case dataclass to row dict."""
-        from entityspine.domain import Case, CaseType, CaseStatus
+        from entityspine.domain import Case, CaseStatus, CaseType
         from entityspine.stores.mappers import case_to_row
 
         case = Case(
@@ -535,7 +549,7 @@ class TestCaseMappers:
 
     def test_row_to_case(self):
         """Test converting row dict to Case dataclass."""
-        from entityspine.domain import CaseType, CaseStatus
+        from entityspine.domain import CaseStatus, CaseType
         from entityspine.stores.mappers import row_to_case
 
         row = {
@@ -570,7 +584,7 @@ class TestCaseMappers:
 
     def test_case_round_trip(self):
         """Case should survive round-trip conversion."""
-        from entityspine.domain import Case, CaseType, CaseStatus
+        from entityspine.domain import Case, CaseStatus, CaseType
         from entityspine.stores.mappers import case_to_row, row_to_case
 
         original = Case(
@@ -621,7 +635,6 @@ class TestClusterMappers:
 
     def test_row_to_cluster(self):
         """Test converting row dict to EntityCluster dataclass."""
-        from entityspine.domain import EntityCluster
         from entityspine.stores.mappers import row_to_cluster
 
         row = {
@@ -658,7 +671,7 @@ class TestClusterMemberMappers:
 
     def test_cluster_member_to_row(self):
         """Test converting EntityClusterMember dataclass to row dict."""
-        from entityspine.domain import EntityClusterMember, ClusterRole
+        from entityspine.domain import ClusterRole, EntityClusterMember
         from entityspine.stores.mappers import cluster_member_to_row
 
         member = EntityClusterMember(
@@ -699,7 +712,7 @@ class TestClusterMemberMappers:
 
     def test_cluster_member_round_trip(self):
         """EntityClusterMember should survive round-trip conversion."""
-        from entityspine.domain import EntityClusterMember, ClusterRole
+        from entityspine.domain import ClusterRole, EntityClusterMember
         from entityspine.stores.mappers import cluster_member_to_row, row_to_cluster_member
 
         original = EntityClusterMember(
@@ -722,12 +735,13 @@ class TestClusterMemberMappers:
 # Knowledge Graph Node Mappers
 # =============================================================================
 
+
 class TestAssetMappers:
     """Test Asset to/from row conversion."""
 
     def test_asset_to_row(self):
         """Test converting Asset dataclass to row dict."""
-        from entityspine.domain import Asset, AssetType, AssetStatus
+        from entityspine.domain import Asset, AssetStatus, AssetType
         from entityspine.stores.mappers import asset_to_row
 
         asset = Asset(
@@ -752,7 +766,7 @@ class TestAssetMappers:
 
     def test_row_to_asset(self):
         """Test converting row dict to Asset dataclass."""
-        from entityspine.domain import AssetType, AssetStatus
+        from entityspine.domain import AssetStatus, AssetType
         from entityspine.stores.mappers import row_to_asset
 
         row = {
@@ -779,7 +793,7 @@ class TestContractMappers:
 
     def test_contract_to_row(self):
         """Test converting Contract dataclass to row dict."""
-        from entityspine.domain import Contract, ContractType, ContractStatus
+        from entityspine.domain import Contract, ContractStatus, ContractType
         from entityspine.stores.mappers import contract_to_row
 
         contract = Contract(
@@ -803,7 +817,7 @@ class TestContractMappers:
 
     def test_row_to_contract(self):
         """Test converting row dict to Contract dataclass."""
-        from entityspine.domain import ContractType, ContractStatus
+        from entityspine.domain import ContractStatus, ContractType
         from entityspine.stores.mappers import row_to_contract
 
         row = {
@@ -831,7 +845,7 @@ class TestProductMappers:
 
     def test_product_to_row(self):
         """Test converting Product dataclass to row dict."""
-        from entityspine.domain import Product, ProductType, ProductStatus
+        from entityspine.domain import Product, ProductStatus, ProductType
         from entityspine.stores.mappers import product_to_row
 
         product = Product(
@@ -852,7 +866,7 @@ class TestProductMappers:
 
     def test_row_to_product(self):
         """Test converting row dict to Product dataclass."""
-        from entityspine.domain import ProductType, ProductStatus
+        from entityspine.domain import ProductStatus, ProductType
         from entityspine.stores.mappers import row_to_product
 
         row = {
@@ -913,7 +927,7 @@ class TestEventMappers:
 
     def test_event_to_row(self):
         """Test converting Event dataclass to row dict."""
-        from entityspine.domain import Event, EventType, EventStatus
+        from entityspine.domain import Event, EventStatus, EventType
         from entityspine.stores.mappers import event_to_row
 
         event = Event(
@@ -940,7 +954,7 @@ class TestEventMappers:
 
     def test_row_to_event(self):
         """Test converting row dict to Event dataclass."""
-        from entityspine.domain import EventType, EventStatus
+        from entityspine.domain import EventStatus, EventType
         from entityspine.stores.mappers import row_to_event
 
         row = {
@@ -973,7 +987,7 @@ class TestMapperRoundTrip:
 
     def test_asset_round_trip(self):
         """Asset should survive round-trip conversion."""
-        from entityspine.domain import Asset, AssetType, AssetStatus
+        from entityspine.domain import Asset, AssetStatus, AssetType
         from entityspine.stores.mappers import asset_to_row, row_to_asset
 
         original = Asset(
@@ -995,7 +1009,7 @@ class TestMapperRoundTrip:
 
     def test_contract_round_trip(self):
         """Contract should survive round-trip conversion."""
-        from entityspine.domain import Contract, ContractType, ContractStatus
+        from entityspine.domain import Contract, ContractStatus, ContractType
         from entityspine.stores.mappers import contract_to_row, row_to_contract
 
         original = Contract(
@@ -1020,7 +1034,7 @@ class TestMapperRoundTrip:
 
     def test_event_round_trip(self):
         """Event should survive round-trip conversion."""
-        from entityspine.domain import Event, EventType, EventStatus
+        from entityspine.domain import Event, EventStatus, EventType
         from entityspine.stores.mappers import event_to_row, row_to_event
 
         original = Event(

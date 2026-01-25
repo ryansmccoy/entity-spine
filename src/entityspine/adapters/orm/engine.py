@@ -6,9 +6,9 @@ Provides SQLite engine creation with proper configuration:
 - PRAGMA journal_mode = WAL (concurrent readers, better performance)
 """
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
 
 from sqlalchemy import event
 from sqlmodel import Session, SQLModel, create_engine

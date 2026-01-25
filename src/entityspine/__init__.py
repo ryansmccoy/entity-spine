@@ -33,89 +33,89 @@ Usage:
 from pathlib import Path
 from typing import Optional, Union
 
+from entityspine.core.exceptions import (
+    EntityNotFoundError,
+    EntitySpineError,
+    ResolutionError,
+    StorageError,
+)
+from entityspine.core.identifier import IdentifierType, classify_identifier
+from entityspine.core.timestamps import from_iso8601, to_iso8601, utc_now
+
+# Core utilities (stdlib only)
+from entityspine.core.ulid import generate_ulid
+
 # =============================================================================
 # CANONICAL DOMAIN MODELS (stdlib dataclasses - zero dependencies)
 # =============================================================================
 # These are the canonical domain models. All business logic and validation
 # lives here. Pydantic/ORM wrappers delegate to domain validators.
-
 from entityspine.domain import (
+    SCHEME_SCOPES,
+    ClaimStatus,
     # Domain models
     Entity,
-    Security,
-    Listing,
-    IdentifierClaim,
-    ResolutionResult,
-    ResolutionCandidate,
+    EntityStatus,
     # Enums
     EntityType,
-    EntityStatus,
-    SecurityType,
-    SecurityStatus,
-    ListingStatus,
+    IdentifierClaim,
     IdentifierScheme,
-    ClaimStatus,
-    VendorNamespace,
     IdentifierScope,
+    Listing,
+    ListingStatus,
+    MatchReason,
+    ResolutionCandidate,
+    ResolutionResult,
     ResolutionStatus,
     ResolutionTier,
     ResolutionWarning,
-    MatchReason,
+    Security,
+    SecurityStatus,
+    SecurityType,
+    VendorNamespace,
+    ambiguous_result,
+    create_candidate,
+    create_claim,
+    create_entity,
+    create_listing,
+    create_security,
     # Factory functions
     found_result,
-    not_found_result,
-    ambiguous_result,
-    create_entity,
-    create_security,
-    create_listing,
-    create_claim,
-    create_candidate,
+    get_scope_for_scheme,
+    normalize_and_validate,
     # Validators
     normalize_cik,
-    normalize_lei,
-    normalize_isin,
     normalize_cusip,
-    normalize_sedol,
-    normalize_figi,
     normalize_ein,
-    normalize_ticker,
+    normalize_figi,
+    normalize_isin,
+    normalize_lei,
     normalize_mic,
+    normalize_sedol,
+    normalize_ticker,
+    not_found_result,
     validate_cik,
-    validate_lei,
-    validate_isin,
     validate_cusip,
-    validate_sedol,
-    validate_figi,
     validate_ein,
-    validate_ticker,
+    validate_figi,
+    validate_isin,
+    validate_lei,
     validate_mic,
-    normalize_and_validate,
-    get_scope_for_scheme,
     validate_scheme_scope,
-    SCHEME_SCOPES,
-)
-
-# Core utilities (stdlib only)
-from entityspine.core.ulid import generate_ulid
-from entityspine.core.timestamps import utc_now, to_iso8601, from_iso8601
-from entityspine.core.identifier import classify_identifier, IdentifierType
-from entityspine.core.exceptions import (
-    EntitySpineError,
-    EntityNotFoundError,
-    ResolutionError,
-    StorageError,
+    validate_sedol,
+    validate_ticker,
 )
 
 # Protocols (stdlib typing.Protocol - zero deps)
 from entityspine.domain.protocols import (
-    StorageLifecycleProtocol,
-    EntityStoreProtocol,
-    ListingStoreProtocol,
-    SecurityStoreProtocol,
     ClaimStoreProtocol,
-    SearchProtocol,
-    ResolverProtocol,
+    EntityStoreProtocol,
     FullStoreProtocol,
+    ListingStoreProtocol,
+    ResolverProtocol,
+    SearchProtocol,
+    SecurityStoreProtocol,
+    StorageLifecycleProtocol,
 )
 
 __version__ = "0.3.2"
@@ -203,14 +203,14 @@ __all__ = [
 
 def create_store(
     backend: str = "sqlite",
-    path: Optional[Union[str, Path]] = None,
+    path: str | Path | None = None,
     **kwargs,
 ):
     """
     Create a storage backend.
-    
+
     Factory function for easy store creation.
-    
+
     Args:
         backend: Storage backend type.
             - "json": JsonEntityStore (Tier 0, stdlib only)
@@ -218,10 +218,10 @@ def create_store(
             - "orm": SqlModelStore (requires entityspine[orm])
         path: Path to database/file. Defaults to in-memory for sqlite.
         **kwargs: Additional backend-specific options.
-        
+
     Returns:
         Store instance (returns domain dataclasses).
-        
+
     Example:
         >>> store = create_store("sqlite", path="entities.db")
         >>> store.initialize()
@@ -230,12 +230,14 @@ def create_store(
     """
     if backend == "json":
         from entityspine.stores import JsonEntityStore
+
         json_path = Path(path) if path else None
         store = JsonEntityStore(json_path)
         store.initialize()
         return store
     elif backend == "sqlite":
         from entityspine.stores import SqliteStore
+
         db_path = Path(path) if path else ":memory:"
         store = SqliteStore(db_path)
         store.initialize()
@@ -245,14 +247,11 @@ def create_store(
             from entityspine.adapters.orm import SqlModelStore
         except ImportError:
             raise ImportError(
-                "SqlModelStore requires the 'orm' extra. "
-                "Install with: pip install entityspine[orm]"
+                "SqlModelStore requires the 'orm' extra. Install with: pip install entityspine[orm]"
             )
         db_path = Path(path) if path else Path(":memory:")
         store = SqlModelStore(db_path)
         store.initialize()
         return store
     else:
-        raise ValueError(
-            f"Unknown backend: {backend}. Use 'json', 'sqlite', or 'orm'."
-        )
+        raise ValueError(f"Unknown backend: {backend}. Use 'json', 'sqlite', or 'orm'.")

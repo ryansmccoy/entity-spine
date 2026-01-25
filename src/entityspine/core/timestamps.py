@@ -13,7 +13,7 @@ ALWAYS use:
 - to_iso8601(dt)      → ISO-8601 string with Z suffix
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def utc_now() -> datetime:
@@ -30,7 +30,7 @@ def utc_now() -> datetime:
         >>> ts.tzinfo == timezone.utc
         True
     """
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def to_iso8601(dt: datetime) -> str:
@@ -53,8 +53,8 @@ def to_iso8601(dt: datetime) -> str:
     """
     if dt.tzinfo is None:
         # Assume naive datetime is UTC
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def from_iso8601(s: str) -> datetime:
@@ -81,10 +81,7 @@ def from_iso8601(s: str) -> datetime:
     dt = datetime.fromisoformat(s)
 
     # Ensure UTC
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    else:
-        dt = dt.astimezone(timezone.utc)
+    dt = dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
 
     return dt
 
@@ -110,4 +107,4 @@ def ensure_utc(dt: datetime | None) -> datetime | None:
             "Naive datetime not allowed. Use utc_now() or provide timezone-aware datetime."
         )
 
-    return dt.astimezone(timezone.utc)
+    return dt.astimezone(UTC)

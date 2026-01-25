@@ -16,17 +16,17 @@ For storage backends, use entityspine.stores (stdlib-only for Tier 0-1).
 # Protocols are stdlib (no optional deps)
 from entityspine.adapters.protocol import (
     EntityStoreProtocol,
-    StorageLifecycleProtocol,
-    SecurityStoreProtocol,
     SearchProtocol,
+    SecurityStoreProtocol,
+    StorageLifecycleProtocol,
 )
 
 __all__ = [
     # Protocols (stdlib)
     "EntityStoreProtocol",
-    "StorageLifecycleProtocol",
-    "SecurityStoreProtocol",
     "SearchProtocol",
+    "SecurityStoreProtocol",
+    "StorageLifecycleProtocol",
 ]
 
 # Note: Pydantic wrappers available at entityspine.adapters.pydantic (requires [pydantic])

@@ -30,56 +30,56 @@ Infrastructure:
 STDLIB ONLY - NO PYDANTIC.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, Literal, Mapping, Any
-
-from entityspine.domain.timestamps import generate_ulid, utc_now
+from typing import Any
 
 from entityspine.domain.enums import (
-    RoleType,
-    ParticipantType,
-    PositionType,
-    TransactionCode,
     AddressType,
-    ClusterRole,
-    RelationshipType,
-    ClaimStatus,
-    CaseType,
-    CaseStatus,
-    GeoType,
+    AssetStatus,
     # v2.2.4 KG High-Confidence additions
     AssetType,
-    AssetStatus,
-    ContractType,
+    CaseStatus,
+    CaseType,
+    ClaimStatus,
+    ClusterRole,
     ContractStatus,
-    ProductType,
-    ProductStatus,
-    EventType,
+    ContractType,
     EventStatus,
+    EventType,
+    GeoType,
+    ParticipantType,
+    PositionType,
+    ProductStatus,
+    ProductType,
+    RelationshipType,
+    RoleType,
+    TransactionCode,
 )
-
+from entityspine.domain.timestamps import generate_ulid, utc_now
 
 # =============================================================================
 # Node Reference Types
 # =============================================================================
 
+
 class NodeKind(str, Enum):
     """
     Kind of node in the knowledge graph.
-    
+
     Core nodes:
     - ENTITY: Legal entities (orgs, persons)
     - SECURITY: Financial instruments
     - LISTING: Exchange-specific tickers
-    
+
     Infrastructure nodes:
     - ADDRESS: Physical addresses
     - GEO: Geographic locations
     - CASE: Legal proceedings
-    
+
     High-confidence additions (v2.2.4):
     - ASSET: Physical/tangible assets
     - CONTRACT: Legal agreements
@@ -88,16 +88,17 @@ class NodeKind(str, Enum):
     - REGULATOR: Regulatory bodies (also entities)
     - EVENT: Discrete business events
     """
+
     # Core
     ENTITY = "entity"
     SECURITY = "security"
     LISTING = "listing"
-    
+
     # Infrastructure
     ADDRESS = "address"
     GEO = "geo"
     CASE = "case"
-    
+
     # High-confidence additions (v2.2.4)
     ASSET = "asset"
     CONTRACT = "contract"
@@ -111,81 +112,82 @@ class NodeKind(str, Enum):
 class NodeRef:
     """
     Polymorphic reference to any graph node.
-    
+
     Used inside Relationship and other edge models to avoid
     separate nullable columns for each target type.
-    
+
     Attributes:
         kind: Type of node being referenced.
         id: ULID of the referenced node.
     """
+
     kind: NodeKind
     id: str
-    
+
     def __post_init__(self):
         """Validate NodeRef."""
         if not self.id or not self.id.strip():
             raise ValueError("NodeRef id cannot be empty")
-    
+
     def __str__(self) -> str:
         return f"{self.kind.value}:{self.id}"
-    
+
     @classmethod
     def entity(cls, entity_id: str) -> "NodeRef":
         """Create entity reference."""
         return cls(kind=NodeKind.ENTITY, id=entity_id)
-    
+
     @classmethod
     def security(cls, security_id: str) -> "NodeRef":
         """Create security reference."""
         return cls(kind=NodeKind.SECURITY, id=security_id)
-    
+
     @classmethod
     def listing(cls, listing_id: str) -> "NodeRef":
         """Create listing reference."""
         return cls(kind=NodeKind.LISTING, id=listing_id)
-    
+
     @classmethod
     def address(cls, address_id: str) -> "NodeRef":
         """Create address reference."""
         return cls(kind=NodeKind.ADDRESS, id=address_id)
-    
+
     @classmethod
     def geo(cls, geo_id: str) -> "NodeRef":
         """Create geo reference."""
         return cls(kind=NodeKind.GEO, id=geo_id)
-    
+
     @classmethod
     def case(cls, case_id: str) -> "NodeRef":
         """Create case reference."""
         return cls(kind=NodeKind.CASE, id=case_id)
-    
+
     # v2.2.4 High-confidence additions
     @classmethod
     def asset(cls, asset_id: str) -> "NodeRef":
         """Create asset reference."""
         return cls(kind=NodeKind.ASSET, id=asset_id)
-    
+
     @classmethod
     def contract(cls, contract_id: str) -> "NodeRef":
         """Create contract reference."""
         return cls(kind=NodeKind.CONTRACT, id=contract_id)
-    
+
     @classmethod
     def product(cls, product_id: str) -> "NodeRef":
         """Create product reference."""
         return cls(kind=NodeKind.PRODUCT, id=product_id)
-    
+
     @classmethod
     def brand(cls, brand_id: str) -> "NodeRef":
         """Create brand reference."""
         return cls(kind=NodeKind.BRAND, id=brand_id)
-    
+
     @classmethod
     def regulator(cls, regulator_id: str) -> "NodeRef":
         """Create regulator reference."""
         return cls(kind=NodeKind.REGULATOR, id=regulator_id)
-    
+
     @classmethod
     def event(cls, event_id: str) -> "NodeRef":
         """Create event reference."""
@@ -196,15 +198,16 @@ class NodeRef:
 # Person Role (Person ↔ Org Relationship)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class PersonRole:
     """
     A role/affiliation edge: Person → Organization.
-    
+
     Represents "person X served as CFO of org Y from A→B".
     This is essential for person identity - people are often identified
     by their roles rather than stable identifiers.
-    
+
     Attributes:
         role_id: ULID primary key.
         person_entity_id: FK to person Entity.
@@ -225,41 +228,42 @@ class PersonRole:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     person_entity_id: str
     org_entity_id: str
     role_type: RoleType
-    
+
     role_id: str = field(default_factory=generate_ulid)
-    role_title_raw: Optional[str] = None
-    
+    role_title_raw: str | None = None
+
     # Temporal truth
-    valid_from: Optional[date] = None
-    valid_to: Optional[date] = None
-    
+    valid_from: date | None = None
+    valid_to: date | None = None
+
     # Provenance
     captured_at: datetime = field(default_factory=utc_now)
     source_system: str = "unknown"
-    source_ref: Optional[str] = None
+    source_ref: str | None = None
     confidence: float = 1.0
     status: ClaimStatus = ClaimStatus.ACTIVE
-    
+
     # Evidence pointers
-    filing_id: Optional[str] = None  # UUID as string
-    section_id: Optional[str] = None
-    char_start: Optional[int] = None
-    char_end: Optional[int] = None
-    
+    filing_id: str | None = None  # UUID as string
+    section_id: str | None = None
+    char_start: int | None = None
+    char_end: int | None = None
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_current(self) -> bool:
         """Check if the role is currently active."""
         if self.valid_to is not None:
             return self.valid_to >= date.today()
         return self.status == ClaimStatus.ACTIVE
-    
+
     def with_update(self) -> "PersonRole":
         """Create a copy with updated timestamp."""
         return PersonRole(
@@ -288,14 +292,15 @@ class PersonRole:
 # Filing Participant
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class FilingParticipant:
     """
     Structured participation in a filing: Person ↔ Filing ↔ Org.
-    
+
     Represents who signed, who is mentioned, in what capacity.
     Enables queries like "Show all filings signed by this person."
-    
+
     Attributes:
         participant_id: ULID primary key.
         filing_id: FK to py-sec-edgar filing.
@@ -312,28 +317,29 @@ class FilingParticipant:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     filing_id: str  # UUID as string
     person_entity_id: str
     participant_type: ParticipantType
-    
+
     participant_id: str = field(default_factory=generate_ulid)
-    org_entity_id: Optional[str] = None
-    
+    org_entity_id: str | None = None
+
     # Evidence
-    evidence_text: Optional[str] = None
-    char_start: Optional[int] = None
-    char_end: Optional[int] = None
-    
+    evidence_text: str | None = None
+    char_start: int | None = None
+    char_end: int | None = None
+
     # Provenance
     confidence: float = 1.0
     captured_at: datetime = field(default_factory=utc_now)
     source_system: str = "unknown"
-    source_ref: Optional[str] = None
-    
+    source_ref: str | None = None
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def with_update(self) -> "FilingParticipant":
         """Create a copy with updated timestamp."""
         return FilingParticipant(
@@ -358,14 +364,15 @@ class FilingParticipant:
 # Ownership Position
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class OwnershipPosition:
     """
     Ownership/holdings edge: Owner ↔ Issuer.
-    
+
     Represents beneficial ownership, institutional holdings, insider positions.
     Supports 13F filings, 13D/13G, and vendor ownership data.
-    
+
     Attributes:
         position_id: ULID primary key.
         owner_entity_id: FK to owner Entity (person or org).
@@ -384,39 +391,40 @@ class OwnershipPosition:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     owner_entity_id: str
     issuer_entity_id: str
     position_type: PositionType
-    
+
     position_id: str = field(default_factory=generate_ulid)
-    security_id: Optional[str] = None
-    
+    security_id: str | None = None
+
     # Position details
-    shares: Optional[int] = None
-    pct_outstanding: Optional[float] = None
-    value_usd: Optional[Decimal] = None
-    
+    shares: int | None = None
+    pct_outstanding: float | None = None
+    value_usd: Decimal | None = None
+
     # Temporal
-    as_of_date: Optional[date] = None
-    
+    as_of_date: date | None = None
+
     # Provenance
     captured_at: datetime = field(default_factory=utc_now)
     source_system: str = "unknown"
-    source_ref: Optional[str] = None
+    source_ref: str | None = None
     confidence: float = 1.0
     status: ClaimStatus = ClaimStatus.ACTIVE
-    
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_significant(self) -> bool:
         """Check if position is >= 5% (SEC reporting threshold)."""
         if self.pct_outstanding is not None:
             return self.pct_outstanding >= 5.0
         return False
-    
+
     def with_update(self) -> "OwnershipPosition":
         """Create a copy with updated timestamp."""
         return OwnershipPosition(
@@ -443,13 +451,14 @@ class OwnershipPosition:
 # Insider Transaction
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class InsiderTransaction:
     """
     Insider transaction from Forms 3/4/5.
-    
+
     Represents stock purchases, sales, exercises, gifts by insiders.
-    
+
     Attributes:
         tx_id: ULID primary key.
         insider_entity_id: FK to insider person Entity.
@@ -469,50 +478,51 @@ class InsiderTransaction:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     insider_entity_id: str
     issuer_entity_id: str
     transaction_date: date
     transaction_code: TransactionCode
-    
+
     tx_id: str = field(default_factory=generate_ulid)
-    security_id: Optional[str] = None
-    
+    security_id: str | None = None
+
     # Transaction details
-    shares: Optional[int] = None
-    price: Optional[Decimal] = None
-    post_shares: Optional[int] = None
+    shares: int | None = None
+    price: Decimal | None = None
+    post_shares: int | None = None
     direct_indirect: str = "D"  # 'D' or 'I'
-    
+
     # Evidence
-    filing_id: Optional[str] = None
-    
+    filing_id: str | None = None
+
     # Provenance
     captured_at: datetime = field(default_factory=utc_now)
     source_system: str = "sec"
-    source_ref: Optional[str] = None
+    source_ref: str | None = None
     confidence: float = 1.0
-    
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_purchase(self) -> bool:
         """Check if this is a purchase transaction."""
         return self.transaction_code == TransactionCode.P
-    
+
     @property
     def is_sale(self) -> bool:
         """Check if this is a sale transaction."""
         return self.transaction_code == TransactionCode.S
-    
+
     @property
-    def total_value(self) -> Optional[Decimal]:
+    def total_value(self) -> Decimal | None:
         """Calculate total transaction value."""
         if self.shares is not None and self.price is not None:
             return Decimal(self.shares) * self.price
         return None
-    
+
     def with_update(self) -> "InsiderTransaction":
         """Create a copy with updated timestamp."""
         return InsiderTransaction(
@@ -540,14 +550,15 @@ class InsiderTransaction:
 # Address
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class Address:
     """
     Normalized address record.
-    
+
     Addresses are high-signal for person/entity disambiguation.
     Store a normalized hash for matching + raw fields for display.
-    
+
     Attributes:
         address_id: ULID primary key.
         line1: Street address line 1.
@@ -560,19 +571,20 @@ class Address:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     address_id: str = field(default_factory=generate_ulid)
-    line1: Optional[str] = None
-    line2: Optional[str] = None
-    city: Optional[str] = None
-    region: Optional[str] = None
-    postal: Optional[str] = None
+    line1: str | None = None
+    line2: str | None = None
+    city: str | None = None
+    region: str | None = None
+    postal: str | None = None
     country: str = "US"
-    normalized_hash: Optional[str] = None
-    
+    normalized_hash: str | None = None
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def display(self) -> str:
         """Format address for display."""
@@ -593,7 +605,7 @@ class Address:
         if self.country and self.country != "US":
             parts.append(self.country)
         return ", ".join(parts)
-    
+
     def with_update(self) -> "Address":
         """Create a copy with updated timestamp."""
         return Address(
@@ -614,11 +626,12 @@ class Address:
 # Entity Address (link table)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class EntityAddress:
     """
     Link between Entity and Address with temporal validity.
-    
+
     Attributes:
         entity_id: FK to Entity.
         address_id: FK to Address.
@@ -631,30 +644,31 @@ class EntityAddress:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     entity_id: str
     address_id: str
     address_type: AddressType = AddressType.BUSINESS
-    
+
     # Temporal
-    valid_from: Optional[date] = None
-    valid_to: Optional[date] = None
-    
+    valid_from: date | None = None
+    valid_to: date | None = None
+
     # Provenance
     captured_at: datetime = field(default_factory=utc_now)
     source_system: str = "unknown"
-    source_ref: Optional[str] = None
-    
+    source_ref: str | None = None
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_current(self) -> bool:
         """Check if the address is currently valid."""
         if self.valid_to is not None:
             return self.valid_to >= date.today()
         return True
-    
+
     def with_update(self) -> "EntityAddress":
         """Create a copy with updated timestamp."""
         return EntityAddress(
@@ -675,13 +689,14 @@ class EntityAddress:
 # Entity Relationship (Generic Entity ↔ Entity)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class EntityRelationship:
     """
     Generic relationship edge: Entity ↔ Entity.
-    
+
     Used for corporate structure, business relationships, etc.
-    
+
     Attributes:
         relationship_id: ULID primary key.
         from_entity_id: FK to source Entity.
@@ -699,38 +714,39 @@ class EntityRelationship:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     from_entity_id: str
     to_entity_id: str
     relationship_type: RelationshipType
-    
+
     relationship_id: str = field(default_factory=generate_ulid)
-    
+
     # Temporal
-    valid_from: Optional[date] = None
-    valid_to: Optional[date] = None
-    
+    valid_from: date | None = None
+    valid_to: date | None = None
+
     # Provenance
     captured_at: datetime = field(default_factory=utc_now)
     source_system: str = "unknown"
-    source_ref: Optional[str] = None
+    source_ref: str | None = None
     confidence: float = 1.0
     status: ClaimStatus = ClaimStatus.ACTIVE
-    
+
     # Evidence
-    evidence_text: Optional[str] = None
-    filing_id: Optional[str] = None
-    
+    evidence_text: str | None = None
+    filing_id: str | None = None
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_current(self) -> bool:
         """Check if the relationship is currently active."""
         if self.valid_to is not None:
             return self.valid_to >= date.today()
         return self.status == ClaimStatus.ACTIVE
-    
+
     def with_update(self) -> "EntityRelationship":
         """Create a copy with updated timestamp."""
         return EntityRelationship(
@@ -756,25 +772,27 @@ class EntityRelationship:
 # Entity Cluster (Anti-Duplication)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class EntityCluster:
     """
     Cluster for potential duplicate entities.
-    
+
     Supports gradual consolidation without destructive merges.
     Use cluster-first, merge-later pattern for safety.
-    
+
     Attributes:
         cluster_id: ULID primary key.
         reason: Why entities were clustered (name similarity, etc.).
         created_at: Cluster creation timestamp.
         updated_at: Cluster update timestamp.
     """
+
     cluster_id: str = field(default_factory=generate_ulid)
-    reason: Optional[str] = None
+    reason: str | None = None
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def with_update(self) -> "EntityCluster":
         """Create a copy with updated timestamp."""
         return EntityCluster(
@@ -789,7 +807,7 @@ class EntityCluster:
 class EntityClusterMember:
     """
     Membership of an entity in a cluster.
-    
+
     Attributes:
         cluster_id: FK to EntityCluster.
         entity_id: FK to Entity.
@@ -798,18 +816,19 @@ class EntityClusterMember:
         created_at: Membership creation timestamp.
         updated_at: Membership update timestamp.
     """
+
     cluster_id: str
     entity_id: str
     role: ClusterRole = ClusterRole.MEMBER
     confidence: float = 1.0
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_canonical(self) -> bool:
         """Check if this is the canonical entity in the cluster."""
         return self.role == ClusterRole.CANONICAL
-    
+
     def with_update(self) -> "EntityClusterMember":
         """Create a copy with updated timestamp."""
         return EntityClusterMember(
@@ -826,14 +845,15 @@ class EntityClusterMember:
 # Geo (Geographic Location Node)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class Geo:
     """
     Geographic location node.
-    
+
     Represents countries, states, cities for location-based relationships.
     Uses ISO codes where available for standardization.
-    
+
     Attributes:
         geo_id: ULID primary key.
         geo_type: Level of geography (country, state, city, etc.).
@@ -843,22 +863,23 @@ class Geo:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     name: str
     geo_type: GeoType
-    
+
     geo_id: str = field(default_factory=generate_ulid)
-    iso_code: Optional[str] = None
-    parent_geo_id: Optional[str] = None
-    
+    iso_code: str | None = None
+    parent_geo_id: str | None = None
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate Geo."""
         if not self.name or not self.name.strip():
             raise ValueError("Geo name cannot be empty")
-    
+
     def with_update(self) -> "Geo":
         """Create a copy with updated timestamp."""
         return Geo(
@@ -876,14 +897,15 @@ class Geo:
 # Case (Legal Proceedings/Investigations)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class Case:
     """
     Legal proceeding, investigation, or enforcement action.
-    
+
     Represents lawsuits, SEC investigations, regulatory actions.
     Cases involve entities and may reference filings as evidence.
-    
+
     Attributes:
         case_id: ULID primary key.
         case_type: Type of case (lawsuit, investigation, etc.).
@@ -902,44 +924,45 @@ class Case:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     case_type: CaseType
     title: str
-    
+
     case_id: str = field(default_factory=generate_ulid)
-    case_number: Optional[str] = None
+    case_number: str | None = None
     status: CaseStatus = CaseStatus.UNKNOWN
-    
+
     # Related entities
-    authority_entity_id: Optional[str] = None  # Court/regulator
-    target_entity_id: Optional[str] = None     # Primary defendant/target
-    
+    authority_entity_id: str | None = None  # Court/regulator
+    target_entity_id: str | None = None  # Primary defendant/target
+
     # Temporal
-    opened_date: Optional[date] = None
-    closed_date: Optional[date] = None
-    
+    opened_date: date | None = None
+    closed_date: date | None = None
+
     # Details
-    description: Optional[str] = None
-    
+    description: str | None = None
+
     # Provenance
     source_system: str = "unknown"
-    source_ref: Optional[str] = None
-    filing_id: Optional[str] = None
+    source_ref: str | None = None
+    filing_id: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate Case."""
         if not self.title or not self.title.strip():
             raise ValueError("Case title cannot be empty")
-    
+
     @property
     def is_open(self) -> bool:
         """Check if the case is still open."""
         return self.status in (CaseStatus.OPEN, CaseStatus.PENDING)
-    
+
     def with_update(self) -> "Case":
         """Create a copy with updated timestamp."""
         return Case(
@@ -966,17 +989,18 @@ class Case:
 # Generic Relationship (with NodeRef for polymorphic source/target)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class Relationship:
     """
     Evidence-backed, time-bounded relationship between two nodes.
-    
+
     This is a more generic relationship model that uses NodeRef for
     polymorphic source/target references (can link any node types).
-    
+
     Use EntityRelationship for entity-to-entity relationships.
     Use Relationship for cross-type relationships (entity→geo, entity→case).
-    
+
     Attributes:
         relationship_id: ULID primary key.
         source_ref: Reference to source node.
@@ -997,43 +1021,44 @@ class Relationship:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     source_ref: NodeRef
     target_ref: NodeRef
     relationship_type: RelationshipType
-    
+
     relationship_id: str = field(default_factory=generate_ulid)
-    subtype: Optional[str] = None
-    
+    subtype: str | None = None
+
     # Temporal (business validity)
-    valid_from: Optional[date] = None
-    valid_to: Optional[date] = None
-    
+    valid_from: date | None = None
+    valid_to: date | None = None
+
     # Provenance
     captured_at: datetime = field(default_factory=utc_now)
     source_system: str = "unknown"
-    source_id: Optional[str] = None
+    source_id: str | None = None
     confidence: float = 1.0
-    
+
     # Evidence pointers
-    evidence_filing_id: Optional[str] = None
-    evidence_section_id: Optional[str] = None
-    evidence_excerpt_hash: Optional[str] = None
-    evidence_snippet: Optional[str] = None  # Short excerpt for display
-    
+    evidence_filing_id: str | None = None
+    evidence_section_id: str | None = None
+    evidence_excerpt_hash: str | None = None
+    evidence_snippet: str | None = None  # Short excerpt for display
+
     # Additional metrics (stdlib dict)
-    metrics: Optional[Mapping[str, Any]] = None
-    
+    metrics: Mapping[str, Any] | None = None
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_current(self) -> bool:
         """Check if the relationship is currently active."""
         if self.valid_to is not None:
             return self.valid_to >= date.today()
         return True
-    
+
     def with_update(self) -> "Relationship":
         """Create a copy with updated timestamp."""
         return Relationship(
@@ -1062,14 +1087,15 @@ class Relationship:
 # Role Assignment (Alternative to PersonRole using NodeRef pattern)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class RoleAssignment:
     """
     Time-bounded role for a person within an org.
-    
+
     Alternative to PersonRole that follows the same pattern as other
     domain models. Can be used interchangeably or as a complement.
-    
+
     Attributes:
         role_assignment_id: ULID primary key.
         person_entity_id: FK to person Entity (EntityType=PERSON).
@@ -1088,41 +1114,42 @@ class RoleAssignment:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     person_entity_id: str
     org_entity_id: str
     role_type: RoleType
-    
+
     role_assignment_id: str = field(default_factory=generate_ulid)
-    title: Optional[str] = None
-    
+    title: str | None = None
+
     # Temporal
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    
+    start_date: date | None = None
+    end_date: date | None = None
+
     # Confidence
     confidence: float = 1.0
-    
+
     # Provenance
     captured_at: datetime = field(default_factory=utc_now)
     source_system: str = "unknown"
-    source_ref: Optional[str] = None
-    
+    source_ref: str | None = None
+
     # Evidence
-    filing_id: Optional[str] = None
-    section_id: Optional[str] = None
-    snippet_hash: Optional[str] = None
-    
+    filing_id: str | None = None
+    section_id: str | None = None
+    snippet_hash: str | None = None
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_current(self) -> bool:
         """Check if the role is currently active."""
         if self.end_date is not None:
             return self.end_date >= date.today()
         return True
-    
+
     def with_update(self) -> "RoleAssignment":
         """Create a copy with updated timestamp."""
         return RoleAssignment(
@@ -1149,14 +1176,15 @@ class RoleAssignment:
 # Asset (v2.2.4 High-Confidence Addition)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class Asset:
     """
     Physical or tangible asset node.
-    
+
     Represents facilities, data centers, vessels, aircraft, plants, property.
     Assets are typically owned or operated by entities.
-    
+
     Attributes:
         asset_id: ULID primary key.
         asset_type: Type of asset (facility, vessel, etc.).
@@ -1173,40 +1201,42 @@ class Asset:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     name: str
     asset_type: AssetType
-    
+
     asset_id: str = field(default_factory=generate_ulid)
-    description: Optional[str] = None
-    
+    description: str | None = None
+
     # Ownership (prefer relationships, but convenience fields are OK)
-    owner_entity_id: Optional[str] = None
-    operator_entity_id: Optional[str] = None
-    
+    owner_entity_id: str | None = None
+    operator_entity_id: str | None = None
+
     # Location
-    geo_id: Optional[str] = None
-    address_id: Optional[str] = None
-    
+    geo_id: str | None = None
+    address_id: str | None = None
+
     # Status
     status: AssetStatus = AssetStatus.ACTIVE
-    
+
     # Provenance
     source_system: str = "unknown"
-    source_id: Optional[str] = None
+    source_id: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate Asset."""
         if not self.name or not self.name.strip():
             raise ValueError("Asset name cannot be empty")
-    
+
     def with_update(self, **kwargs) -> "Asset":
         """Create a copy with updated fields."""
         from dataclasses import replace
+
         kwargs.setdefault("updated_at", utc_now())
         return replace(self, **kwargs)
 
@@ -1215,14 +1245,15 @@ class Asset:
 # Contract (v2.2.4 High-Confidence Addition)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class Contract:
     """
     Legal contract/agreement node.
-    
+
     Represents credit facilities, leases, material agreements, licenses.
     Parties are tracked via relationships (PARTY_TO, COUNTERPARTY_TO).
-    
+
     Attributes:
         contract_id: ULID primary key.
         contract_type: Type of contract.
@@ -1240,52 +1271,52 @@ class Contract:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     title: str
     contract_type: ContractType
-    
+
     contract_id: str = field(default_factory=generate_ulid)
-    
+
     # Temporal
-    effective_date: Optional[date] = None
-    termination_date: Optional[date] = None
-    
+    effective_date: date | None = None
+    termination_date: date | None = None
+
     # Status
     status: ContractStatus = ContractStatus.ACTIVE
-    
+
     # Value
-    value_usd: Optional[Decimal] = None
-    
+    value_usd: Decimal | None = None
+
     # Provenance
     source_system: str = "unknown"
-    source_id: Optional[str] = None
-    filing_id: Optional[str] = None
+    source_id: str | None = None
+    filing_id: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     # Content placeholders (not required in core)
-    content_hash: Optional[str] = None
-    summary: Optional[str] = None
-    
+    content_hash: str | None = None
+    summary: str | None = None
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate Contract."""
         if not self.title or not self.title.strip():
             raise ValueError("Contract title cannot be empty")
-    
+
     @property
     def is_active(self) -> bool:
         """Check if contract is currently active."""
         if self.status != ContractStatus.ACTIVE:
             return False
-        if self.termination_date and self.termination_date < date.today():
-            return False
-        return True
-    
+        return not (self.termination_date and self.termination_date < date.today())
+
     def with_update(self, **kwargs) -> "Contract":
         """Create a copy with updated fields."""
         from dataclasses import replace
+
         kwargs.setdefault("updated_at", utc_now())
         return replace(self, **kwargs)
 
@@ -1294,14 +1325,15 @@ class Contract:
 # Product (v2.2.4 High-Confidence Addition)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class Product:
     """
     Product or service node.
-    
+
     Represents drugs, devices, software, services, consumer goods.
     Ownership is tracked via owner_entity_id or MANUFACTURES relationship.
-    
+
     Attributes:
         product_id: ULID primary key.
         product_type: Type of product.
@@ -1315,35 +1347,37 @@ class Product:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     name: str
     product_type: ProductType
-    
+
     product_id: str = field(default_factory=generate_ulid)
-    description: Optional[str] = None
-    
+    description: str | None = None
+
     # Ownership
-    owner_entity_id: Optional[str] = None
-    
+    owner_entity_id: str | None = None
+
     # Status
     status: ProductStatus = ProductStatus.ACTIVE
-    
+
     # Provenance
     source_system: str = "unknown"
-    source_id: Optional[str] = None
+    source_id: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate Product."""
         if not self.name or not self.name.strip():
             raise ValueError("Product name cannot be empty")
-    
+
     def with_update(self, **kwargs) -> "Product":
         """Create a copy with updated fields."""
         from dataclasses import replace
+
         kwargs.setdefault("updated_at", utc_now())
         return replace(self, **kwargs)
 
@@ -1352,13 +1386,14 @@ class Product:
 # Brand (v2.2.4 High-Confidence Addition)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class Brand:
     """
     Brand identity node.
-    
+
     Represents brand names owned by entities and applied to products.
-    
+
     Attributes:
         brand_id: ULID primary key.
         name: Brand name.
@@ -1370,29 +1405,31 @@ class Brand:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     name: str
-    
+
     brand_id: str = field(default_factory=generate_ulid)
-    owner_entity_id: Optional[str] = None
-    description: Optional[str] = None
-    
+    owner_entity_id: str | None = None
+    description: str | None = None
+
     # Provenance
     source_system: str = "unknown"
-    source_id: Optional[str] = None
+    source_id: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate Brand."""
         if not self.name or not self.name.strip():
             raise ValueError("Brand name cannot be empty")
-    
+
     def with_update(self, **kwargs) -> "Brand":
         """Create a copy with updated fields."""
         from dataclasses import replace
+
         kwargs.setdefault("updated_at", utc_now())
         return replace(self, **kwargs)
 
@@ -1401,17 +1438,18 @@ class Brand:
 # Event (v2.2.4 High-Confidence Addition - Graph Native)
 # =============================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class Event:
     """
     Discrete business event node.
-    
+
     Represents M&A, legal events, cyber incidents, management changes, etc.
     Graph-native design for KG completeness.
-    
+
     Note: py-sec-edgar has its own event system. Event nodes here are for
     KG traversal and can be projected from py-sec-edgar events.
-    
+
     Attributes:
         event_id: ULID primary key.
         event_type: Type of event.
@@ -1431,47 +1469,49 @@ class Event:
         created_at: Record creation timestamp.
         updated_at: Record update timestamp.
     """
+
     event_type: EventType
     title: str
-    
+
     event_id: str = field(default_factory=generate_ulid)
-    description: Optional[str] = None
+    description: str | None = None
     status: EventStatus = EventStatus.ANNOUNCED
-    
+
     # Temporal
-    occurred_on: Optional[date] = None
-    announced_on: Optional[date] = None
-    
+    occurred_on: date | None = None
+    announced_on: date | None = None
+
     # Payload (stdlib dict, not Mapping for mutability during construction)
-    payload: Optional[dict] = None
-    
+    payload: dict | None = None
+
     # Evidence pointers
-    evidence_filing_id: Optional[str] = None
-    evidence_section_id: Optional[str] = None
-    evidence_snippet: Optional[str] = None
+    evidence_filing_id: str | None = None
+    evidence_section_id: str | None = None
+    evidence_snippet: str | None = None
     confidence: float = 1.0
-    
+
     # Provenance
     source_system: str = "unknown"
-    source_id: Optional[str] = None
+    source_id: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate Event."""
         if not self.title or not self.title.strip():
             raise ValueError("Event title cannot be empty")
-    
+
     @property
     def is_completed(self) -> bool:
         """Check if event is completed."""
         return self.status == EventStatus.COMPLETED
-    
+
     def with_update(self, **kwargs) -> "Event":
         """Create a copy with updated fields."""
         from dataclasses import replace
+
         kwargs.setdefault("updated_at", utc_now())
         return replace(self, **kwargs)

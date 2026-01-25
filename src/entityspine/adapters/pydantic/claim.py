@@ -18,17 +18,16 @@ during a specific time period. This enables:
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import Field, field_validator, model_validator
 
 from entityspine.adapters.pydantic.base import EntitySpineModel, generate_id
 from entityspine.adapters.pydantic.validators import (
+    IdentifierScope,
     VendorNamespace,
+    get_scope_for_scheme,
     normalize_and_validate,
     validate_scheme_scope,
-    get_scope_for_scheme,
-    IdentifierScope,
 )
 from entityspine.core.timestamps import utc_now
 
@@ -36,38 +35,39 @@ from entityspine.core.timestamps import utc_now
 class IdentifierScheme(str, Enum):
     """
     Standard identifier schemes.
-    
+
     Each scheme has an expected scope (entity, security, or listing).
     The IdentifierClaim validator enforces correct scope usage.
     """
+
     # Entity-scoped (legal identity)
-    CIK = "cik"      # SEC Central Index Key → entity_id
-    LEI = "lei"      # Legal Entity Identifier → entity_id
-    EIN = "ein"      # Employer Identification Number → entity_id
-    DUNS = "duns"    # D-U-N-S Number → entity_id
-    
+    CIK = "cik"  # SEC Central Index Key → entity_id
+    LEI = "lei"  # Legal Entity Identifier → entity_id
+    EIN = "ein"  # Employer Identification Number → entity_id
+    DUNS = "duns"  # D-U-N-S Number → entity_id
+
     # Security-scoped (financial instrument)
-    ISIN = "isin"    # International Securities ID Number → security_id
+    ISIN = "isin"  # International Securities ID Number → security_id
     CUSIP = "cusip"  # CUSIP identifier → security_id
     SEDOL = "sedol"  # SEDOL identifier → security_id
-    FIGI = "figi"    # Financial Instrument Global ID → security_id
-    
+    FIGI = "figi"  # Financial Instrument Global ID → security_id
+
     # Listing-scoped (exchange-specific)
     TICKER = "ticker"  # Stock ticker symbol → listing_id
-    RIC = "ric"        # Reuters Instrument Code → listing_id
-    
+    RIC = "ric"  # Reuters Instrument Code → listing_id
+
     # Flexible scope
     INTERNAL = "internal"  # Internal system ID → any
-    OTHER = "other"        # Other identifier type → any
+    OTHER = "other"  # Other identifier type → any
 
 
 class ClaimStatus(str, Enum):
     """Status of an identifier claim."""
 
-    ACTIVE = "active"          # Currently valid claim
+    ACTIVE = "active"  # Currently valid claim
     SUPERSEDED = "superseded"  # Replaced by newer claim
-    REVOKED = "revoked"        # Explicitly invalidated
-    DISPUTED = "disputed"      # Under review
+    REVOKED = "revoked"  # Explicitly invalidated
+    DISPUTED = "disputed"  # Under review
 
 
 class IdentifierClaim(EntitySpineModel):
@@ -79,7 +79,7 @@ class IdentifierClaim(EntitySpineModel):
     - Supports multi-vendor crosswalks via namespace
     - Separates observation time (captured_at) from validity time (valid_from/to)
     - Enforces scheme-scope rules (CIK→entity, ISIN→security, TICKER→listing)
-    
+
     Time Semantics:
     - captured_at: When we observed/recorded this claim (always set)
     - valid_from/valid_to: When the identifier was/is actually valid (business time)
@@ -121,15 +121,15 @@ class IdentifierClaim(EntitySpineModel):
 
     # Target: exactly one of entity_id, security_id, listing_id must be set
     # Scheme-scope rules determine which one is valid for each scheme
-    entity_id: Optional[str] = Field(
+    entity_id: str | None = Field(
         default=None,
         description="Entity this claim is about (for entity-scoped schemes)",
     )
-    security_id: Optional[str] = Field(
+    security_id: str | None = Field(
         default=None,
         description="Security this claim is about (for security-scoped schemes)",
     )
-    listing_id: Optional[str] = Field(
+    listing_id: str | None = Field(
         default=None,
         description="Listing this claim is about (for listing-scoped schemes)",
     )
@@ -150,7 +150,7 @@ class IdentifierClaim(EntitySpineModel):
         default=VendorNamespace.INTERNAL,
         description="Vendor/source namespace (sec, bloomberg, factset, etc.)",
     )
-    source_ref: Optional[str] = Field(
+    source_ref: str | None = Field(
         default=None,
         description="Reference ID in the source system",
     )
@@ -160,13 +160,13 @@ class IdentifierClaim(EntitySpineModel):
         default_factory=utc_now,
         description="When this claim was observed/captured (UTC)",
     )
-    
+
     # Business validity period
-    valid_from: Optional[date] = Field(
+    valid_from: date | None = Field(
         default=None,
         description="When identifier became valid (business time)",
     )
-    valid_to: Optional[date] = Field(
+    valid_to: date | None = Field(
         default=None,
         description="When identifier ended (None if still valid)",
     )
@@ -186,7 +186,7 @@ class IdentifierClaim(EntitySpineModel):
         default=ClaimStatus.ACTIVE,
         description="Claim status",
     )
-    notes: Optional[str] = Field(
+    notes: str | None = Field(
         default=None,
         description="Additional notes about this claim",
     )
@@ -249,7 +249,7 @@ class IdentifierClaim(EntitySpineModel):
         normalized, errors = normalize_and_validate(scheme_str, self.value)
         if errors:
             raise ValueError(f"Invalid {scheme_str.upper()} value: {'; '.join(errors)}")
-        
+
         # Update value if normalization changed it (frozen model workaround)
         if normalized != self.value:
             object.__setattr__(self, "value", normalized)
@@ -274,7 +274,7 @@ class IdentifierClaim(EntitySpineModel):
         return "unknown"
 
     @property
-    def target_id(self) -> Optional[str]:
+    def target_id(self) -> str | None:
         """Return the target object ID."""
         return self.entity_id or self.security_id or self.listing_id
 
@@ -296,10 +296,10 @@ class IdentifierClaim(EntitySpineModel):
     def was_valid_on(self, check_date: date) -> bool:
         """
         Check if this claim was valid on a specific date.
-        
+
         Args:
             check_date: Date to check
-            
+
         Returns:
             True if claim was active and within validity period on that date
         """
@@ -307,17 +307,15 @@ class IdentifierClaim(EntitySpineModel):
             return False
         if self.valid_from and check_date < self.valid_from:
             return False
-        if self.valid_to and check_date > self.valid_to:
-            return False
-        return True
+        return not (self.valid_to and check_date > self.valid_to)
 
-    def supersede(self, reason: Optional[str] = None) -> "IdentifierClaim":
+    def supersede(self, reason: str | None = None) -> "IdentifierClaim":
         """
         Create a superseded copy of this claim.
-        
+
         Args:
             reason: Optional reason for superseding
-            
+
         Returns:
             New IdentifierClaim with SUPERSEDED status
         """
@@ -333,10 +331,10 @@ class IdentifierClaim(EntitySpineModel):
     def with_update(self, **kwargs) -> "IdentifierClaim":
         """
         Create a new claim with updated fields.
-        
+
         Args:
             **kwargs: Fields to update
-            
+
         Returns:
             New IdentifierClaim with updated fields
         """
@@ -348,26 +346,32 @@ class IdentifierClaim(EntitySpineModel):
     # =========================================================================
     # Domain Model Conversion (v2.2.3 - Pydantic as thin wrapper)
     # =========================================================================
-    
+
     def to_domain(self) -> "entityspine.domain.IdentifierClaim":
         """
         Convert Pydantic model to domain dataclass.
-        
+
         Returns:
             Domain IdentifierClaim dataclass
         """
         from entityspine.domain import (
-            IdentifierClaim as DomainClaim,
-            IdentifierScheme as DomainScheme,
             ClaimStatus as DomainClaimStatus,
+        )
+        from entityspine.domain import (
+            IdentifierClaim as DomainClaim,
+        )
+        from entityspine.domain import (
+            IdentifierScheme as DomainScheme,
+        )
+        from entityspine.domain import (
             VendorNamespace as DomainVendorNamespace,
         )
-        
+
         # Handle enum values - Pydantic may store as str or Enum
-        scheme_val = self.scheme.value if hasattr(self.scheme, 'value') else self.scheme
-        namespace_val = self.namespace.value if hasattr(self.namespace, 'value') else self.namespace
-        status_val = self.status.value if hasattr(self.status, 'value') else self.status
-        
+        scheme_val = self.scheme.value if hasattr(self.scheme, "value") else self.scheme
+        namespace_val = self.namespace.value if hasattr(self.namespace, "value") else self.namespace
+        status_val = self.status.value if hasattr(self.status, "value") else self.status
+
         return DomainClaim(
             claim_id=self.claim_id,
             entity_id=self.entity_id,
@@ -387,15 +391,15 @@ class IdentifierClaim(EntitySpineModel):
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
-    
+
     @classmethod
     def from_domain(cls, claim: "entityspine.domain.IdentifierClaim") -> "IdentifierClaim":
         """
         Create Pydantic model from domain dataclass.
-        
+
         Args:
             claim: Domain IdentifierClaim dataclass
-            
+
         Returns:
             Pydantic IdentifierClaim model
         """
