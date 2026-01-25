@@ -1,0 +1,53 @@
+# EntitySpine - Ecosystem Metadata
+# Auto-consumed by scripts/generate_ecosystem_docs.py
+
+name: entityspine
+tagline: "Zero-Dependency Entity Resolution for SEC EDGAR Data"
+status: public
+pypi: entityspine
+github: ryansmccoy/entity-spine
+
+categories:
+  - domain-models
+  - entity-resolution
+  - knowledge-graph
+
+key_features:
+  - "Entity → Security → Listing hierarchy"
+  - "Multi-source identifier resolution (CIK, CUSIP, ISIN, LEI, FIGI)"
+  - "stdlib-only core (zero dependencies for Tier 0-1)"
+  - "Knowledge Graph domain models (relationships, events, roles)"
+  - "Chat/productivity domain models for VS Code Copilot ingestion"
+  - "Tiered storage: JSON → SQLite → DuckDB → PostgreSQL"
+
+key_docs:
+  - docs/DEVELOPMENT_HISTORY.md
+  - docs/architecture/
+  - docs/guides/
+  - docs/design/
+
+key_models:
+  - src/entityspine/domain/entity.py
+  - src/entityspine/domain/security.py
+  - src/entityspine/domain/listing.py
+  - src/entityspine/domain/claim.py
+  - src/entityspine/domain/chat.py
+  - src/entityspine/domain/observation.py
+  - src/entityspine/domain/graph.py
+
+integration_points:
+  feedspine: "Domain models for observations and feed records"
+  capture-spine: "Entity resolution for captured content"
+  trading-desktop: "Company profiles, securities, events display"
+  py-sec-edgar: "SEC filing entity resolution"
+
+recent_features:
+  - date: 2026-01-29
+    feature: "Chat domain models (ChatWorkspace, ChatSession, ChatMessage)"
+    version: v2.3.1
+  - date: 2026-01-28
+    feature: "Market infrastructure models (Exchange, BrokerDealer)"
+    version: v2.3.0
+  - date: 2026-01-27
+    feature: "Knowledge Graph traversal (EntityNetwork, EntityPath)"
+    version: v2.2.5
