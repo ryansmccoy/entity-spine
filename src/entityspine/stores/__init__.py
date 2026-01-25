@@ -15,14 +15,52 @@ ORM-based stores (SqlModelStore) are in entityspine.adapters.orm
 and require the [orm] extra.
 
 ALL stores return domain dataclasses (entityspine.domain.*).
+
+Repository Protocols:
+    The stores.protocols module defines reusable repository interfaces
+    that can be implemented by any backend (SQLite, PostgreSQL, JSON, etc.).
 """
 
 from entityspine.stores.json_store import JsonEntityStore
-from entityspine.stores.sqlite_store import SqliteStore
+from entityspine.stores.protocols import (
+    AddressRepositoryProtocol,
+    AssetRepositoryProtocol,
+    BrandRepositoryProtocol,
+    CaseRepositoryProtocol,
+    ClaimRepositoryProtocol,
+    ClusterRepositoryProtocol,
+    ContractRepositoryProtocol,
+    EntityRepositoryProtocol,
+    EventRepositoryProtocol,
+    GeoRepositoryProtocol,
+    ListingRepositoryProtocol,
+    ProductRepositoryProtocol,
+    RelationshipRepositoryProtocol,
+    RoleRepositoryProtocol,
+    SecurityRepositoryProtocol,
+)
+from entityspine.stores.sqlite import SqliteStore
 
 __all__ = [
+    # Stores
     "JsonEntityStore",
     "SqliteStore",
+    # Repository Protocols
+    "AddressRepositoryProtocol",
+    "AssetRepositoryProtocol",
+    "BrandRepositoryProtocol",
+    "CaseRepositoryProtocol",
+    "ClaimRepositoryProtocol",
+    "ClusterRepositoryProtocol",
+    "ContractRepositoryProtocol",
+    "EntityRepositoryProtocol",
+    "EventRepositoryProtocol",
+    "GeoRepositoryProtocol",
+    "ListingRepositoryProtocol",
+    "ProductRepositoryProtocol",
+    "RelationshipRepositoryProtocol",
+    "RoleRepositoryProtocol",
+    "SecurityRepositoryProtocol",
 ]
 
 # Optional: Elasticsearch (requires [search] extra)
