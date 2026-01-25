@@ -1,14 +1,28 @@
 # EntitySpine Examples
 
-This directory contains integration examples demonstrating how EntitySpine works with SEC EDGAR data and produces a Knowledge Graph.
+This directory contains practical examples demonstrating EntitySpine capabilities.
 
-## Overview
+## Quick Start
 
-EntitySpine is the **entity resolution and knowledge graph** layer designed to integrate with:
-- **FeedSpine** - SEC filing extraction pipeline
-- **py-sec-edgar** - SEC EDGAR filing collection
+```bash
+# Run any example from the entityspine directory
+cd entityspine
+python examples/01_end_to_end_sec_filing_to_kg.py
+```
 
-## Examples
+## Example Index
+
+| # | Example | Description |
+|---|---------|-------------|
+| 01 | [End-to-End Filing to KG](01_end_to_end_sec_filing_to_kg.py) | Complete data flow from SEC EDGAR to Knowledge Graph |
+| 02 | [Load SEC Tickers](02_load_sec_company_tickers.py) | Download and load SEC company_tickers.json |
+| 03 | [Identifier Claims](03_entity_identifier_claims.py) | Multi-scheme identifiers with provenance |
+| 04 | [Knowledge Graph Relationships](04_knowledge_graph_relationships.py) | Build KG with suppliers, customers, executives |
+| 05 | [Filing Facts Ingestion](05_filing_facts_ingestion.py) | Use the integration module for bulk ingestion |
+
+---
+
+## Example Details
 
 ### 01_end_to_end_sec_filing_to_kg.py
 

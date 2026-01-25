@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.3] - 2025-01-XX
+
+### Added
+- **Best-in-Class README** - Comprehensive documentation with badges, architecture diagrams, examples
+- **Pre-commit Configuration** - `.pre-commit-config.yaml` with ruff, mypy, bandit, markdownlint
+- **GitHub Actions CI** - `.github/workflows/ci.yml` for automated testing across Python 3.11/3.12, multi-OS
+- **CONTRIBUTING.md** - Complete contributor guidelines with development setup, style guide, architecture principles
+- **New Examples**:
+  - `02_load_sec_company_tickers.py` - Download and load SEC company data
+  - `03_entity_identifier_claims.py` - Multi-scheme identifiers with provenance
+  - `04_knowledge_graph_relationships.py` - Build KG with suppliers, customers, executives
+  - `05_filing_facts_ingestion.py` - Use the integration module for bulk ingestion
+
+### Changed
+- **Documentation Cleanup** - Moved outdated PROMPT_*, PYDANTIC_* files to docs/archive/
+- **Updated docs/README.md** - New documentation index with architecture overview
+- **Updated examples/README.md** - Added table of all examples
+
+---
+
 ## [0.3.2] - 2025-01-XX
 
 ### Added
