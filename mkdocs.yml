@@ -128,53 +128,68 @@ markdown_extensions:
 # Navigation
 nav:
   - Home: index.md
-  - Getting Started:
-    - Installation: getting-started/installation.md
-    - Quick Start: getting-started/quickstart.md
-    - Core Concepts: getting-started/concepts.md
-  - User Guide:
-    - Entity Resolution: user-guide/entity-resolution.md
-    - Identifier Management: user-guide/identifiers.md
-    - Knowledge Graph: user-guide/knowledge-graph.md
-    - Data Loading:
-      - Overview: user-guide/data-loading/index.md
-      - FactSet Data: user-guide/data-loading/factset.md
-      - Bloomberg Data: user-guide/data-loading/bloomberg.md
-      - SEC EDGAR: user-guide/data-loading/sec-edgar.md
-    - Storage Tiers: user-guide/storage-tiers.md
+  
   - API Reference:
     - Domain Models:
       - Overview: api/domain/index.md
       - Entity: api/domain/entity.md
-      - Security: api/domain/security.md
-      - Listing: api/domain/listing.md
       - IdentifierClaim: api/domain/claim.md
       - Event: api/domain/event.md
       - Enums: api/domain/enums.md
-    - Knowledge Graph:
-      - EntityRelationship: api/graph/relationship.md
-      - PersonRole: api/graph/person-role.md
-      - OwnershipPosition: api/graph/ownership.md
-    - Data Layer:
-      - Schema Detector: api/data/schema-detector.md
-      - FactSet Loaders: api/data/factset.md
-    - Stores:
-      - Tier 0 (JSON): api/stores/json.md
-      - Tier 1 (SQLite): api/stores/sqlite.md
-      - Tier 2 (DuckDB): api/stores/duckdb.md
-  - Integration Guide:
-    - FactSet Integration: integration/factset.md
-    - Multi-Vendor Crosswalks: integration/crosswalks.md
-    - Compliance & Sanctions: integration/compliance.md
-  - Examples:
-    - Basic Usage: examples/basic-usage.md
-    - Entity Resolution: examples/resolution.md
-    - Corporate Hierarchy: examples/hierarchy.md
-    - FactSet Loading: examples/factset-loading.md
+    - Services: api/services-reference.md
+    - FactSet Loaders: api/data/factset.md
+  
+  - Guides:
+    - Financial Data Pitfalls: guides/FINANCIAL_DATA_PITFALLS.md
+    - Multi-Vendor EPS: guides/MULTI_VENDOR_EPS_GUIDE.md
+    - Market Data Architecture: guides/MARKET_DATA_ARCHITECTURE.md
+  
+  - Design:
+    - Overview: design/README.md
+    - Current Design:
+      - Unified Data Model: design/current/00_UNIFIED_DATA_MODEL_V2_2.md
+      - Resolution & Temporality: design/current/01_RESOLUTION_AND_TEMPORALITY.md
+      - Tier Capabilities: design/current/05_TIER_CAPABILITIES_AND_LIMITS.md
+      - Protocols & Interfaces: design/current/06_PROTOCOLS_AND_INTERFACES.md
+      - SQLite Best Practices: design/current/07_SQLITE_OPS_BEST_PRACTICES.md
+      - Quick Reference: design/current/16_QUICK_REFERENCE.md
+    - Architecture:
+      - Code Conventions: architecture/CONVENTIONS.md
+      - Model Architecture: architecture/MODEL_ARCHITECTURE.md
+  
+  - ADRs:
+    - Overview: adrs/README.md
+    - ADR-001 stdlib-only Domain: adrs/001-stdlib-only-domain.md
+    - ADR-002 ULID over UUID: adrs/002-ulid-over-uuid.md
+    - ADR-003 Identifier Claims: adrs/003-identifier-claims.md
+    - ADR-004 Frozen Dataclasses: adrs/004-frozen-dataclasses.md
+    - ADR-005 Enum str Inheritance: adrs/005-enum-str-inheritance.md
+    - ADR-006 Time Semantics: adrs/006-time-semantics.md
+    - ADR-007 Enum Package Split: adrs/007-enum-package-split.md
+  
+  - Features:
+    - FactSet Integration: features/factset-integration.md
+    - Observation Model: features/observation-model.md
+    - Financial Data Extension: features/financial-data-extension.md
+    - Data Ingestion: features/ingestion.md
+  
+  - Integration:
+    - FactSet: integration/factset.md
+    - Filing Facts Schema: integration/filing-facts-schema.md
+    - LLM Prompts: integration/llm-prompt.md
+    - Test Scenarios: integration/test-scenarios.md
+  
+  - Changelog:
+    - Current: changelog/CHANGELOG.md
+    - v2.3.0 Summary: changelog/v2.3.0-summary.md
+    - Migration v0.3.0: changelog/migration-v0.3.0.md
+  
   - Development:
-    - Contributing: development/contributing.md
-    - Architecture: development/architecture.md
-    - Changelog: CHANGELOG.md
+    - History: DEVELOPMENT_HISTORY.md
+    - RFCs:
+      - Architecture Improvements: rfcs/001-architecture-improvements.md
+      - API Design Overview: rfcs/API_ACCESS_POINTS_DESIGN.md
+      - Roadmap: rfcs/ROADMAP.md
 
 # Extra configuration
 extra:
