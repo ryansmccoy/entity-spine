@@ -47,10 +47,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from functools import lru_cache
 from pathlib import Path
-from typing import Iterable, Literal
 
 logger = logging.getLogger(__name__)
 
@@ -83,16 +82,16 @@ class Lookup:
         >>> lu.tickers(["0000320193", "0001018724"])
         ['AAPL', 'AMZN']
     """
-    
+
     _cache: dict = field(default_factory=dict, repr=False)
     default_ticker: str = "???"
     default_cik: str = ""
     default_name: str = ""
-    
+
     # =========================================================================
     # Single Lookups
     # =========================================================================
-    
+
     def ticker(self, query: str, default: str | None = None) -> str | None:
         """
         Get ticker from any identifier (CIK, name, ISIN, etc).
@@ -116,20 +115,20 @@ class Lookup:
         if cache_key in self._cache:
             result = self._cache[cache_key]
             return result if result else (default if default is not None else self.default_ticker if self.default_ticker != "???" else None)
-        
+
         # Try offline lookup first for speed
         ticker = None
-        
+
         # Check if it looks like a CIK
         query_clean = query.strip()
         if query_clean.isdigit() or (query_clean.startswith("0") and query_clean[1:].isdigit()):
             ticker = offline_ticker(query_clean)
-        
+
         # If not found offline, try full resolver
         if not ticker:
             resolver = _get_resolver()
             result = resolver.resolve(query)
-            
+
             if result.entity:
                 # Try to get ticker from listing (singular)
                 if result.listing:
@@ -140,10 +139,10 @@ class Lookup:
                         if hasattr(candidate, 'ticker') and candidate.ticker:
                             ticker = candidate.ticker
                             break
-        
+
         self._cache[cache_key] = ticker
         return ticker if ticker else (default if default is not None else None)
-    
+
     def cik(self, query: str, default: str | None = None) -> str | None:
         """
         Get CIK from any identifier (ticker, name, ISIN, etc).
@@ -165,20 +164,20 @@ class Lookup:
         if cache_key in self._cache:
             result = self._cache[cache_key]
             return result if result else default
-        
+
         resolver = _get_resolver()
         result = resolver.resolve(query)
-        
+
         cik = None
         if result.entity and result.entity.source_system == "sec":
             cik = result.entity.source_id
             # Ensure zero-padded
             if cik and not cik.startswith("0"):
                 cik = cik.zfill(10)
-        
+
         self._cache[cache_key] = cik
         return cik if cik else default
-    
+
     def name(self, query: str, default: str | None = None) -> str | None:
         """
         Get company name from any identifier.
@@ -200,22 +199,22 @@ class Lookup:
         if cache_key in self._cache:
             result = self._cache[cache_key]
             return result if result else default
-        
+
         resolver = _get_resolver()
         result = resolver.resolve(query)
-        
+
         name = result.entity.primary_name if result.entity else None
-        
+
         self._cache[cache_key] = name
         return name if name else default
-    
+
     # =========================================================================
     # Batch Lookups (for DataFrame columns)
     # =========================================================================
-    
+
     def tickers(
-        self, 
-        queries: Iterable[str], 
+        self,
+        queries: Iterable[str],
         default: str | None = None
     ) -> list[str | None]:
         """
@@ -232,10 +231,10 @@ class Lookup:
             List of tickers (same order as input)
         """
         return [self.ticker(q, default) for q in queries]
-    
+
     def ciks(
-        self, 
-        queries: Iterable[str], 
+        self,
+        queries: Iterable[str],
         default: str | None = None
     ) -> list[str | None]:
         """
@@ -249,10 +248,10 @@ class Lookup:
             List of CIKs (same order as input)
         """
         return [self.cik(q, default) for q in queries]
-    
+
     def names(
-        self, 
-        queries: Iterable[str], 
+        self,
+        queries: Iterable[str],
         default: str | None = None
     ) -> list[str | None]:
         """
@@ -266,14 +265,14 @@ class Lookup:
             List of names (same order as input)
         """
         return [self.name(q, default) for q in queries]
-    
+
     # =========================================================================
     # Dict Mappings
     # =========================================================================
-    
+
     def cik_to_ticker(
-        self, 
-        ciks: Iterable[str], 
+        self,
+        ciks: Iterable[str],
         default: str | None = None
     ) -> dict[str, str | None]:
         """
@@ -291,10 +290,10 @@ class Lookup:
             {'0000320193': 'AAPL', '0001018724': 'AMZN'}
         """
         return {cik: self.ticker(cik, default) for cik in ciks}
-    
+
     def ticker_to_cik(
-        self, 
-        tickers: Iterable[str], 
+        self,
+        tickers: Iterable[str],
         default: str | None = None
     ) -> dict[str, str | None]:
         """
@@ -308,10 +307,10 @@ class Lookup:
             Dict mapping ticker to CIK
         """
         return {ticker: self.cik(ticker, default) for ticker in tickers}
-    
+
     def name_to_ticker(
-        self, 
-        names: Iterable[str], 
+        self,
+        names: Iterable[str],
         default: str | None = None
     ) -> dict[str, str | None]:
         """
@@ -331,10 +330,10 @@ class Lookup:
             {'Apple Inc': 'AAPL', 'Amazon Com': 'AMZN'}
         """
         return {name: self.ticker(name, default) for name in names}
-    
+
     def cik_to_name(
-        self, 
-        ciks: Iterable[str], 
+        self,
+        ciks: Iterable[str],
         default: str | None = None
     ) -> dict[str, str | None]:
         """
@@ -348,11 +347,11 @@ class Lookup:
             Dict mapping CIK to company name
         """
         return {cik: self.name(cik, default) for cik in ciks}
-    
+
     # =========================================================================
     # ISIN/LEI Lookups
     # =========================================================================
-    
+
     def lei_from_isin(self, isin: str, default: str | None = None) -> str | None:
         """
         Get LEI from ISIN using the GLEIF mapping table.
@@ -372,11 +371,11 @@ class Lookup:
         if cache_key in self._cache:
             result = self._cache[cache_key]
             return result if result else default
-        
+
         lei = _lookup_isin_lei(isin)
         self._cache[cache_key] = lei
         return lei if lei else default
-    
+
     def isins_from_lei(self, lei: str) -> list[str]:
         """
         Get all ISINs associated with an LEI.
@@ -394,11 +393,11 @@ class Lookup:
         cache_key = ("isins_from_lei", lei)
         if cache_key in self._cache:
             return self._cache[cache_key]
-        
+
         isins = _lookup_lei_isins(lei)
         self._cache[cache_key] = isins
         return isins
-    
+
     def lei_lookup(self, lei: str) -> dict | None:
         """
         Get entity info from LEI.
@@ -410,7 +409,7 @@ class Lookup:
             Dict with entity_name, jurisdiction, status, or None
         """
         return _lookup_lei(lei)
-    
+
     def bic_from_lei(self, lei: str, default: str | None = None) -> str | None:
         """
         Get BIC (Bank Identifier Code) from LEI.
@@ -426,19 +425,19 @@ class Lookup:
         if cache_key in self._cache:
             result = self._cache[cache_key]
             return result if result else default
-        
+
         bic = _lookup_lei_bic(lei)
         self._cache[cache_key] = bic
         return bic if bic else default
-    
+
     # =========================================================================
     # Utilities
     # =========================================================================
-    
+
     def clear_cache(self) -> None:
         """Clear the lookup cache."""
         self._cache.clear()
-    
+
     def cache_stats(self) -> dict:
         """Get cache statistics."""
         return {
@@ -556,35 +555,35 @@ _TICKER_CIK_MAP: dict[str, str] | None = None
 def _load_sec_mappings():
     """Load SEC CIK-ticker mappings from company_tickers.json."""
     global _CIK_TICKER_MAP, _TICKER_CIK_MAP
-    
+
     if _CIK_TICKER_MAP is not None:
         return
-    
+
     try:
         import json
         from pathlib import Path
-        
+
         # Try to find cached SEC data
         cache_dir = Path.home() / ".entityspine" / "cache"
         tickers_file = cache_dir / "company_tickers.json"
-        
+
         if tickers_file.exists():
             with open(tickers_file) as f:
                 data = json.load(f)
-            
+
             _CIK_TICKER_MAP = {}
             _TICKER_CIK_MAP = {}
-            
+
             for entry in data.values():
                 cik_raw = entry.get("cik_str") or str(entry.get("cik", ""))
                 ticker = entry.get("ticker", "")
-                
+
                 if cik_raw and ticker:
                     cik_padded = str(cik_raw).zfill(10)
                     _CIK_TICKER_MAP[cik_padded] = ticker
                     _CIK_TICKER_MAP[cik_raw] = ticker  # Also store unpadded
                     _TICKER_CIK_MAP[ticker.upper()] = cik_padded
-            
+
             logger.info(f"Loaded {len(_CIK_TICKER_MAP)} CIK-ticker mappings")
     except Exception as e:
         logger.warning(f"Could not load SEC mappings: {e}")
@@ -603,7 +602,7 @@ def fast_ticker(cik: str) -> str | None:
         'AAPL'
     """
     _load_sec_mappings()
-    
+
     if _CIK_TICKER_MAP:
         # Try padded and unpadded
         result = _CIK_TICKER_MAP.get(cik)
@@ -615,7 +614,7 @@ def fast_ticker(cik: str) -> str | None:
         result = _CIK_TICKER_MAP.get(cik.zfill(10))
         if result:
             return result
-    
+
     # Fall back to full resolver
     return ticker(cik)
 
@@ -629,12 +628,12 @@ def fast_cik(ticker_symbol: str) -> str | None:
         '0000320193'
     """
     _load_sec_mappings()
-    
+
     if _TICKER_CIK_MAP:
         result = _TICKER_CIK_MAP.get(ticker_symbol.upper())
         if result:
             return result
-    
+
     # Fall back to full resolver
     return cik(ticker_symbol)
 
@@ -722,14 +721,14 @@ def offline_name(query: str) -> str | None:
         entry = COMMON_COMPANIES.get(cik_padded)
         if entry:
             return entry[1]
-    
+
     # Try as ticker
     cik_from_ticker = _TICKER_TO_CIK_COMMON.get(query.upper())
     if cik_from_ticker:
         entry = COMMON_COMPANIES.get(cik_from_ticker)
         if entry:
             return entry[1]
-    
+
     return None
 
 
@@ -776,22 +775,22 @@ def use_shared_db(path: str | Path | None = None) -> Path:
         >>> db_path = use_shared_db("/data/entityspine/production.db")
     """
     global _resolver, _default_lookup
-    
+
     if path is None:
         path = Path.home() / ".entityspine" / "entityspine.db"
     else:
         path = Path(path)
-    
+
     # Set environment variable for all future imports
     os.environ["ENTITYSPINE_DB_PATH"] = str(path)
-    
+
     # Ensure directory exists
     path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # Reset singletons to pick up new config
     _resolver = None
     _default_lookup = None
-    
+
     logger.info(f"EntitySpine using shared database: {path}")
     return path
 
@@ -814,8 +813,9 @@ def reset_resolver() -> None:
 def _get_db_connection():
     """Get a connection to the shared EntitySpine database."""
     import sqlite3
+
     from entityspine.core.config import get_settings
-    
+
     db_path = get_settings().db_path
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row

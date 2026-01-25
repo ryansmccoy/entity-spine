@@ -79,7 +79,6 @@ from entityspine.domain.validators import (
     validate_mpid,
 )
 
-
 # =============================================================================
 # Exchange / Trading Venue
 # =============================================================================
@@ -144,80 +143,80 @@ class Exchange:
         # Claims compatibility
         claim_target_id: Optional ID for linking to IdentifierClaims.
     """
-    
+
     # Required fields
     name: str
     mic: str  # Primary identifier
-    
+
     # Auto-generated primary key
     exchange_id: str = field(default_factory=generate_ulid)
-    
+
     # Names
     short_name: str | None = None
     legal_name: str | None = None
-    
+
     # Identifiers
     operating_mic: str | None = None  # For segments; prefer ExchangeSegment
     sec_file_number: str | None = None
     lei: str | None = None
-    
+
     # Classification
     exchange_type: ExchangeType = ExchangeType.NATIONAL_SECURITIES_EXCHANGE
     status: ExchangeStatus = ExchangeStatus.ACTIVE
-    
+
     # Location & Jurisdiction (v2.3.2)
     country_code: str = "US"  # ISO 3166-1 alpha-2
     jurisdiction: str | None = None  # e.g., "US", "GB", "EU" (regulatory jurisdiction)
     city: str | None = None
     timezone: str = "America/New_York"  # IANA timezone
-    
+
     # Regulatory flags
     is_sec_registered: bool = False
     is_sip_participant: bool = False
     is_finra_trf: bool = False  # Trade Reporting Facility
-    
+
     # Trading info
     asset_classes: tuple[AssetClass, ...] = (AssetClass.EQUITY,)
     trading_currency: str = "USD"
-    
+
     # Relationships
     parent_entity_id: str | None = None
     operator_entity_id: str | None = None
     operator_name: str | None = None  # Name of operating entity (v2.3.2)
-    
+
     # Validity (business time - when true in the world)
     valid_from: date | None = None  # e.g., opened_on / founded_date
     valid_to: date | None = None  # e.g., closed_on / deregistered_date
-    
+
     # Explicit lifecycle dates (v2.3.2 - aliases for clarity)
     opened_on: date | None = None  # When exchange first opened
     closed_on: date | None = None  # When exchange permanently closed
-    
+
     # Legacy date fields (kept for backward compatibility)
     founded_date: date | None = None
     sec_registered_date: date | None = None
     deregistered_date: date | None = None
-    
+
     # Contact
     website: str | None = None
-    
+
     # Provenance
     source_system: str = "unknown"
     source_ref: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     # Claims compatibility (v2.3.1)
     claim_target_id: str | None = None
-    
+
     def __post_init__(self):
         """Validate and normalize exchange data."""
         if not self.name or not self.name.strip():
             raise ValueError("Exchange name cannot be empty")
         if not self.mic or not self.mic.strip():
             raise ValueError("Exchange MIC cannot be empty")
-        
+
         # Normalize and validate MIC
         normalized_mic = normalize_mic(self.mic)
         if normalized_mic:
@@ -225,7 +224,7 @@ class Exchange:
             if not is_valid:
                 raise ValueError(error)
             object.__setattr__(self, "mic", normalized_mic)
-        
+
         # Normalize operating MIC if provided
         if self.operating_mic:
             normalized_op_mic = normalize_mic(self.operating_mic)
@@ -234,22 +233,22 @@ class Exchange:
                 if not is_valid:
                     raise ValueError(f"Operating MIC invalid: {error}")
                 object.__setattr__(self, "operating_mic", normalized_op_mic)
-        
+
         # Normalize SEC file number if provided
         if self.sec_file_number:
             normalized = normalize_sec_file_number(self.sec_file_number)
             object.__setattr__(self, "sec_file_number", normalized)
-    
+
     @property
     def is_us_exchange(self) -> bool:
         """Check if this is a US-based exchange."""
         return self.country_code == "US"
-    
+
     @property
     def is_national_exchange(self) -> bool:
         """Check if this is a national securities exchange."""
         return self.exchange_type == ExchangeType.NATIONAL_SECURITIES_EXCHANGE
-    
+
     @property
     def is_ats(self) -> bool:
         """Check if this is an ATS/dark pool."""
@@ -258,17 +257,17 @@ class Exchange:
             ExchangeType.ECN,
             ExchangeType.DARK_POOL,
         )
-    
+
     @property
     def display_name(self) -> str:
         """Get display name (short name if available, else full name)."""
         return self.short_name or self.name
-    
+
     @property
     def is_currently_valid(self) -> bool:
         """Check if exchange is currently valid based on validity window."""
         return self.is_valid_at(date.today())
-    
+
     def is_valid_at(self, query_date: date) -> bool:
         """
         Check if exchange was valid at a specific date.
@@ -327,32 +326,32 @@ class ExchangeSegment:
         captured_at: When we captured this record.
         created_at: Record creation timestamp.
     """
-    
+
     exchange_id: str
     segment_mic: str
-    
+
     segment_id: str = field(default_factory=generate_ulid)
     operating_mic: str | None = None
     segment_name: str | None = None
     description: str | None = None
-    
+
     # Validity (business time)
     valid_from: date | None = None
     valid_to: date | None = None
-    
+
     # Provenance
     source_system: str = "unknown"
     source_ref: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
     created_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate and normalize segment data."""
         if not self.exchange_id or not self.exchange_id.strip():
             raise ValueError("exchange_id cannot be empty")
         if not self.segment_mic or not self.segment_mic.strip():
             raise ValueError("segment_mic cannot be empty")
-        
+
         # Normalize and validate segment MIC
         normalized = normalize_mic(self.segment_mic)
         if normalized:
@@ -360,7 +359,7 @@ class ExchangeSegment:
             if not is_valid:
                 raise ValueError(f"segment_mic invalid: {error}")
             object.__setattr__(self, "segment_mic", normalized)
-        
+
         # Normalize operating MIC if provided
         if self.operating_mic:
             normalized_op = normalize_mic(self.operating_mic)
@@ -369,12 +368,12 @@ class ExchangeSegment:
                 if not is_valid:
                     raise ValueError(f"operating_mic invalid: {error}")
                 object.__setattr__(self, "operating_mic", normalized_op)
-    
+
     @property
     def is_currently_valid(self) -> bool:
         """Check if segment is currently valid."""
         return self.is_valid_at(date.today())
-    
+
     def is_valid_at(self, query_date: date) -> bool:
         """
         Check if segment was valid at a specific date.
@@ -422,20 +421,20 @@ class TradingSession:
         captured_at: When we captured this record.
         created_at: Record creation timestamp.
     """
-    
+
     exchange_id: str
     session_type: TradingSessionType
     day_of_week: int  # 0=Monday, 6=Sunday
     open_time: str  # HH:MM format
     close_time: str  # HH:MM format
-    
+
     session_id: str = field(default_factory=generate_ulid)
     is_auction: bool = False
-    
+
     # Validity (business time)
     valid_from: date | None = None
     valid_to: date | None = None
-    
+
     # Provenance
     source_system: str = "unknown"
     source_ref: str | None = None
@@ -502,77 +501,77 @@ class BrokerDealer:
         # Claims compatibility
         claim_target_id: Optional ID for linking to IdentifierClaims.
     """
-    
+
     # Required fields
     name: str
     crd_number: str  # Primary identifier
-    
+
     # Auto-generated primary key
     broker_dealer_id: str = field(default_factory=generate_ulid)
-    
+
     # Names
     dba_name: str | None = None
     legal_name: str | None = None
-    
+
     # Identifiers
     sec_file_number: str | None = None  # 8-XXXXX format
     lei: str | None = None
     ein: str | None = None
-    
+
     # Classification
     bd_type: BrokerDealerType = BrokerDealerType.FULL_SERVICE
     status: BrokerDealerStatus = BrokerDealerStatus.ACTIVE
-    
+
     # Business model
     clearing_arrangement: str | None = None  # "self", "fully disclosed", etc.
     clears_for_self: bool = False
     clears_for_others: bool = False
     accepts_retail: bool = False
     accepts_institutional: bool = False
-    
+
     # Asset classes
     asset_classes: tuple[AssetClass, ...] = (AssetClass.EQUITY,)
-    
+
     # Relationships
     entity_id: str | None = None  # FK to Entity
     clearing_firm_id: str | None = None  # FK to clearing BD
     parent_bd_id: str | None = None  # FK to parent BD
-    
+
     # Validity (business time)
     valid_from: date | None = None  # sec_registration_date / finra_membership_date
     valid_to: date | None = None  # termination_date
-    
+
     # Legacy date fields (kept for backward compatibility)
     sec_registration_date: date | None = None
     finra_membership_date: date | None = None
     termination_date: date | None = None
-    
+
     # Location
     main_office_address: str | None = None
     state_of_incorporation: str | None = None
     country_code: str = "US"
-    
+
     # Contact
     website: str | None = None
     phone: str | None = None
-    
+
     # Provenance
     source_system: str = "unknown"
     source_ref: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     # Claims compatibility (v2.3.1)
     claim_target_id: str | None = None
-    
+
     def __post_init__(self):
         """Validate and normalize broker-dealer data."""
         if not self.name or not self.name.strip():
             raise ValueError("Broker-dealer name cannot be empty")
         if not self.crd_number or not self.crd_number.strip():
             raise ValueError("CRD number cannot be empty")
-        
+
         # Normalize and validate CRD
         normalized_crd = normalize_crd(self.crd_number)
         if normalized_crd:
@@ -580,32 +579,32 @@ class BrokerDealer:
             if not is_valid:
                 raise ValueError(error)
             object.__setattr__(self, "crd_number", normalized_crd)
-        
+
         # Normalize SEC file number if provided
         if self.sec_file_number:
             normalized = normalize_sec_file_number(self.sec_file_number)
             object.__setattr__(self, "sec_file_number", normalized)
-    
+
     @property
     def is_active(self) -> bool:
         """Check if broker-dealer is currently active."""
         return self.status == BrokerDealerStatus.ACTIVE
-    
+
     @property
     def is_clearing_firm(self) -> bool:
         """Check if this is a clearing firm."""
         return self.clears_for_self or self.clears_for_others
-    
+
     @property
     def is_introducing(self) -> bool:
         """Check if this is an introducing broker."""
         return self.bd_type == BrokerDealerType.INTRODUCING
-    
+
     @property
     def is_currently_valid(self) -> bool:
         """Check if BD is currently valid based on validity window."""
         return self.is_valid_at(date.today())
-    
+
     def is_valid_at(self, query_date: date) -> bool:
         """
         Check if BD was valid at a specific date.
@@ -657,39 +656,39 @@ class BrokerDealerRegistration:
         has_restrictions: Whether registration has restrictions.
         restriction_details: Details of any restrictions.
     """
-    
+
     broker_dealer_id: str
     registration_type: RegistrationType
     jurisdiction: str
-    
+
     registration_id: str = field(default_factory=generate_ulid)
     registration_number: str | None = None
-    
+
     # Status (uses RegistrationStatus, not BrokerDealerStatus)
     status: RegistrationStatus = RegistrationStatus.ACTIVE
-    
+
     # Validity (business time)
     valid_from: date | None = None  # effective_date
     valid_to: date | None = None  # termination_date
-    
+
     # Legacy date fields (kept for backward compatibility)
     effective_date: date | None = None
     termination_date: date | None = None
-    
+
     has_restrictions: bool = False
     restriction_details: str | None = None
-    
+
     # Provenance
     source_system: str = "unknown"
     source_ref: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
     created_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_currently_valid(self) -> bool:
         """Check if registration is currently valid."""
         return self.is_valid_at(date.today())
-    
+
     def is_valid_at(self, query_date: date) -> bool:
         """
         Check if registration was valid at a specific date.
@@ -737,27 +736,27 @@ class BrokerDealerDisciplinaryAction:
         resolution_date: Date resolved.
         appeal_status: Status of any appeal.
     """
-    
+
     broker_dealer_id: str
     regulator: str  # FINRA, SEC, state name
     action_type: str  # fine, suspension, censure, expulsion
     action_date: date
-    
+
     action_id: str = field(default_factory=generate_ulid)
-    
+
     description: str | None = None
     fine_amount: Decimal | None = None
     fine_currency: str = "USD"
     suspension_days: int | None = None
-    
+
     is_resolved: bool = False
     resolution_date: date | None = None
     appeal_status: str | None = None
-    
+
     # References
     case_number: str | None = None
     docket_number: str | None = None
-    
+
     # Provenance
     source_system: str = "unknown"
     source_ref: str | None = None
@@ -815,77 +814,77 @@ class Clearinghouse:
         valid_from: When clearinghouse began operations.
         valid_to: When clearinghouse ceased operations.
     """
-    
+
     name: str
-    
+
     clearinghouse_id: str = field(default_factory=generate_ulid)
-    
+
     short_name: str | None = None
     legal_name: str | None = None
-    
+
     # Identifiers
     sec_file_number: str | None = None
     lei: str | None = None
-    
+
     # Classification
     clearinghouse_type: ClearinghouseType = ClearinghouseType.CENTRAL_COUNTERPARTY
     status: ClearingStatus = ClearingStatus.ACTIVE
-    
+
     # Regulatory
     is_sec_registered: bool = False
     is_cftc_registered: bool = False
     is_systemically_important: bool = False  # SIFMU designation
-    
+
     # Operations
     asset_classes: tuple[AssetClass, ...] = (AssetClass.EQUITY,)
     settlement_currency: str = "USD"
     settlement_cycle: str = "T+1"  # T+1, T+2, etc.
-    
+
     # Location & Jurisdiction (v2.3.2)
     country_code: str = "US"  # ISO 3166-1 alpha-2
     jurisdiction: str | None = None  # Regulatory jurisdiction
     city: str | None = None
-    
+
     # Relationships
     entity_id: str | None = None
     parent_clearinghouse_id: str | None = None
-    
+
     # Validity (business time)
     valid_from: date | None = None
     valid_to: date | None = None
-    
+
     # Explicit lifecycle dates (v2.3.2)
     opened_on: date | None = None  # When clearinghouse began operations
     closed_on: date | None = None  # When clearinghouse ceased operations
-    
+
     # Contact
     website: str | None = None
-    
+
     # Provenance
     source_system: str = "unknown"
     source_ref: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     # Claims compatibility (v2.3.1)
     claim_target_id: str | None = None
-    
+
     def __post_init__(self):
         """Validate clearinghouse data."""
         if not self.name or not self.name.strip():
             raise ValueError("Clearinghouse name cannot be empty")
-        
+
         # Normalize SEC file number if provided
         if self.sec_file_number:
             normalized = normalize_sec_file_number(self.sec_file_number)
             object.__setattr__(self, "sec_file_number", normalized)
-    
+
     @property
     def is_currently_valid(self) -> bool:
         """Check if clearinghouse is currently valid."""
         return self.is_valid_at(date.today())
-    
+
     def is_valid_at(self, query_date: date) -> bool:
         """
         Check if clearinghouse was valid at a specific date.
@@ -933,39 +932,39 @@ class ClearingMembership:
         valid_from: When membership started.
         valid_to: When membership ended.
     """
-    
+
     clearinghouse_id: str
     member_entity_id: str
-    
+
     membership_id: str = field(default_factory=generate_ulid)
     member_bd_id: str | None = None
-    
+
     membership_type: MembershipType = MembershipType.CLEARING_MEMBER
     # Uses MembershipStatus (v2.3.1), not ClearingStatus
     status: MembershipStatus = MembershipStatus.ACTIVE
-    
+
     # Asset classes cleared under this membership
     asset_classes: tuple[AssetClass, ...] = (AssetClass.EQUITY,)
-    
+
     # Validity (business time)
     valid_from: date | None = None  # effective_date
     valid_to: date | None = None  # termination_date
-    
+
     # Legacy date fields (kept for backward compatibility)
     effective_date: date | None = None
     termination_date: date | None = None
-    
+
     # Provenance
     source_system: str = "unknown"
     source_ref: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
     created_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_currently_valid(self) -> bool:
         """Check if clearing membership is currently valid."""
         return self.is_valid_at(date.today())
-    
+
     def is_valid_at(self, query_date: date) -> bool:
         """
         Check if clearing membership was valid at a specific date.
@@ -1023,40 +1022,40 @@ class ExchangeMembership:
         valid_from: When membership started.
         valid_to: When membership ended.
     """
-    
+
     exchange_id: str
     broker_dealer_id: str
-    
+
     membership_id: str = field(default_factory=generate_ulid)
-    
+
     membership_type: MembershipType = MembershipType.TRADING_MEMBER
     member_code: str | None = None  # MPID
     # Uses MembershipStatus (v2.3.1), not BrokerDealerStatus
     status: MembershipStatus = MembershipStatus.ACTIVE
-    
+
     # Trading rights
     can_trade_equity: bool = True
     can_trade_options: bool = False
     is_market_maker: bool = False
     is_designated_market_maker: bool = False
-    
+
     # Asset classes
     asset_classes: tuple[AssetClass, ...] = (AssetClass.EQUITY,)
-    
+
     # Validity (business time)
     valid_from: date | None = None  # effective_date
     valid_to: date | None = None  # termination_date
-    
+
     # Legacy date fields (kept for backward compatibility)
     effective_date: date | None = None
     termination_date: date | None = None
-    
+
     # Provenance
     source_system: str = "unknown"
     source_ref: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
     created_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate and normalize membership data."""
         # Normalize MPID if provided
@@ -1067,12 +1066,12 @@ class ExchangeMembership:
                 if not is_valid:
                     raise ValueError(f"member_code (MPID) invalid: {error}")
                 object.__setattr__(self, "member_code", normalized)
-    
+
     @property
     def is_currently_valid(self) -> bool:
         """Check if exchange membership is currently valid."""
         return self.is_valid_at(date.today())
-    
+
     def is_valid_at(self, query_date: date) -> bool:
         """
         Check if exchange membership was valid at a specific date.
@@ -1131,42 +1130,42 @@ class MarketParticipant:
         valid_from: When MPID became effective.
         valid_to: When MPID was terminated.
     """
-    
+
     mpid: str
     exchange_id: str
-    
+
     participant_id: str = field(default_factory=generate_ulid)
-    
+
     participant_type: MarketParticipantType = MarketParticipantType.BROKER_DEALER
     name: str | None = None
     # Uses MembershipStatus (v2.3.1), not BrokerDealerStatus
     status: MembershipStatus = MembershipStatus.ACTIVE
-    
+
     broker_dealer_id: str | None = None
     entity_id: str | None = None
-    
+
     # Validity (business time)
     valid_from: date | None = None  # effective_date
     valid_to: date | None = None  # termination_date
-    
+
     # Legacy date fields (kept for backward compatibility)
     effective_date: date | None = None
     termination_date: date | None = None
-    
+
     # Provenance
     source_system: str = "unknown"
     source_ref: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
     created_at: datetime = field(default_factory=utc_now)
-    
+
     # Claims compatibility (v2.3.1)
     claim_target_id: str | None = None
-    
+
     def __post_init__(self):
         """Validate and normalize market participant data."""
         if not self.mpid or not self.mpid.strip():
             raise ValueError("MPID cannot be empty")
-        
+
         # Normalize and validate MPID
         normalized = normalize_mpid(self.mpid)
         if normalized:
@@ -1174,12 +1173,12 @@ class MarketParticipant:
             if not is_valid:
                 raise ValueError(error)
             object.__setattr__(self, "mpid", normalized)
-    
+
     @property
     def is_currently_valid(self) -> bool:
         """Check if market participant is currently valid."""
         return self.is_valid_at(date.today())
-    
+
     def is_valid_at(self, query_date: date) -> bool:
         """
         Check if market participant was valid at a specific date.
@@ -1233,61 +1232,61 @@ class SelfRegulatoryOrg:
         valid_from: When SRO was established.
         valid_to: When SRO ceased operations.
     """
-    
+
     name: str
-    
+
     sro_id: str = field(default_factory=generate_ulid)
     short_name: str | None = None
-    
+
     is_exchange_sro: bool = False
-    
+
     entity_id: str | None = None
     exchange_id: str | None = None
-    
+
     sec_file_number: str | None = None
     lei: str | None = None
-    
+
     # Location & Jurisdiction (v2.3.2)
     country_code: str = "US"  # ISO 3166-1 alpha-2
     jurisdiction: str | None = None  # Regulatory jurisdiction
-    
+
     # Areas of oversight
     oversees_broker_dealers: bool = True
     oversees_investment_advisers: bool = False
     oversees_exchanges: bool = False
-    
+
     # Validity (business time)
     valid_from: date | None = None
     valid_to: date | None = None
-    
+
     # Explicit lifecycle dates (v2.3.2)
     established_on: date | None = None  # When SRO was established
     dissolved_on: date | None = None  # When SRO was dissolved
-    
+
     website: str | None = None
-    
+
     # Provenance
     source_system: str = "unknown"
     source_ref: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate SRO data."""
         if not self.name or not self.name.strip():
             raise ValueError("SRO name cannot be empty")
-        
+
         # Normalize SEC file number if provided
         if self.sec_file_number:
             normalized = normalize_sec_file_number(self.sec_file_number)
             object.__setattr__(self, "sec_file_number", normalized)
-    
+
     @property
     def is_currently_valid(self) -> bool:
         """Check if SRO is currently valid."""
         return self.is_valid_at(date.today())
-    
+
     def is_valid_at(self, query_date: date) -> bool:
         """
         Check if SRO was valid at a specific date.
@@ -1445,26 +1444,9 @@ def create_exchange_segment(
 # =============================================================================
 # Backward Compatibility: Reference Data Re-exports
 # =============================================================================
-# 
+#
 # NOTE: Reference data has been moved to entityspine.domain.reference_data.markets
 # These re-exports are provided for backward compatibility but will be deprecated.
 # Please import directly from reference_data module instead.
 #
 
-from entityspine.domain.reference_data.markets import (
-    ALL_KNOWN_MICS,
-    AMERICAS_EXCHANGES,
-    APAC_EXCHANGES,
-    BLOOMBERG_FEED_SOURCES,
-    EUROPEAN_EXCHANGES,
-    FACTSET_EXCHANGE_CODES,
-    GLOBAL_CLEARINGHOUSES,
-    MENA_EXCHANGES,
-    THOMSON_EXCHANGE_CODES,
-    US_CLEARINGHOUSES,
-    US_EQUITY_EXCHANGES,
-    US_FUTURES_EXCHANGES,
-    US_OPTIONS_EXCHANGES,
-    US_OTC_MARKETS,
-    lookup_exchange_by_mic,
-)

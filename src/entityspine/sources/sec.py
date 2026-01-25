@@ -75,7 +75,7 @@ SEC_EXCHANGE_TO_MIC: dict[str, str] = {
     "CBOE": "BATS",
     "IEX": "IEXG",
     "LTSE": "LTSE",
-    
+
     # OTC Markets
     "OTC": "OTCM",
     "OTC Markets": "OTCM",
@@ -83,7 +83,7 @@ SEC_EXCHANGE_TO_MIC: dict[str, str] = {
     "OTCQB": "OTCB",
     "Pink": "PINX",
     "OTC Pink": "PINX",
-    
+
     # Catch-all for unknown
     "": "UNKNOWN",
 }
@@ -147,7 +147,7 @@ class SECTickerSource:
     fallback_url: str = "https://www.sec.gov/files/company_tickers.json"
 
     def __init__(
-        self, 
+        self,
         url: str | None = None,
         use_exchange_data: bool = True,
     ):
@@ -163,7 +163,7 @@ class SECTickerSource:
             self.url = url
         elif not use_exchange_data:
             self.url = self.fallback_url
-        
+
         self._last_snapshot: SECTickerSnapshot | None = None
 
     async def fetch(self) -> list[dict[str, Any]]:
@@ -180,7 +180,7 @@ class SECTickerSource:
         logger.info(f"Fetching SEC tickers from {self.url}")
 
         content, records = await self._fetch_sync()
-        
+
         # Create snapshot metadata
         content_hash = hashlib.sha256(content).hexdigest()
         self._last_snapshot = SECTickerSnapshot(
@@ -209,11 +209,11 @@ class SECTickerSource:
             )
             with urllib.request.urlopen(req, timeout=30) as response:
                 content = response.read()
-                
+
                 # Handle gzip compression
                 if content[:2] == b'\x1f\x8b':
                     content = gzip.decompress(content)
-                
+
                 data = json.loads(content.decode("utf-8"))
 
             records = self._transform_records(data)
@@ -246,7 +246,7 @@ class SECTickerSource:
                      "exchange": "Nasdaq", "mic": "XNAS"}, ...]
         """
         records = []
-        
+
         # Check which format we have
         if "fields" in data and "data" in data:
             # company_tickers_exchange.json format
@@ -255,16 +255,16 @@ class SECTickerSource:
             name_idx = fields.index("name") if "name" in fields else 1
             ticker_idx = fields.index("ticker") if "ticker" in fields else 2
             exchange_idx = fields.index("exchange") if "exchange" in fields else 3
-            
+
             for row in data["data"]:
                 cik = str(row[cik_idx]).zfill(10)
                 name = row[name_idx] if len(row) > name_idx else ""
                 ticker = row[ticker_idx] if len(row) > ticker_idx else ""
                 exchange = row[exchange_idx] if len(row) > exchange_idx else ""
-                
+
                 # Map exchange name to MIC
                 mic = self._exchange_to_mic(exchange)
-                
+
                 records.append({
                     "cik": cik,
                     "ticker": ticker,
@@ -277,11 +277,11 @@ class SECTickerSource:
             for item in data.values():
                 if not isinstance(item, dict):
                     continue
-                    
+
                 cik = str(item.get("cik_str", "")).zfill(10)
                 ticker = item.get("ticker", "")
                 name = item.get("title", "")
-                
+
                 # No exchange in legacy format - infer from ticker
                 exchange = self._infer_exchange(ticker)
                 mic = self._exchange_to_mic(exchange)
@@ -308,17 +308,17 @@ class SECTickerSource:
         """
         if not exchange:
             return "UNKNOWN"
-        
+
         # Try exact match first
         if exchange in SEC_EXCHANGE_TO_MIC:
             return SEC_EXCHANGE_TO_MIC[exchange]
-        
+
         # Try case-insensitive match
         exchange_upper = exchange.upper()
         for name, mic in SEC_EXCHANGE_TO_MIC.items():
             if name.upper() == exchange_upper:
                 return mic
-        
+
         # Try partial match
         exchange_lower = exchange.lower()
         if "nasdaq" in exchange_lower:
@@ -331,7 +331,7 @@ class SECTickerSource:
             return "BATS"
         if "otc" in exchange_lower or "pink" in exchange_lower:
             return "OTCM"
-        
+
         # Unknown exchange
         logger.warning(f"Unknown SEC exchange: {exchange}")
         return "UNKNOWN"
@@ -349,10 +349,10 @@ class SECTickerSource:
         # Common patterns
         if len(ticker) <= 4 and ticker.isalpha():
             return "Nasdaq"  # Most likely NASDAQ or NYSE
-        
+
         if len(ticker) == 5 and ticker.endswith("W"):
             return "NYSE"  # Warrants typically NYSE
-            
+
         if len(ticker) > 5:
             return "OTC"
 

@@ -30,7 +30,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-
 # =============================================================================
 # Extraction Type Enums
 # =============================================================================
@@ -43,17 +42,17 @@ class ExtractionType(str, Enum):
     Broader than EntityType - includes non-entity concepts
     like filings, events, and metrics that appear in text.
     """
-    
+
     # Entity types (map to EntityType where applicable)
     COMPANY = "COMPANY"  # Public/private companies → EntityType.ORGANIZATION
     PERSON = "PERSON"  # Executives, officials → EntityType.PERSON
     LOCATION = "LOCATION"  # Countries, cities, regions → EntityType.GEO
     ORG = "ORG"  # Government, NGO, institution → EntityType.ORGANIZATION
-    
+
     # Financial types
     INSTRUMENT = "INSTRUMENT"  # Tickers, indices, commodities
     METRIC = "METRIC"  # Revenue, EPS, guidance numbers
-    
+
     # Content types
     FILING = "FILING"  # SEC form types (10-K, 8-K)
     EVENT = "EVENT"  # Earnings, M&A, IPO events
@@ -61,7 +60,7 @@ class ExtractionType(str, Enum):
 
 class StoryStatus(str, Enum):
     """Lifecycle status of a story cluster."""
-    
+
     EMERGING = "emerging"  # New story, < 5 articles
     ACTIVE = "active"  # Active story, growing
     DECLINING = "declining"  # Story slowing down
@@ -70,7 +69,7 @@ class StoryStatus(str, Enum):
 
 class LinkType(str, Enum):
     """Types of relationships between articles/content."""
-    
+
     SAME_EVENT = "same_event"  # Different sources, same event
     FOLLOW_UP = "follow_up"  # Later article references earlier
     ANGLE_SHIFT = "angle_shift"  # Same entities, different perspective
@@ -80,7 +79,7 @@ class LinkType(str, Enum):
 
 class LinkDirection(str, Enum):
     """Directionality of content link."""
-    
+
     REFERENCES = "references"  # Source → Target
     REFERENCED_BY = "referenced_by"  # Target → Source
     MUTUAL = "mutual"  # Bidirectional
@@ -94,10 +93,10 @@ class LinkDirection(str, Enum):
 @dataclass
 class TextSpan:
     """Location of extracted text within source content."""
-    
+
     start: int
     end: int
-    
+
     @property
     def length(self) -> int:
         return self.end - self.start
@@ -130,7 +129,7 @@ class ExtractedEntity:
         ...     metadata={"exchange": "NASDAQ", "cik": "0000320193"}
         ... )
     """
-    
+
     extraction_type: ExtractionType
     text: str
     normalized: str
@@ -143,11 +142,11 @@ class ExtractedEntity:
 @dataclass
 class ExtractionStats:
     """Statistics about an extraction run."""
-    
+
     duration_ms: int = 0
     source_length: int = 0
     entity_count: int = 0
-    
+
     @property
     def entity_density(self) -> float:
         """Entities per 100 characters."""
@@ -159,7 +158,7 @@ class ExtractionStats:
 @dataclass
 class StoryEntity:
     """Entity reference within a story cluster."""
-    
+
     extraction_type: ExtractionType
     normalized: str
 
@@ -167,7 +166,7 @@ class StoryEntity:
 @dataclass
 class StoryTimeline:
     """Temporal information for a story cluster."""
-    
+
     first_article_at: datetime
     last_article_at: datetime
     peak_velocity_at: datetime | None = None
@@ -176,7 +175,7 @@ class StoryTimeline:
 @dataclass
 class StoryMetrics:
     """Computed metrics for a story cluster."""
-    
+
     article_count: int = 0
     unique_sources: int = 0
     velocity_current: float = 0.0  # articles/hour
@@ -213,7 +212,7 @@ class StoryCluster:
         ...     metrics=StoryMetrics(article_count=15, unique_sources=8),
         ... )
     """
-    
+
     cluster_id: str
     status: StoryStatus
     headline: str
@@ -224,10 +223,10 @@ class StoryCluster:
     member_record_ids: list[str] = field(default_factory=list)
 
 
-@dataclass 
+@dataclass
 class LinkEvidence:
     """Evidence supporting a content link."""
-    
+
     shared_entities: list[StoryEntity] = field(default_factory=list)
     temporal_distance_hours: float = 0.0
     title_similarity: float = 0.0
@@ -253,7 +252,7 @@ class ContentLink:
         explanation: Human-readable reason
         evidence: Supporting data for the link
     """
-    
+
     source_id: str
     target_id: str
     link_type: LinkType
@@ -271,11 +270,11 @@ class ContentLink:
 @dataclass
 class SignificanceComponent:
     """A single component of a significance score."""
-    
+
     score: float  # 0-1
     weight: float  # 0-1
     reason: str
-    
+
     @property
     def weighted(self) -> float:
         return self.score * self.weight
@@ -304,7 +303,7 @@ class SignificanceScore:
         >>> score.composite_score
         0.834
     """
-    
+
     novelty: SignificanceComponent
     velocity: SignificanceComponent
     source_diversity: SignificanceComponent
@@ -312,7 +311,7 @@ class SignificanceScore:
     temporal_decay: SignificanceComponent
     computed_at: datetime = field(default_factory=datetime.now)
     valid_until: datetime | None = None
-    
+
     @property
     def composite_score(self) -> float:
         """Weighted sum of all components."""
@@ -323,7 +322,7 @@ class SignificanceScore:
             self.entity_importance.weighted +
             self.temporal_decay.weighted
         )
-    
+
     @property
     def explanation(self) -> str:
         """Generate explanation from highest-weighted components."""

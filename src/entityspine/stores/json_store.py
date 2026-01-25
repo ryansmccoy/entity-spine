@@ -349,23 +349,23 @@ class JsonEntityStore:
             "GILD", "BKNG", "VRTX", "REGN", "ADI", "ADP", "LRCX", "MU",
             "ASML", "KLAC", "SNPS", "CDNS", "MRVL", "FTNT", "PANW", "DDOG",
         ]
-        
+
         # Check if ticker matches known NASDAQ patterns
         if ticker in nasdaq_patterns:
             return "XNAS", "NASDAQ"
-        
+
         # 4+ letter tickers are often NASDAQ
         if len(ticker) >= 4 and ticker.isalpha():
             return "XNAS", "NASDAQ"
-        
+
         # 1-3 letter tickers are often NYSE
         if len(ticker) <= 3 and ticker.isalpha():
             return "XNYS", "NYSE"
-        
+
         # Tickers with dots (like BRK.A, BRK.B) are usually NYSE
         if "." in ticker:
             return "XNYS", "NYSE"
-        
+
         # Default to NYSE for US securities
         return "XNYS", "NYSE"
 
@@ -766,7 +766,7 @@ class JsonEntityStore:
                         entity_type = EntityType(entity_data["entity_type"])
                     except ValueError:
                         pass
-                
+
                 # Convert status string back to enum
                 status = EntityStatus.ACTIVE
                 if entity_data.get("status"):
@@ -774,7 +774,7 @@ class JsonEntityStore:
                         status = EntityStatus(entity_data["status"])
                     except ValueError:
                         pass
-                
+
                 entity = Entity(
                     entity_id=entity_data["entity_id"],
                     primary_name=entity_data["primary_name"],
@@ -798,7 +798,7 @@ class JsonEntityStore:
                         sec_type = SecurityType(sec_type)
                     except ValueError:
                         sec_type = SecurityType.COMMON_STOCK
-                
+
                 security = Security(
                     security_id=sec_data["security_id"],
                     entity_id=sec_data["entity_id"],
@@ -827,7 +827,7 @@ class JsonEntityStore:
                         scheme = IdentifierScheme(claim_data["scheme"])
                     except ValueError:
                         pass
-                
+
                 # Convert namespace string back to enum
                 namespace = VendorNamespace.SEC
                 if claim_data.get("namespace"):
@@ -835,7 +835,7 @@ class JsonEntityStore:
                         namespace = VendorNamespace(claim_data["namespace"])
                     except ValueError:
                         pass
-                
+
                 claim = IdentifierClaim(
                     claim_id=claim_data["claim_id"],
                     entity_id=claim_data.get("entity_id"),

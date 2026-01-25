@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
@@ -224,7 +224,7 @@ class SymbologyRefreshService:
         Returns:
             RefreshResult with statistics
         """
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         logger.info(f"Starting symbology refresh from {source.name}")
 
         # Fetch raw data
@@ -235,7 +235,7 @@ class SymbologyRefreshService:
             return RefreshResult(
                 source=source.name,
                 started_at=started,
-                completed_at=datetime.now(timezone.utc),
+                completed_at=datetime.now(UTC),
                 errors=[f"Fetch failed: {e}"],
             )
 
@@ -268,7 +268,7 @@ class SymbologyRefreshService:
                 errors.append(f"Record error: {e}")
                 logger.warning(f"Error processing record: {e}")
 
-        completed = datetime.now(timezone.utc)
+        completed = datetime.now(UTC)
         logger.info(
             f"Completed {source.name}: +{new_entities} entities, "
             f"+{new_claims} claims, {skipped} skipped"
@@ -296,8 +296,7 @@ class SymbologyRefreshService:
             'updated' - Updated existing claim
             'skipped' - Already exists, no changes
         """
-        from entityspine import Entity, create_entity
-        from entityspine.core.ulid import generate_ulid
+        from entityspine import create_entity
 
         # Extract CIK as primary identifier
         cik = record.get("cik")

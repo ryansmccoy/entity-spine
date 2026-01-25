@@ -31,7 +31,6 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -94,8 +93,8 @@ class SyncService:
     def __init__(
         self,
         pg_store: Any,
-        es_store: "ElasticsearchStore | None" = None,
-        neo4j_store: "Neo4jStore | None" = None,
+        es_store: ElasticsearchStore | None = None,
+        neo4j_store: Neo4jStore | None = None,
         batch_size: int = 1000,
     ):
         """

@@ -32,7 +32,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from entityspine.core.identifier import looks_like_cik, looks_like_ticker
 from entityspine.core.timestamps import from_iso8601, to_iso8601, utc_now
@@ -525,11 +525,11 @@ class SqliteStore:
         self.db_path = str(db_path)
         self._conn: sqlite3.Connection | None = None
         self._initialized = False
-        
+
         # Auto-load configuration
         self._auto_load_sec = auto_load_sec
         self._cache_dir = cache_dir
-        self._sec_loader: "SecDataLoader | None" = None
+        self._sec_loader: SecDataLoader | None = None
         self._auto_loaded = False
 
     @contextmanager
@@ -566,7 +566,7 @@ class SqliteStore:
         if self._auto_load_sec and not self._auto_loaded:
             # Lazy import to avoid circular dependency
             from entityspine.loaders.sec_loader import SecDataLoader
-            
+
             if self._sec_loader is None:
                 self._sec_loader = SecDataLoader(
                     self,
@@ -947,9 +947,9 @@ class SqliteStore:
         Returns:
             Entity (canonical, after following redirects) or None.
         """
-        # Auto-load SEC data if configured  
+        # Auto-load SEC data if configured
         self._ensure_auto_loaded()
-        
+
         row = self._fetchone(
             "SELECT * FROM entities WHERE entity_id = ?",
             (entity_id,),
@@ -988,7 +988,7 @@ class SqliteStore:
         """
         # Auto-load SEC data if configured
         self._ensure_auto_loaded()
-        
+
         cik_normalized = cik.strip().zfill(10)
 
         rows = self._fetchall(
@@ -1022,7 +1022,7 @@ class SqliteStore:
         """
         # Auto-load SEC data if configured
         self._ensure_auto_loaded()
-        
+
         ticker_normalized = ticker.upper().strip().replace("-", ".")
 
         rows = self._fetchall(
@@ -1351,7 +1351,7 @@ class SqliteStore:
         """
         # Auto-load SEC data if configured
         self._ensure_auto_loaded()
-        
+
         query_lower = query.lower().strip()
         results: list[tuple[Entity, float]] = []
         seen_ids: set[str] = set()
@@ -1450,7 +1450,7 @@ class SqliteStore:
     # Uses mappers module for database-agnostic domain conversion
     # =========================================================================
 
-    def save_asset(self, asset: "Asset") -> None:
+    def save_asset(self, asset: Asset) -> None:
         """Save or update an asset."""
         from entityspine.stores.mappers import asset_to_row
 
@@ -1483,14 +1483,14 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_asset(self, asset_id: str) -> Optional["Asset"]:
+    def get_asset(self, asset_id: str) -> Asset | None:
         """Get asset by ID."""
         from entityspine.stores.mappers import row_to_asset
 
         row = self._fetchone("SELECT * FROM assets WHERE asset_id = ?", (asset_id,))
         return row_to_asset(dict(row)) if row else None
 
-    def get_assets_by_owner(self, entity_id: str) -> list["Asset"]:
+    def get_assets_by_owner(self, entity_id: str) -> list[Asset]:
         """Get all assets owned by an entity."""
         from entityspine.stores.mappers import row_to_asset
 
@@ -1510,7 +1510,7 @@ class SqliteStore:
     # Uses mappers module for database-agnostic domain conversion
     # =========================================================================
 
-    def save_contract(self, contract: "Contract") -> None:
+    def save_contract(self, contract: Contract) -> None:
         """Save or update a contract."""
         from entityspine.stores.mappers import contract_to_row
 
@@ -1542,7 +1542,7 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_contract(self, contract_id: str) -> Optional["Contract"]:
+    def get_contract(self, contract_id: str) -> Contract | None:
         """Get contract by ID."""
         from entityspine.stores.mappers import row_to_contract
 
@@ -1559,7 +1559,7 @@ class SqliteStore:
     # Uses mappers module for database-agnostic domain conversion
     # =========================================================================
 
-    def save_product(self, product: "Product") -> None:
+    def save_product(self, product: Product) -> None:
         """Save or update a product."""
         from entityspine.stores.mappers import product_to_row
 
@@ -1588,14 +1588,14 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_product(self, product_id: str) -> Optional["Product"]:
+    def get_product(self, product_id: str) -> Product | None:
         """Get product by ID."""
         from entityspine.stores.mappers import row_to_product
 
         row = self._fetchone("SELECT * FROM products WHERE product_id = ?", (product_id,))
         return row_to_product(dict(row)) if row else None
 
-    def get_products_by_owner(self, entity_id: str) -> list["Product"]:
+    def get_products_by_owner(self, entity_id: str) -> list[Product]:
         """Get all products owned by an entity."""
         from entityspine.stores.mappers import row_to_product
 
@@ -1615,7 +1615,7 @@ class SqliteStore:
     # Uses mappers module for database-agnostic domain conversion
     # =========================================================================
 
-    def save_brand(self, brand: "Brand") -> None:
+    def save_brand(self, brand: Brand) -> None:
         """Save or update a brand."""
         from entityspine.stores.mappers import brand_to_row
 
@@ -1642,14 +1642,14 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_brand(self, brand_id: str) -> Optional["Brand"]:
+    def get_brand(self, brand_id: str) -> Brand | None:
         """Get brand by ID."""
         from entityspine.stores.mappers import row_to_brand
 
         row = self._fetchone("SELECT * FROM brands WHERE brand_id = ?", (brand_id,))
         return row_to_brand(dict(row)) if row else None
 
-    def get_brands_by_owner(self, entity_id: str) -> list["Brand"]:
+    def get_brands_by_owner(self, entity_id: str) -> list[Brand]:
         """Get all brands owned by an entity."""
         from entityspine.stores.mappers import row_to_brand
 
@@ -1669,7 +1669,7 @@ class SqliteStore:
     # Uses mappers module for database-agnostic domain conversion
     # =========================================================================
 
-    def save_event(self, event: "Event") -> None:
+    def save_event(self, event: Event) -> None:
         """Save or update an event."""
         from entityspine.stores.mappers import event_to_row
 
@@ -1706,14 +1706,14 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_event(self, event_id: str) -> Optional["Event"]:
+    def get_event(self, event_id: str) -> Event | None:
         """Get event by ID."""
         from entityspine.stores.mappers import row_to_event
 
         row = self._fetchone("SELECT * FROM kg_events WHERE event_id = ?", (event_id,))
         return row_to_event(dict(row)) if row else None
 
-    def get_events_by_type(self, event_type: "EventType") -> list["Event"]:
+    def get_events_by_type(self, event_type: EventType) -> list[Event]:
         """Get all events of a specific type."""
         from entityspine.stores.mappers import row_to_event
 
@@ -1734,7 +1734,7 @@ class SqliteStore:
     # Geographic hierarchy (country → state → city)
     # =========================================================================
 
-    def save_geo(self, geo: "Geo") -> None:
+    def save_geo(self, geo: Geo) -> None:
         """Save or update a geographic location."""
 
         now = datetime.now(UTC).isoformat()
@@ -1760,7 +1760,7 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_geo(self, geo_id: str) -> Optional["Geo"]:
+    def get_geo(self, geo_id: str) -> Geo | None:
         """Get geographic location by ID."""
         from entityspine.domain import Geo, GeoType
 
@@ -1785,7 +1785,7 @@ class SqliteStore:
     # Normalized addresses with hash for deduplication
     # =========================================================================
 
-    def save_address(self, address: "Address") -> None:
+    def save_address(self, address: Address) -> None:
         """Save or update an address."""
 
         now = datetime.now(UTC).isoformat()
@@ -1813,7 +1813,7 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_address(self, address_id: str) -> Optional["Address"]:
+    def get_address(self, address_id: str) -> Address | None:
         """Get address by ID."""
         from entityspine.domain import Address
 
@@ -1831,7 +1831,7 @@ class SqliteStore:
             normalized_hash=row["normalized_hash"],
         )
 
-    def get_address_by_hash(self, normalized_hash: str) -> Optional["Address"]:
+    def get_address_by_hash(self, normalized_hash: str) -> Address | None:
         """Get address by normalized hash for deduplication."""
         from entityspine.domain import Address
 
@@ -1861,7 +1861,7 @@ class SqliteStore:
         self,
         entity_id: str,
         address_id: str,
-        address_type: "AddressType",
+        address_type: AddressType,
     ) -> None:
         """Link an entity to an address."""
 
@@ -1885,7 +1885,7 @@ class SqliteStore:
     # Person → Org role assignments with evidence
     # =========================================================================
 
-    def save_role_assignment(self, role: "RoleAssignment") -> None:
+    def save_role_assignment(self, role: RoleAssignment) -> None:
         """Save or update a role assignment."""
 
         now = datetime.now(UTC).isoformat()
@@ -1922,7 +1922,7 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_role_assignment(self, role_assignment_id: str) -> Optional["RoleAssignment"]:
+    def get_role_assignment(self, role_assignment_id: str) -> RoleAssignment | None:
         """Get role assignment by ID."""
         from datetime import date
 
@@ -1954,7 +1954,7 @@ class SqliteStore:
             snippet_hash=row["snippet_hash"],
         )
 
-    def get_role_assignments_by_org(self, org_entity_id: str) -> list["RoleAssignment"]:
+    def get_role_assignments_by_org(self, org_entity_id: str) -> list[RoleAssignment]:
         """Get all role assignments for an organization."""
         from datetime import date
 
@@ -1989,7 +1989,7 @@ class SqliteStore:
             )
         return results
 
-    def get_role_assignments_by_person(self, person_entity_id: str) -> list["RoleAssignment"]:
+    def get_role_assignments_by_person(self, person_entity_id: str) -> list[RoleAssignment]:
         """Get all role assignments for a person."""
         from datetime import date
 
@@ -2034,7 +2034,7 @@ class SqliteStore:
     # Generic NodeRef → NodeRef relationships
     # =========================================================================
 
-    def save_relationship(self, rel: "Relationship") -> None:
+    def save_relationship(self, rel: Relationship) -> None:
         """Save or update a generic relationship."""
 
         now = datetime.now(UTC).isoformat()
@@ -2084,7 +2084,7 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_relationship(self, relationship_id: str) -> Optional["Relationship"]:
+    def get_relationship(self, relationship_id: str) -> Relationship | None:
         """Get relationship by ID."""
         from datetime import date
 
@@ -2128,7 +2128,7 @@ class SqliteStore:
         self,
         source_id: str,
         limit: int = 100,
-    ) -> list["Relationship"]:
+    ) -> list[Relationship]:
         """Get all relationships from a source node (by its ID)."""
         from datetime import date
 
@@ -2176,7 +2176,7 @@ class SqliteStore:
         row = self._fetchone("SELECT COUNT(*) as cnt FROM relationships")
         return row["cnt"] if row else 0
 
-    def get_contract(self, contract_id: str) -> Optional["Contract"]:
+    def get_contract(self, contract_id: str) -> Contract | None:
         """Get contract by ID."""
         from entityspine.stores.mappers import row_to_contract
 
@@ -2190,7 +2190,7 @@ class SqliteStore:
     # Case Operations (v2.2.4)
     # =========================================================================
 
-    def save_case(self, case: "Case") -> None:
+    def save_case(self, case: Case) -> None:
         """Save or update a legal case."""
         from entityspine.stores.mappers import case_to_row
 
@@ -2227,7 +2227,7 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_case(self, case_id: str) -> Optional["Case"]:
+    def get_case(self, case_id: str) -> Case | None:
         """Get case by ID."""
         from entityspine.stores.mappers import row_to_case
 
@@ -2237,7 +2237,7 @@ class SqliteStore:
         )
         return row_to_case(dict(row)) if row else None
 
-    def get_cases_by_target(self, target_entity_id: str) -> list["Case"]:
+    def get_cases_by_target(self, target_entity_id: str) -> list[Case]:
         """Get all cases involving a target entity."""
         from entityspine.stores.mappers import row_to_case
 
@@ -2247,7 +2247,7 @@ class SqliteStore:
         )
         return [row_to_case(dict(row)) for row in rows]
 
-    def get_cases_by_authority(self, authority_entity_id: str) -> list["Case"]:
+    def get_cases_by_authority(self, authority_entity_id: str) -> list[Case]:
         """Get all cases from an authority (court/regulator)."""
         from entityspine.stores.mappers import row_to_case
 
@@ -2266,7 +2266,7 @@ class SqliteStore:
     # EntityCluster Operations (v2.2.4) - Anti-Duplication
     # =========================================================================
 
-    def save_cluster(self, cluster: "EntityCluster") -> None:
+    def save_cluster(self, cluster: EntityCluster) -> None:
         """Save or update an entity cluster."""
         from entityspine.stores.mappers import cluster_to_row
 
@@ -2282,7 +2282,7 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_cluster(self, cluster_id: str) -> Optional["EntityCluster"]:
+    def get_cluster(self, cluster_id: str) -> EntityCluster | None:
         """Get cluster by ID."""
         from entityspine.stores.mappers import row_to_cluster
 
@@ -2301,7 +2301,7 @@ class SqliteStore:
     # EntityClusterMember Operations (v2.2.4)
     # =========================================================================
 
-    def save_cluster_member(self, member: "EntityClusterMember") -> None:
+    def save_cluster_member(self, member: EntityClusterMember) -> None:
         """Save or update a cluster membership."""
         from entityspine.stores.mappers import cluster_member_to_row
 
@@ -2324,7 +2324,7 @@ class SqliteStore:
             )
             conn.commit()
 
-    def get_cluster_members(self, cluster_id: str) -> list["EntityClusterMember"]:
+    def get_cluster_members(self, cluster_id: str) -> list[EntityClusterMember]:
         """Get all members of a cluster."""
         from entityspine.stores.mappers import row_to_cluster_member
 
@@ -2334,7 +2334,7 @@ class SqliteStore:
         )
         return [row_to_cluster_member(dict(row)) for row in rows]
 
-    def get_clusters_for_entity(self, entity_id: str) -> list["EntityClusterMember"]:
+    def get_clusters_for_entity(self, entity_id: str) -> list[EntityClusterMember]:
         """Get all cluster memberships for an entity."""
         from entityspine.stores.mappers import row_to_cluster_member
 
@@ -2344,7 +2344,7 @@ class SqliteStore:
         )
         return [row_to_cluster_member(dict(row)) for row in rows]
 
-    def get_clusters_by_status(self, status: str) -> list["EntityCluster"]:
+    def get_clusters_by_status(self, status: str) -> list[EntityCluster]:
         """Get clusters by status (pending, approved, rejected, merged)."""
         from entityspine.stores.mappers import row_to_cluster
 
@@ -2367,7 +2367,7 @@ class SqliteStore:
         from_entity_id: str | None = None,
         to_entity_id: str | None = None,
         relationship_types: list | None = None,
-    ) -> list["EntityRelationship"]:
+    ) -> list[EntityRelationship]:
         """
         Get entity relationships with optional filters.
 
@@ -2379,8 +2379,8 @@ class SqliteStore:
         Returns:
             List of EntityRelationship objects.
         """
+        from entityspine.domain.enums import ClaimStatus, RelationshipType
         from entityspine.domain.graph import EntityRelationship
-        from entityspine.domain.enums import RelationshipType, ClaimStatus
 
         query_parts = ["SELECT * FROM entity_relationships WHERE 1=1"]
         params: list = []
@@ -2425,7 +2425,7 @@ class SqliteStore:
 
         return results
 
-    def save_entity_relationship(self, rel: "EntityRelationship") -> None:
+    def save_entity_relationship(self, rel: EntityRelationship) -> None:
         """Save or update an entity relationship."""
         now_str = to_iso8601(utc_now())
         rel_type = rel.relationship_type.value if hasattr(rel.relationship_type, "value") else rel.relationship_type
@@ -2470,7 +2470,7 @@ class SqliteStore:
         org_entity_id: str | None = None,
         role_types: list | None = None,
         current_only: bool = False,
-    ) -> list["RoleAssignment"]:
+    ) -> list[RoleAssignment]:
         """
         Get role assignments with optional filters.
 
@@ -2483,8 +2483,8 @@ class SqliteStore:
         Returns:
             List of RoleAssignment objects.
         """
-        from entityspine.domain.graph import RoleAssignment
         from entityspine.domain.enums import RoleType
+        from entityspine.domain.graph import RoleAssignment
 
         query_parts = ["SELECT * FROM role_assignments WHERE 1=1"]
         params: list = []
@@ -2534,7 +2534,7 @@ class SqliteStore:
 
         return results
 
-    def save_role_assignment(self, role: "RoleAssignment") -> None:
+    def save_role_assignment(self, role: RoleAssignment) -> None:
         """Save or update a role assignment."""
         now_str = to_iso8601(utc_now())
         role_type = role.role_type.value if hasattr(role.role_type, "value") else role.role_type

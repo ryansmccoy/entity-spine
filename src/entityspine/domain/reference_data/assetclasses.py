@@ -34,7 +34,7 @@ class AssetClassInfo:
         typical_venues: Typical venue kinds where this trades.
         iso_cfi_prefix: ISO 10962 CFI code prefix if applicable.
     """
-    
+
     asset_class: AssetClass
     name: str
     description: str
@@ -60,7 +60,7 @@ ASSET_CLASS_INFO: dict[AssetClass, AssetClassInfo] = {
         typical_venues=("stock_exchange", "ecn", "ats", "dark_pool", "otc_market"),
         iso_cfi_prefix="E",
     ),
-    
+
     AssetClass.FIXED_INCOME: AssetClassInfo(
         asset_class=AssetClass.FIXED_INCOME,
         name="Fixed Income",
@@ -73,7 +73,7 @@ ASSET_CLASS_INFO: dict[AssetClass, AssetClassInfo] = {
         typical_venues=("bond_platform", "rates_venue", "idb", "otc_market"),
         iso_cfi_prefix="D",
     ),
-    
+
     AssetClass.OPTIONS: AssetClassInfo(
         asset_class=AssetClass.OPTIONS,
         name="Options",
@@ -86,7 +86,7 @@ ASSET_CLASS_INFO: dict[AssetClass, AssetClassInfo] = {
         typical_venues=("options_exchange",),
         iso_cfi_prefix="O",
     ),
-    
+
     AssetClass.FUTURES: AssetClassInfo(
         asset_class=AssetClass.FUTURES,
         name="Futures",
@@ -98,7 +98,7 @@ ASSET_CLASS_INFO: dict[AssetClass, AssetClassInfo] = {
         typical_venues=("futures_exchange", "commodity_exchange"),
         iso_cfi_prefix="F",
     ),
-    
+
     AssetClass.FX: AssetClassInfo(
         asset_class=AssetClass.FX,
         name="Foreign Exchange",
@@ -109,7 +109,7 @@ ASSET_CLASS_INFO: dict[AssetClass, AssetClassInfo] = {
         ),
         typical_venues=("fx_ecn", "fx_platform", "idb"),
     ),
-    
+
     AssetClass.COMMODITIES: AssetClassInfo(
         asset_class=AssetClass.COMMODITIES,
         name="Commodities",
@@ -120,7 +120,7 @@ ASSET_CLASS_INFO: dict[AssetClass, AssetClassInfo] = {
         ),
         typical_venues=("commodity_exchange", "futures_exchange"),
     ),
-    
+
     AssetClass.CRYPTO: AssetClassInfo(
         asset_class=AssetClass.CRYPTO,
         name="Cryptocurrency",
@@ -131,7 +131,7 @@ ASSET_CLASS_INFO: dict[AssetClass, AssetClassInfo] = {
         ),
         typical_venues=("crypto_exchange", "digital_asset_platform"),
     ),
-    
+
     AssetClass.STRUCTURED_PRODUCTS: AssetClassInfo(
         asset_class=AssetClass.STRUCTURED_PRODUCTS,
         name="Structured Products",
@@ -143,7 +143,7 @@ ASSET_CLASS_INFO: dict[AssetClass, AssetClassInfo] = {
         parent=AssetClass.FIXED_INCOME,
         typical_venues=("otc_market", "idb"),
     ),
-    
+
     AssetClass.MONEY_MARKET: AssetClassInfo(
         asset_class=AssetClass.MONEY_MARKET,
         name="Money Market",
@@ -155,7 +155,7 @@ ASSET_CLASS_INFO: dict[AssetClass, AssetClassInfo] = {
         typical_venues=("idb", "otc_market"),
         iso_cfi_prefix="D",
     ),
-    
+
     AssetClass.OTHER: AssetClassInfo(
         asset_class=AssetClass.OTHER,
         name="Other",
@@ -212,10 +212,10 @@ def get_typical_venues_for_asset_class(asset_class: AssetClass) -> tuple[str, ..
 # =============================================================================
 
 __all__ = [
-    "AssetClassInfo",
     "ASSET_CLASS_INFO",
-    "get_asset_class_info",
+    "AssetClassInfo",
     "get_asset_class_description",
     "get_asset_class_examples",
+    "get_asset_class_info",
     "get_typical_venues_for_asset_class",
 ]

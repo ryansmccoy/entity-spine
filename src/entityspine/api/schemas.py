@@ -93,7 +93,7 @@ class EntityResponse(BaseModel):
     ticker: str | None = None
 
     @classmethod
-    def from_domain(cls, entity: Any) -> "EntityResponse":
+    def from_domain(cls, entity: Any) -> EntityResponse:
         """Create from domain Entity."""
         return cls(
             entity_id=entity.entity_id,
@@ -133,7 +133,7 @@ class ResolutionResponse(BaseModel):
     elapsed_ms: float | None = None
 
     @classmethod
-    def from_domain(cls, result: Any, elapsed_ms: float | None = None) -> "ResolutionResponse":
+    def from_domain(cls, result: Any, elapsed_ms: float | None = None) -> ResolutionResponse:
         """Create from domain ResolutionResult."""
         entity = None
         if result.entity:

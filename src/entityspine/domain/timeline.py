@@ -98,25 +98,25 @@ class EntitySnapshot:
 
     entity_id: str
     snapshot_date: date
-    
+
     # Entity state
     primary_name: str
     aliases: list[str] = field(default_factory=list)
     entity_type: str | None = None
     status: str | None = None
-    
+
     # Identifiers at this time
     identifiers: dict[str, str] = field(default_factory=dict)  # scheme -> value
-    
+
     # Listings at this time
     tickers: list[str] = field(default_factory=list)
-    
+
     # Officers at this time
     officers: list[dict[str, Any]] = field(default_factory=list)
-    
+
     # Relationships at this time
     relationships: list[dict[str, Any]] = field(default_factory=list)
-    
+
     # Source information
     source_system: str = "entityspine"
     captured_at: datetime = field(default_factory=utc_now)

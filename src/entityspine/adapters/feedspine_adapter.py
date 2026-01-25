@@ -37,9 +37,10 @@ Example:
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from datetime import UTC, datetime, timezone
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from entityspine.stores.sqlite_store import SqliteStore
@@ -134,7 +135,7 @@ class FeedSpineAdapter:
         Returns:
             SyncResult with statistics
         """
-        start_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
         logger.info(f"Starting sync from FeedSpine {source}/{layer}")
 
         result = SyncResult(source=source)
@@ -160,7 +161,7 @@ class FeedSpineAdapter:
             logger.error(f"FeedSpine sync failed: {e}")
 
         result.duration_seconds = (
-            datetime.now(timezone.utc) - start_time
+            datetime.now(UTC) - start_time
         ).total_seconds()
 
         logger.info(

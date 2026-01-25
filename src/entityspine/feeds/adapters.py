@@ -24,7 +24,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 # Check if feedspine is available
 try:
@@ -55,7 +55,7 @@ class EntitySpineFeedAdapter:
     Subclasses implement:
     - _fetch_candidates(): AsyncIterator yielding RecordCandidate
     """
-    
+
     def __init__(self, name: str, source_type: str | None = None) -> None:
         """Initialize adapter.
         
@@ -66,34 +66,34 @@ class EntitySpineFeedAdapter:
         self._name = name
         self._source_type = source_type or name
         self._initialized = False
-    
+
     @property
     def name(self) -> str:
         """Adapter name."""
         return self._name
-    
+
     @property
     def source_type(self) -> str:
         """Source type for metadata."""
         return self._source_type
-    
+
     async def initialize(self) -> None:
         """Initialize the adapter."""
         self._initialized = True
-    
+
     async def close(self) -> None:
         """Clean up resources."""
         self._initialized = False
-    
-    async def __aenter__(self) -> "EntitySpineFeedAdapter":
+
+    async def __aenter__(self) -> EntitySpineFeedAdapter:
         """Async context manager entry."""
         await self.initialize()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Async context manager exit."""
         await self.close()
-    
+
     async def fetch(self) -> AsyncIterator[RecordCandidate]:
         """Fetch records from the source.
         
@@ -134,33 +134,33 @@ class SECTickerFeedAdapter(EntitySpineFeedAdapter):
         >>> # async for candidate in adapter.fetch():
         >>> #     print(candidate.natural_key)
     """
-    
+
     def __init__(self) -> None:
         super().__init__(name="sec.company_tickers", source_type="sec.company_tickers")
         self._source = None
-    
+
     async def initialize(self) -> None:
         """Initialize the SEC source."""
         from entityspine.sources import SECTickerSource
         self._source = SECTickerSource()
-    
+
     async def close(self) -> None:
         """Clean up resources."""
         self._source = None
-    
+
     async def fetch(self) -> AsyncIterator[RecordCandidate]:
         """Fetch SEC tickers and yield RecordCandidates."""
         if self._source is None:
             await self.initialize()
-        
+
         records = await self._source.fetch()
         snapshot = self._source.last_snapshot
-        
+
         for record in records:
             cik = record["cik"]
             ticker = record["ticker"]
             natural_key = f"{cik}:{ticker}"
-            
+
             content = {
                 "cik": cik,
                 "ticker": ticker,
@@ -169,7 +169,7 @@ class SECTickerFeedAdapter(EntitySpineFeedAdapter):
                 "mic": record["mic"],
                 "content_hash": _content_hash(record),
             }
-            
+
             yield RecordCandidate(
                 natural_key=natural_key,
                 published_at=snapshot.captured_at if snapshot else datetime.now(UTC),
@@ -208,28 +208,28 @@ class MICFeedAdapter(EntitySpineFeedAdapter):
         >>> adapter.name
         'iso10383.mic'
     """
-    
+
     def __init__(self) -> None:
         super().__init__(name="iso10383.mic", source_type="iso10383.mic")
         self._source = None
-    
+
     async def initialize(self) -> None:
         """Initialize the ISO 10383 source."""
         from entityspine.sources import ISO10383Source
         self._source = ISO10383Source()
-    
+
     async def close(self) -> None:
         """Clean up resources."""
         self._source = None
-    
+
     async def fetch(self) -> AsyncIterator[RecordCandidate]:
         """Fetch MIC codes and yield RecordCandidates."""
         if self._source is None:
             await self.initialize()
-        
+
         records = await self._source.fetch_as_records()
         snapshot = self._source.last_snapshot
-        
+
         for record in records:
             content = {
                 "mic": record.mic,
@@ -246,7 +246,7 @@ class MICFeedAdapter(EntitySpineFeedAdapter):
                 "status": record.status,
             }
             content["content_hash"] = _content_hash(content)
-            
+
             yield RecordCandidate(
                 natural_key=record.mic,
                 published_at=snapshot.captured_at if snapshot else datetime.now(UTC),
@@ -285,7 +285,7 @@ class LEIFeedAdapter(EntitySpineFeedAdapter):
         >>> adapter.name
         'gleif.lei'
     """
-    
+
     def __init__(
         self,
         mode: str = "bulk",  # "bulk", "single", or "search"
@@ -299,21 +299,21 @@ class LEIFeedAdapter(EntitySpineFeedAdapter):
         self._query = query
         self._lei = lei
         self._limit = limit
-    
+
     async def initialize(self) -> None:
         """Initialize the GLEIF source."""
         from entityspine.sources import GLEIFSource
         self._source = GLEIFSource()
-    
+
     async def close(self) -> None:
         """Clean up resources."""
         self._source = None
-    
+
     async def fetch(self) -> AsyncIterator[RecordCandidate]:
         """Fetch LEI records and yield RecordCandidates."""
         if self._source is None:
             await self.initialize()
-        
+
         if self._mode == "single" and self._lei:
             # Single LEI lookup
             record = await self._source.lookup_lei(self._lei)
@@ -324,7 +324,7 @@ class LEIFeedAdapter(EntitySpineFeedAdapter):
             records = await self._source.fetch_as_records(limit=self._limit)
             for record in records:
                 yield self._record_to_candidate(record)
-    
+
     def _record_to_candidate(self, record: Any) -> RecordCandidate:
         """Convert LEIRecord to RecordCandidate."""
         content = {
@@ -340,7 +340,7 @@ class LEIFeedAdapter(EntitySpineFeedAdapter):
             "registration_status": record.registration_status,
         }
         content["content_hash"] = _content_hash(content)
-        
+
         return RecordCandidate(
             natural_key=record.lei,
             published_at=record.captured_at or datetime.now(UTC),
@@ -374,32 +374,32 @@ class CountryFeedAdapter(EntitySpineFeedAdapter):
         >>> adapter.name
         'iso3166.country'
     """
-    
+
     def __init__(self) -> None:
         super().__init__(name="iso3166.country", source_type="iso3166.country")
         self._source = None
-    
+
     async def initialize(self) -> None:
         """Initialize the ISO 3166 source."""
         from entityspine.sources import ISO3166Source
         self._source = ISO3166Source()
-    
+
     async def close(self) -> None:
         """Clean up resources."""
         self._source = None
-    
+
     async def fetch(self) -> AsyncIterator[RecordCandidate]:
         """Fetch country records and yield RecordCandidates."""
         if self._source is None:
             await self.initialize()
-        
+
         snapshot, records = await self._source.fetch()
-        
+
         for record in records:
             # Normalize to uppercase for consistency
             alpha2 = record.alpha2.upper() if record.alpha2 else ""
             alpha3 = record.alpha3.upper() if record.alpha3 else None
-            
+
             content = {
                 "alpha_2": alpha2,
                 "alpha_3": alpha3,
@@ -410,7 +410,7 @@ class CountryFeedAdapter(EntitySpineFeedAdapter):
                 "subregion": record.subregion,
             }
             content["content_hash"] = _content_hash(content)
-            
+
             yield RecordCandidate(
                 natural_key=alpha2,  # Normalized to uppercase
                 published_at=snapshot.captured_at if snapshot else datetime.now(UTC),
@@ -443,27 +443,27 @@ class CurrencyFeedAdapter(EntitySpineFeedAdapter):
         >>> adapter.name
         'iso4217.currency'
     """
-    
+
     def __init__(self) -> None:
         super().__init__(name="iso4217.currency", source_type="iso4217.currency")
         self._source = None
-    
+
     async def initialize(self) -> None:
         """Initialize the ISO 4217 source."""
         from entityspine.sources import ISO4217Source
         self._source = ISO4217Source()
-    
+
     async def close(self) -> None:
         """Clean up resources."""
         self._source = None
-    
+
     async def fetch(self) -> AsyncIterator[RecordCandidate]:
         """Fetch currency records and yield RecordCandidates."""
         if self._source is None:
             await self.initialize()
-        
+
         snapshot, records = await self._source.fetch()
-        
+
         for record in records:
             content = {
                 "alpha_3": record.alpha3,
@@ -474,7 +474,7 @@ class CurrencyFeedAdapter(EntitySpineFeedAdapter):
                 "is_fund": record.is_fund if hasattr(record, 'is_fund') else False,
             }
             content["content_hash"] = _content_hash(content)
-            
+
             yield RecordCandidate(
                 natural_key=record.alpha3,
                 published_at=snapshot.captured_at if snapshot else datetime.now(UTC),
@@ -510,29 +510,29 @@ class ISINLEIFeedAdapter(EntitySpineFeedAdapter):
         >>> adapter.name
         'gleif.isin_lei'
     """
-    
+
     def __init__(self, limit: int | None = None) -> None:
         super().__init__(name="gleif.isin_lei", source_type="gleif.isin_lei")
         self._source = None
         self._limit = limit
-    
+
     async def initialize(self) -> None:
         """Initialize the GLEIF ISIN-LEI source."""
         from entityspine.sources import GLEIFISINLEISource
         self._source = GLEIFISINLEISource()
-    
+
     async def close(self) -> None:
         """Clean up resources."""
         self._source = None
-    
+
     async def fetch(self) -> AsyncIterator[RecordCandidate]:
         """Fetch ISIN-LEI mappings and yield RecordCandidates."""
         if self._source is None:
             await self.initialize()
-        
+
         records = await self._source.fetch()
         snapshot = self._source.last_snapshot
-        
+
         for record in records:
             content = {
                 "isin": record["isin"],
@@ -541,7 +541,7 @@ class ISINLEIFeedAdapter(EntitySpineFeedAdapter):
                 "lei_status": record.get("lei_status"),
             }
             content["content_hash"] = _content_hash(content)
-            
+
             yield RecordCandidate(
                 natural_key=record["isin"],
                 published_at=snapshot.captured_at if snapshot else datetime.now(UTC),

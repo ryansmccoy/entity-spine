@@ -29,7 +29,6 @@ from enum import Enum
 
 from entityspine.domain.timestamps import utc_now
 
-
 # =============================================================================
 # Vendor Namespace Enum
 # =============================================================================
@@ -42,28 +41,28 @@ class VendorNamespace(str, Enum):
     Each vendor has their own exchange/venue identification scheme.
     This enum provides a controlled vocabulary for vendor identification.
     """
-    
+
     # Primary market data vendors
     BLOOMBERG = "bloomberg"           # Bloomberg BBUID/feed sources
     REUTERS = "reuters"               # Thomson Reuters / Refinitiv RIC codes
     REFINITIV = "refinitiv"           # Refinitiv (same as Reuters for most cases)
     FACTSET = "factset"               # FactSet entity/security exchange codes
-    
+
     # Broker platforms
     INTERACTIVE_BROKERS = "ibkr"      # Interactive Brokers exchange codes
     SCHWAB = "schwab"                 # Charles Schwab
     FIDELITY = "fidelity"             # Fidelity
-    
+
     # Other data vendors
     MORNINGSTAR = "morningstar"       # Morningstar
     SP_CAPITAL_IQ = "spglobal"        # S&P Global / Capital IQ
     QUANDL = "quandl"                 # Quandl (Nasdaq Data Link)
-    
+
     # Regulatory / Standard
     ISO10383 = "iso10383"             # ISO MIC standard
     SEC = "sec"                       # SEC EDGAR codes
     FINRA = "finra"                   # FINRA codes
-    
+
     # Internal
     INTERNAL = "internal"             # Internal/proprietary codes
     UNKNOWN = "unknown"
@@ -98,24 +97,24 @@ class VendorVenueCodeRef:
         captured_at: When captured.
         verified_at: When last verified.
     """
-    
+
     vendor: VendorNamespace
     vendor_code: str
-    
+
     mic: str | None = None
     name: str | None = None
-    
+
     # Mapping quality
     confidence: float = 1.0
     is_exact_match: bool = True
     notes: str | None = None
-    
+
     # Provenance
     source: str = "curated"
     source_url: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
     verified_at: datetime | None = None
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
@@ -164,13 +163,13 @@ BLOOMBERG_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.BLOOMBERG, vendor_code="UV",
         mic="IEXG", name="IEX",
     ),
-    
+
     # US OTC
     "UU": VendorVenueCodeRef(
         vendor=VendorNamespace.BLOOMBERG, vendor_code="UU",
         mic="OTCM", name="OTC Markets",
     ),
-    
+
     # Europe
     "LN": VendorVenueCodeRef(
         vendor=VendorNamespace.BLOOMBERG, vendor_code="LN",
@@ -204,7 +203,7 @@ BLOOMBERG_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.BLOOMBERG, vendor_code="IM",
         mic="XMIL", name="Borsa Italiana",
     ),
-    
+
     # Asia-Pacific
     "JP": VendorVenueCodeRef(
         vendor=VendorNamespace.BLOOMBERG, vendor_code="JP",
@@ -238,7 +237,7 @@ BLOOMBERG_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.BLOOMBERG, vendor_code="IN",
         mic="XBOM", name="BSE India",
     ),
-    
+
     # Canada
     "CN": VendorVenueCodeRef(
         vendor=VendorNamespace.BLOOMBERG, vendor_code="CN",
@@ -281,7 +280,7 @@ REUTERS_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.REUTERS, vendor_code=".Z",
         mic="BATS", name="BATS",
     ),
-    
+
     # Europe
     ".L": VendorVenueCodeRef(
         vendor=VendorNamespace.REUTERS, vendor_code=".L",
@@ -311,7 +310,7 @@ REUTERS_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.REUTERS, vendor_code=".MI",
         mic="XMIL", name="Borsa Italiana",
     ),
-    
+
     # Asia-Pacific
     ".T": VendorVenueCodeRef(
         vendor=VendorNamespace.REUTERS, vendor_code=".T",
@@ -341,7 +340,7 @@ REUTERS_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.REUTERS, vendor_code=".SI",
         mic="XSES", name="Singapore Exchange",
     ),
-    
+
     # Canada
     ".TO": VendorVenueCodeRef(
         vendor=VendorNamespace.REUTERS, vendor_code=".TO",
@@ -377,7 +376,7 @@ FACTSET_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.FACTSET, vendor_code="UP",
         mic="ARCX", name="NYSE Arca",
     ),
-    
+
     # Europe
     "LN": VendorVenueCodeRef(
         vendor=VendorNamespace.FACTSET, vendor_code="LN",
@@ -403,7 +402,7 @@ FACTSET_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.FACTSET, vendor_code="SW",
         mic="XSWX", name="SIX Swiss",
     ),
-    
+
     # Asia-Pacific
     "JP": VendorVenueCodeRef(
         vendor=VendorNamespace.FACTSET, vendor_code="JP",
@@ -425,7 +424,7 @@ FACTSET_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.FACTSET, vendor_code="AU",
         mic="XASX", name="ASX",
     ),
-    
+
     # Canada
     "CN": VendorVenueCodeRef(
         vendor=VendorNamespace.FACTSET, vendor_code="CN",
@@ -468,7 +467,7 @@ IBKR_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.INTERACTIVE_BROKERS, vendor_code="PINK",
         mic="OTCM", name="OTC Markets",
     ),
-    
+
     # Options
     "CBOE": VendorVenueCodeRef(
         vendor=VendorNamespace.INTERACTIVE_BROKERS, vendor_code="CBOE",
@@ -482,7 +481,7 @@ IBKR_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.INTERACTIVE_BROKERS, vendor_code="PHLX",
         mic="XPHL", name="Nasdaq PHLX",
     ),
-    
+
     # Futures
     "CME": VendorVenueCodeRef(
         vendor=VendorNamespace.INTERACTIVE_BROKERS, vendor_code="CME",
@@ -500,7 +499,7 @@ IBKR_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.INTERACTIVE_BROKERS, vendor_code="COMEX",
         mic="XCEC", name="COMEX",
     ),
-    
+
     # Europe
     "LSE": VendorVenueCodeRef(
         vendor=VendorNamespace.INTERACTIVE_BROKERS, vendor_code="LSE",
@@ -526,7 +525,7 @@ IBKR_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.INTERACTIVE_BROKERS, vendor_code="EUREX",
         mic="XEUR", name="Eurex",
     ),
-    
+
     # Asia-Pacific
     "TSE": VendorVenueCodeRef(
         vendor=VendorNamespace.INTERACTIVE_BROKERS, vendor_code="TSE",
@@ -548,7 +547,7 @@ IBKR_VENUE_CODES: dict[str, VendorVenueCodeRef] = {
         vendor=VendorNamespace.INTERACTIVE_BROKERS, vendor_code="SGX",
         mic="XSES", name="Singapore Exchange",
     ),
-    
+
     # Canada
     "TSX": VendorVenueCodeRef(
         vendor=VendorNamespace.INTERACTIVE_BROKERS, vendor_code="TSX",
@@ -581,7 +580,7 @@ VENDOR_CODE_MAPPINGS: dict[VendorNamespace, dict[str, VendorVenueCodeRef]] = {
 def _build_mic_to_vendor_index() -> dict[str, list[VendorVenueCodeRef]]:
     """Build reverse index from MIC to vendor codes."""
     index: dict[str, list[VendorVenueCodeRef]] = {}
-    
+
     for vendor_codes in VENDOR_CODE_MAPPINGS.values():
         for ref in vendor_codes.values():
             if ref.mic:
@@ -589,7 +588,7 @@ def _build_mic_to_vendor_index() -> dict[str, list[VendorVenueCodeRef]]:
                 if mic not in index:
                     index[mic] = []
                 index[mic].append(ref)
-    
+
     return index
 
 
@@ -626,11 +625,11 @@ def lookup_mic_by_vendor_code(
             vendor = VendorNamespace(vendor.lower())
         except ValueError:
             return None
-    
+
     vendor_codes = VENDOR_CODE_MAPPINGS.get(vendor)
     if not vendor_codes:
         return None
-    
+
     ref = vendor_codes.get(vendor_code)
     return ref.mic if ref else None
 
@@ -656,10 +655,10 @@ def lookup_vendor_codes_for_mic(
         [('bloomberg', 'UN'), ('bloomberg', 'US'), ('reuters', '.N'), ...]
     """
     refs = _MIC_TO_VENDOR_INDEX.get(mic.upper(), [])
-    
+
     if vendor:
         refs = [r for r in refs if r.vendor == vendor]
-    
+
     return refs
 
 
@@ -682,11 +681,11 @@ def get_vendor_code_ref(
             vendor = VendorNamespace(vendor.lower())
         except ValueError:
             return None
-    
+
     vendor_codes = VENDOR_CODE_MAPPINGS.get(vendor)
     if not vendor_codes:
         return None
-    
+
     return vendor_codes.get(vendor_code)
 
 
@@ -703,13 +702,13 @@ def find_conflicting_mappings(mic: str) -> dict[VendorNamespace, list[VendorVenu
         Dict of vendor → list of codes mapping to this MIC.
     """
     refs = lookup_vendor_codes_for_mic(mic)
-    
+
     by_vendor: dict[VendorNamespace, list[VendorVenueCodeRef]] = {}
     for ref in refs:
         if ref.vendor not in by_vendor:
             by_vendor[ref.vendor] = []
         by_vendor[ref.vendor].append(ref)
-    
+
     return by_vendor
 
 

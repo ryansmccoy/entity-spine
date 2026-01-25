@@ -26,7 +26,6 @@ from typing import TypedDict
 
 from entityspine.domain.timestamps import utc_now
 
-
 # =============================================================================
 # Typed Reference Data Classes (v2.3.2)
 # =============================================================================
@@ -56,16 +55,16 @@ class ExchangeRef:
         last_verified: When we last verified this data was still accurate.
         confidence: Confidence score 0.0-1.0.
     """
-    
+
     mic: str
     name: str
-    
+
     short_name: str | None = None
     country_code: str | None = None
     city: str | None = None
     timezone: str | None = None
     operating_mic: str | None = None  # For segment MICs
-    
+
     # Provenance (v2.3.2)
     source: str = "unknown"
     source_url: str | None = None
@@ -73,7 +72,7 @@ class ExchangeRef:
     captured_at: datetime = field(default_factory=utc_now)
     last_verified: date | None = None
     confidence: float = 1.0
-    
+
     def to_dict(self) -> dict:
         """Convert to dict for backward compatibility."""
         result = {"name": self.name}
@@ -84,7 +83,7 @@ class ExchangeRef:
         if self.country_code:
             result["country"] = self.country_code
         return result
-    
+
     @classmethod
     def from_dict(
         cls,
@@ -126,20 +125,20 @@ class ClearinghouseRef:
         as_of: Date when this data was valid/published.
         captured_at: When we captured/ingested this data.
     """
-    
+
     identifier: str
     name: str
-    
+
     short_name: str | None = None
     clearinghouse_type: str | None = None
     country_code: str | None = None
-    
+
     # Provenance (v2.3.2)
     source: str = "unknown"
     source_url: str | None = None
     as_of: date | None = None
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     def to_dict(self) -> dict:
         """Convert to dict for backward compatibility."""
         result = {"name": self.name}
@@ -709,7 +708,7 @@ def lookup_exchange_by_mic(mic: str) -> ExchangeInfo | None:
         lookup_exchange_ref: Returns typed ExchangeRef with provenance.
     """
     mic_upper = mic.upper().strip()
-    
+
     # Search through all exchange dicts
     for exchange_dict in [
         US_EQUITY_EXCHANGES,
@@ -723,7 +722,7 @@ def lookup_exchange_by_mic(mic: str) -> ExchangeInfo | None:
     ]:
         if mic_upper in exchange_dict:
             return exchange_dict[mic_upper]
-    
+
     return None
 
 
@@ -759,10 +758,10 @@ def lookup_exchange_ref(
     """
     mic_upper = mic.upper().strip()
     info = lookup_exchange_by_mic(mic_upper)
-    
+
     if info is None:
         return None
-    
+
     return ExchangeRef.from_dict(
         mic=mic_upper,
         data=info,

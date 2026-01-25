@@ -21,10 +21,8 @@ Use Cases:
 from dataclasses import dataclass, field
 from datetime import datetime
 from hashlib import sha256
-from typing import Optional
 
 from entityspine.domain.timestamps import generate_ulid, utc_now
-
 
 # =============================================================================
 # Enums for Chat domain
@@ -68,49 +66,49 @@ class ChatMessage:
         # Provenance
         captured_at: When this was ingested into entityspine
     """
-    
+
     # Identity
     message_id: str = field(default_factory=generate_ulid)
     session_id: str = ""
-    
+
     # Core content
     role: str = CHAT_ROLE_USER
     content: str = ""
-    timestamp: Optional[datetime] = None
-    model_id: Optional[str] = None
+    timestamp: datetime | None = None
+    model_id: str | None = None
     sequence: int = 0
-    
+
     # Deduplication
     content_hash: str = ""
-    
+
     # Optional metadata
     tool_calls: list[str] = field(default_factory=list)
-    tokens_in: Optional[int] = None
-    tokens_out: Optional[int] = None
-    
+    tokens_in: int | None = None
+    tokens_out: int | None = None
+
     # Provenance
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self) -> None:
         """Compute content hash if not provided."""
         if not self.content_hash and self.content:
             self.content_hash = self._compute_hash()
-    
+
     def _compute_hash(self) -> str:
         """Compute SHA256 hash of content for deduplication."""
         payload = f"{self.session_id}|{self.sequence}|{self.role}|{self.content}"
         return sha256(payload.encode()).hexdigest()[:16]
-    
+
     @property
     def is_user(self) -> bool:
         """True if this is a user message."""
         return self.role == CHAT_ROLE_USER
-    
+
     @property
     def is_assistant(self) -> bool:
         """True if this is an assistant response."""
         return self.role == CHAT_ROLE_ASSISTANT
-    
+
     @property
     def preview(self) -> str:
         """First 100 chars of content for display."""
@@ -152,56 +150,56 @@ class ChatSession:
         # Ingestion provenance
         captured_at: When this was ingested into entityspine
     """
-    
+
     # Identity
     session_id: str = field(default_factory=generate_ulid)
     workspace_id: str = ""
     project_name: str = ""
-    
+
     # Timestamps
-    created_at: Optional[datetime] = None
-    last_message_at: Optional[datetime] = None
-    
+    created_at: datetime | None = None
+    last_message_at: datetime | None = None
+
     # Session metadata
     title: str = ""
     message_count: int = 0
-    
+
     # Deduplication
     session_hash: str = ""
-    
+
     # Source provenance
     source_file: str = ""
     workspace_path: str = ""
-    
+
     # Ingestion provenance
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     # Messages (not stored, populated on load)
     messages: list[ChatMessage] = field(default_factory=list)
-    
+
     def __post_init__(self) -> None:
         """Compute session hash if not provided."""
         if not self.session_hash:
             self.session_hash = self._compute_hash()
-    
+
     def _compute_hash(self) -> str:
         """Compute hash for change detection."""
         payload = f"{self.session_id}|{self.message_count}|{self.last_message_at}"
         return sha256(payload.encode()).hexdigest()[:16]
-    
+
     @property
-    def duration_minutes(self) -> Optional[int]:
+    def duration_minutes(self) -> int | None:
         """Duration of session in minutes (if timestamps available)."""
         if self.created_at and self.last_message_at:
             delta = self.last_message_at - self.created_at
             return int(delta.total_seconds() / 60)
         return None
-    
+
     @property
     def is_empty(self) -> bool:
         """True if session has no messages."""
         return self.message_count == 0
-    
+
     def add_message(self, message: ChatMessage) -> None:
         """Add a message to this session."""
         message.session_id = self.session_id
@@ -244,27 +242,27 @@ class ChatWorkspace:
         storage_path: Path to VS Code's workspaceStorage folder
         captured_at: When this was ingested
     """
-    
+
     # Identity
     workspace_id: str = ""  # The hash from VS Code storage
     workspace_path: str = ""
     project_name: str = ""
-    
+
     # Statistics
     session_count: int = 0
     total_messages: int = 0
-    
+
     # Timestamps
-    first_session_at: Optional[datetime] = None
-    last_activity_at: Optional[datetime] = None
-    
+    first_session_at: datetime | None = None
+    last_activity_at: datetime | None = None
+
     # Provenance
     storage_path: str = ""
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     # Sessions (not stored, populated on load)
     sessions: list[ChatSession] = field(default_factory=list)
-    
+
     def add_session(self, session: ChatSession) -> None:
         """Add a session to this workspace."""
         session.workspace_id = self.workspace_id
@@ -272,7 +270,7 @@ class ChatWorkspace:
         self.sessions.append(session)
         self.session_count = len(self.sessions)
         self.total_messages += session.message_count
-        
+
         # Update timestamps
         if session.created_at:
             if not self.first_session_at or session.created_at < self.first_session_at:
@@ -280,12 +278,12 @@ class ChatWorkspace:
         if session.last_message_at:
             if not self.last_activity_at or session.last_message_at > self.last_activity_at:
                 self.last_activity_at = session.last_message_at
-    
+
     @property
     def sessions_chronological(self) -> list[ChatSession]:
         """Sessions sorted oldest-first."""
         return sorted(self.sessions, key=lambda s: s.created_at or datetime.min)
-    
+
     @property
     def sessions_reverse(self) -> list[ChatSession]:
         """Sessions sorted newest-first."""
@@ -301,8 +299,8 @@ def create_chat_message(
     content: str,
     role: str = CHAT_ROLE_USER,
     session_id: str = "",
-    timestamp: Optional[datetime] = None,
-    model_id: Optional[str] = None,
+    timestamp: datetime | None = None,
+    model_id: str | None = None,
     sequence: int = 0,
 ) -> ChatMessage:
     """Create a ChatMessage with defaults."""
@@ -340,7 +338,7 @@ def create_chat_workspace(
     if not project_name:
         # Extract project name from path
         project_name = workspace_path.rstrip("/\\").split("/")[-1].split("\\")[-1]
-    
+
     return ChatWorkspace(
         workspace_id=workspace_id,
         workspace_path=workspace_path,

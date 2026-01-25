@@ -30,23 +30,14 @@ Design Principles:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from entityspine.core.timestamps import utc_now
-from entityspine.domain import Entity, EntityType, Listing, Security
-from entityspine.domain.enums import (
-    IdentifierScheme,
-    RelationshipType,
-    RoleType,
-)
-from entityspine.domain.graph import EntityRelationship, RoleAssignment
 from entityspine.domain.timeline import (
-    TimelineEventType,
-    TimelineEvent,
     EntitySnapshot,
     StateDiff,
+    TimelineEvent,
+    TimelineEventType,
 )
 
 if TYPE_CHECKING:
@@ -83,7 +74,7 @@ class TimelineService:
         >>> print(f"Changes detected: {diff.has_changes}")
     """
 
-    def __init__(self, store: "SqliteStore"):
+    def __init__(self, store: SqliteStore):
         """
         Initialize the timeline service.
 

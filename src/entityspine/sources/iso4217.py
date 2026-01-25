@@ -49,13 +49,12 @@ v1.0.0 Initial implementation.
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import urllib.request
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
+from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Iterator
 
 from entityspine.domain.timestamps import utc_now
 
@@ -179,7 +178,7 @@ class CurrencySnapshot:
     captured_at: datetime
     published_date: date | None = None
     raw_content: str | None = None
-    
+
     @classmethod
     def from_response(
         cls,
@@ -195,7 +194,7 @@ class CurrencySnapshot:
         content_hash = hashlib.sha256(content).hexdigest()
         captured_at = utc_now()
         snapshot_id = f"iso4217_{captured_at.strftime('%Y%m%d_%H%M%S')}_{content_hash[:8]}"
-        
+
         return cls(
             snapshot_id=snapshot_id,
             source_url=source_url,
@@ -238,30 +237,30 @@ class CurrencyRecord:
     alpha3: str
     numeric: str | None = None
     name: str = ""
-    
+
     # Numeric properties
     minor_unit: int | None = None  # None means "N.A." in ISO
-    
+
     # Countries using this currency
     country_codes: tuple[str, ...] = ()
-    
+
     # Display (not from ISO)
     symbol: str | None = None
-    
+
     # Classification
     is_fund: bool = False
     is_precious_metal: bool = False
     is_supranational: bool = False
     is_active: bool = True
-    
+
     # Lifecycle
     withdrawal_date: date | None = None
-    
+
     def __post_init__(self) -> None:
         """Validate required fields."""
         if not self.alpha3 or len(self.alpha3) != 3:
             raise ValueError(f"Invalid alpha3 code: {self.alpha3}")
-    
+
     @property
     def display_symbol(self) -> str:
         """Get display symbol, falling back to alpha3 code."""
@@ -295,33 +294,33 @@ class CurrencyRegistry:
         >>> # Get all active currencies
         >>> active = registry.get_active_currencies()
     """
-    
+
     def __init__(self) -> None:
         self._by_alpha3: dict[str, CurrencyRecord] = {}
         self._by_numeric: dict[str, str] = {}  # numeric -> alpha3
         self._by_country: dict[str, list[str]] = {}  # country -> [alpha3]
         self._snapshot: CurrencySnapshot | None = None
         self._loaded_at: datetime | None = None
-    
+
     @property
     def snapshot(self) -> CurrencySnapshot | None:
         """The Bronze snapshot this registry was loaded from."""
         return self._snapshot
-    
+
     @property
     def loaded_at(self) -> datetime | None:
         """When this registry was loaded."""
         return self._loaded_at
-    
+
     def __len__(self) -> int:
         return len(self._by_alpha3)
-    
+
     def __contains__(self, alpha3: str) -> bool:
         return alpha3.upper() in self._by_alpha3
-    
+
     def __iter__(self) -> Iterator[CurrencyRecord]:
         return iter(self._by_alpha3.values())
-    
+
     async def load_from_source(
         self,
         source: ISO4217Source | None = None,
@@ -337,41 +336,41 @@ class CurrencyRegistry:
         """
         if source is None:
             source = ISO4217Source()
-        
+
         snapshot, records = await source.fetch()
         self._load_records(records)
         self._snapshot = snapshot
         self._loaded_at = utc_now()
-        
+
         logger.info(
             f"Loaded {len(self)} currencies from {snapshot.source_url}"
         )
         return snapshot
-    
+
     def load_from_records(self, records: list[CurrencyRecord]) -> None:
         """Load registry from pre-parsed records."""
         self._load_records(records)
         self._loaded_at = utc_now()
-    
+
     def _load_records(self, records: list[CurrencyRecord]) -> None:
         """Internal method to index records."""
         self._by_alpha3.clear()
         self._by_numeric.clear()
         self._by_country.clear()
-        
+
         for rec in records:
             alpha3 = rec.alpha3.upper()
             self._by_alpha3[alpha3] = rec
-            
+
             if rec.numeric:
                 self._by_numeric[rec.numeric] = alpha3
-            
+
             for country in rec.country_codes:
                 country_upper = country.upper()
                 if country_upper not in self._by_country:
                     self._by_country[country_upper] = []
                 self._by_country[country_upper].append(alpha3)
-    
+
     def lookup(self, alpha3: str) -> CurrencyRecord | None:
         """
         Look up currency by ISO 4217 alpha-3 code.
@@ -383,11 +382,11 @@ class CurrencyRegistry:
             CurrencyRecord if found, None otherwise.
         """
         return self._by_alpha3.get(alpha3.upper())
-    
+
     def get(self, alpha3: str) -> CurrencyRecord | None:
         """Alias for lookup() - provides consistent API across registries."""
         return self.lookup(alpha3)
-    
+
     def lookup_numeric(self, numeric: str) -> CurrencyRecord | None:
         """
         Look up currency by ISO 4217 numeric code.
@@ -402,7 +401,7 @@ class CurrencyRegistry:
         if alpha3:
             return self._by_alpha3.get(alpha3)
         return None
-    
+
     def is_valid(self, code: str) -> bool:
         """
         Check if a currency code is valid.
@@ -421,7 +420,7 @@ class CurrencyRegistry:
                 return code in self._by_numeric
             return code in self._by_alpha3
         return False
-    
+
     def normalize_to_alpha3(self, code: str) -> str | None:
         """
         Normalize any currency code to alpha-3.
@@ -439,7 +438,7 @@ class CurrencyRegistry:
             if code in self._by_alpha3:
                 return code
         return None
-    
+
     def get_currencies_for_country(self, country_code: str) -> list[CurrencyRecord]:
         """
         Get currencies used by a country.
@@ -452,19 +451,19 @@ class CurrencyRegistry:
         """
         alpha3s = self._by_country.get(country_code.upper(), [])
         return [self._by_alpha3[a3] for a3 in alpha3s]
-    
+
     def get_active_currencies(self) -> list[CurrencyRecord]:
         """Get all active (non-withdrawn) currencies."""
         return [rec for rec in self._by_alpha3.values() if rec.is_active]
-    
+
     def get_precious_metals(self) -> list[CurrencyRecord]:
         """Get precious metal codes (XAU, XAG, XPT, XPD)."""
         return [rec for rec in self._by_alpha3.values() if rec.is_precious_metal]
-    
+
     def get_fund_codes(self) -> list[CurrencyRecord]:
         """Get fund codes (USN, USS, etc.)."""
         return [rec for rec in self._by_alpha3.values() if rec.is_fund]
-    
+
     def search_by_name(self, query: str) -> list[CurrencyRecord]:
         """
         Search currencies by name (case-insensitive substring match).
@@ -480,7 +479,7 @@ class CurrencyRegistry:
             rec for rec in self._by_alpha3.values()
             if query in rec.name.lower()
         ]
-    
+
     def get_minor_unit(self, alpha3: str) -> int | None:
         """
         Get decimal places for a currency.
@@ -493,7 +492,7 @@ class CurrencyRegistry:
         """
         rec = self.lookup(alpha3)
         return rec.minor_unit if rec else None
-    
+
     def get_symbol(self, alpha3: str) -> str:
         """
         Get display symbol for a currency.
@@ -526,7 +525,7 @@ class ISO4217Source:
         >>> snapshot, records = await source.fetch()
         >>> print(f"Fetched {len(records)} currencies")
     """
-    
+
     def __init__(
         self,
         primary_url: str = SIX_ISO4217_URL,
@@ -536,7 +535,7 @@ class ISO4217Source:
         self.primary_url = primary_url
         self.fallback_url = fallback_url
         self.timeout = timeout
-    
+
     async def fetch(
         self,
         store_raw: bool = False,
@@ -569,7 +568,7 @@ class ISO4217Source:
             except Exception as e2:
                 logger.error(f"Fallback also failed: {e2}")
                 raise
-        
+
         snapshot = CurrencySnapshot.from_response(
             content=content,
             source_url=source_url,
@@ -578,19 +577,19 @@ class ISO4217Source:
             published_date=published_date,
             store_content=store_raw,
         )
-        
+
         logger.info(f"Fetched {len(records)} currencies from {source_url}")
         return snapshot, records
-    
+
     def _download(self, url: str) -> bytes:
         """Download content from URL with SSL fallback."""
         import ssl
-        
+
         request = urllib.request.Request(
             url,
             headers={"User-Agent": USER_AGENT},
         )
-        
+
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 return response.read()
@@ -602,34 +601,34 @@ class ISO4217Source:
             context.verify_mode = ssl.CERT_NONE
             with urllib.request.urlopen(request, timeout=self.timeout, context=context) as response:
                 return response.read()
-    
+
     def _parse_github_csv(self, content: bytes) -> list[CurrencyRecord]:
         """Parse GitHub datahub.io currency codes CSV format."""
         import csv
         import io
-        
+
         text = content.decode("utf-8")
         reader = csv.DictReader(io.StringIO(text))
         records = []
         seen: set[str] = set()
-        
+
         for row in reader:
             try:
                 alpha3 = row.get("AlphabeticCode", "").strip()
                 if not alpha3 or alpha3 in seen:
                     continue
                 seen.add(alpha3)
-                
+
                 # Parse minor units
                 minor_str = row.get("MinorUnit", "").strip()
                 minor_unit = None
                 if minor_str and minor_str.isdigit():
                     minor_unit = int(minor_str)
-                
+
                 # Classify special currencies
                 is_precious_metal = alpha3 in ("XAU", "XAG", "XPT", "XPD")
                 is_supranational = alpha3.startswith("X") and not is_precious_metal
-                
+
                 record = CurrencyRecord(
                     alpha3=alpha3,
                     numeric=row.get("NumericCode", "").strip() or None,
@@ -644,15 +643,15 @@ class ISO4217Source:
             except Exception as e:
                 logger.warning(f"Failed to parse currency row: {e}")
                 continue
-        
+
         return records
-    
+
     def _parse_six_xml(self, content: bytes) -> tuple[list[CurrencyRecord], date | None]:
         """Parse SIX Group ISO 4217 XML format."""
         root = ET.fromstring(content)
         records = []
         published_date = None
-        
+
         # Try to get publication date
         # Format: <Pblshd>2024-06-01</Pblshd>
         pblshd = root.find(".//Pblshd")
@@ -661,7 +660,7 @@ class ISO4217Source:
                 published_date = date.fromisoformat(pblshd.text)
             except ValueError:
                 pass
-        
+
         # Parse currency entries
         # Structure: <CcyTbl><CcyNtry>...</CcyNtry></CcyTbl>
         for entry in root.findall(".//CcyNtry"):
@@ -672,39 +671,39 @@ class ISO4217Source:
             except Exception as e:
                 logger.warning(f"Failed to parse currency entry: {e}")
                 continue
-        
+
         # Deduplicate by alpha3 (some currencies appear multiple times for different countries)
         # We want to merge country_codes
         merged = self._merge_by_alpha3(records)
-        
+
         return merged, published_date
-    
+
     def _parse_currency_entry(self, entry: ET.Element) -> CurrencyRecord | None:
         """Parse a single <CcyNtry> element."""
         # Get required alpha3 code
         ccy = entry.find("Ccy")
         if ccy is None or not ccy.text:
             return None  # Entry without currency code (some have only country)
-        
+
         alpha3 = ccy.text.strip().upper()
-        
+
         # Get country (if present)
         ctry = entry.find("CtryNm")
         country_name = ctry.text.strip() if ctry is not None and ctry.text else ""
-        
+
         # Get currency name
         ccy_nm = entry.find("CcyNm")
         name = ccy_nm.text.strip() if ccy_nm is not None and ccy_nm.text else ""
-        
+
         # Check for fund attribute: <CcyNm IsFund="true">
         is_fund = False
         if ccy_nm is not None:
             is_fund = ccy_nm.get("IsFund", "false").lower() == "true"
-        
+
         # Get numeric code
         ccy_nbr = entry.find("CcyNbr")
         numeric = ccy_nbr.text.strip() if ccy_nbr is not None and ccy_nbr.text else None
-        
+
         # Get minor unit (decimal places)
         ccy_mnr_unts = entry.find("CcyMnrUnts")
         minor_unit = None
@@ -715,14 +714,14 @@ class ISO4217Source:
                     minor_unit = int(text)
                 except ValueError:
                     pass
-        
+
         # Classify special currencies
         is_precious_metal = alpha3 in ("XAU", "XAG", "XPT", "XPD")
         is_supranational = alpha3.startswith("X") and not is_precious_metal
-        
+
         # Get symbol from our mapping
         symbol = CURRENCY_SYMBOLS.get(alpha3)
-        
+
         return CurrencyRecord(
             alpha3=alpha3,
             numeric=numeric,
@@ -735,19 +734,19 @@ class ISO4217Source:
             is_supranational=is_supranational,
             is_active=True,  # Active currencies in list-one.xml
         )
-    
+
     def _merge_by_alpha3(self, records: list[CurrencyRecord]) -> list[CurrencyRecord]:
         """Merge records with same alpha3, combining country_codes."""
         merged: dict[str, CurrencyRecord] = {}
         countries: dict[str, set[str]] = {}
-        
+
         for rec in records:
             if rec.alpha3 not in merged:
                 merged[rec.alpha3] = rec
                 countries[rec.alpha3] = set()
             # Note: country_codes will be empty at this point since XML
             # doesn't directly provide country codes, just country names
-        
+
         return list(merged.values())
 
 
@@ -807,6 +806,6 @@ def get_currency_decimals(alpha3: str, registry: CurrencyRegistry | None = None)
             # Return safe default
             return 2
         registry = _default_registry
-    
+
     minor_unit = registry.get_minor_unit(alpha3)
     return minor_unit if minor_unit is not None else 2

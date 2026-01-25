@@ -35,7 +35,6 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
-import json
 import logging
 import urllib.request
 from dataclasses import dataclass, field
@@ -93,7 +92,7 @@ class MICLEIMapping:
     valid_to: date | None = None
     source: str = "gleif"
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_current(self) -> bool:
         """Check if mapping is currently valid."""
@@ -150,10 +149,10 @@ class GLEIFMICLEISource:
         >>> mic_to_lei = {m['mic']: m['lei'] for m in mappings}
         >>> print(f"NYSE LEI: {mic_to_lei.get('XNYS')}")
     """
-    
+
     name: str = "gleif-mic-lei"
     url: str = GLEIF_MIC_LEI_CSV_URL
-    
+
     def __init__(
         self,
         url: str | None = None,
@@ -170,7 +169,7 @@ class GLEIFMICLEISource:
             self.url = url
         self.cache_dir = Path(cache_dir) if cache_dir else None
         self._last_snapshot: MICLEISnapshot | None = None
-    
+
     async def fetch(self) -> list[dict[str, Any]]:
         """
         Fetch MIC-LEI mappings from GLEIF.
@@ -179,10 +178,10 @@ class GLEIFMICLEISource:
             List of dicts with mic, lei, and relationship data.
         """
         logger.info(f"Fetching GLEIF MIC-LEI mappings from {self.url}")
-        
+
         content = await self._download()
         records = self._parse_csv(content)
-        
+
         # Create snapshot metadata
         content_hash = hashlib.sha256(content).hexdigest()
         self._last_snapshot = MICLEISnapshot(
@@ -192,10 +191,10 @@ class GLEIFMICLEISource:
             record_count=len(records),
             captured_at=utc_now(),
         )
-        
+
         logger.info(f"Parsed {len(records)} MIC-LEI mappings from GLEIF")
         return records
-    
+
     async def fetch_as_records(self) -> list[MICLEIMapping]:
         """
         Fetch and return typed MICLEIMapping objects.
@@ -204,7 +203,7 @@ class GLEIFMICLEISource:
             List of MICLEIMapping dataclass instances.
         """
         raw_records = await self.fetch()
-        
+
         return [
             MICLEIMapping(
                 mic=r["mic"],
@@ -219,7 +218,7 @@ class GLEIFMICLEISource:
             )
             for r in raw_records
         ]
-    
+
     async def _download(self) -> bytes:
         """Download raw content from GLEIF."""
         try:
@@ -230,14 +229,14 @@ class GLEIFMICLEISource:
                     "Accept": "text/csv, application/csv, */*",
                 },
             )
-            
+
             with urllib.request.urlopen(req, timeout=60) as response:
                 return response.read()
-                
+
         except Exception as e:
             logger.error(f"Failed to fetch GLEIF MIC-LEI data: {e}")
-            raise IOError(f"Failed to fetch GLEIF MIC-LEI data: {e}") from e
-    
+            raise OSError(f"Failed to fetch GLEIF MIC-LEI data: {e}") from e
+
     def _parse_csv(self, content: bytes) -> list[dict[str, Any]]:
         """Parse GLEIF MIC-LEI CSV content."""
         # Try UTF-8 first
@@ -245,17 +244,17 @@ class GLEIFMICLEISource:
             text = content.decode("utf-8")
         except UnicodeDecodeError:
             text = content.decode("latin-1")
-        
+
         reader = csv.DictReader(io.StringIO(text))
         records = []
-        
+
         for row in reader:
             record = self._normalize_row(row)
             if record and record.get("mic") and record.get("lei"):
                 records.append(record)
-        
+
         return records
-    
+
     def _normalize_row(self, row: dict[str, str]) -> dict[str, Any]:
         """Normalize CSV row to standard field names."""
         def get_field(names: list[str]) -> str | None:
@@ -268,7 +267,7 @@ class GLEIFMICLEISource:
                         val = row[key].strip() if row[key] else None
                         return val if val else None
             return None
-        
+
         return {
             "mic": get_field(["MIC", "MIC_CODE", "MARKET_IDENTIFIER_CODE"]),
             "lei": get_field(["LEI", "LEI_CODE", "LEGAL_ENTITY_IDENTIFIER"]),
@@ -278,12 +277,12 @@ class GLEIFMICLEISource:
             "valid_from": get_field(["VALID_FROM", "START_DATE", "EFFECTIVE_DATE"]),
             "valid_to": get_field(["VALID_TO", "END_DATE", "EXPIRY_DATE"]),
         }
-    
+
     def _parse_date(self, date_str: str | None) -> date | None:
         """Parse date from various formats."""
         if not date_str:
             return None
-        
+
         formats = ["%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y%m%d"]
         for fmt in formats:
             try:
@@ -291,7 +290,7 @@ class GLEIFMICLEISource:
             except ValueError:
                 continue
         return None
-    
+
     @property
     def last_snapshot(self) -> MICLEISnapshot | None:
         """Get metadata from last fetch."""

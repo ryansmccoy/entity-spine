@@ -494,27 +494,27 @@ def normalize_and_validate(
         ('0000000abc', ["CIK must be exactly 10 digits. Original: 'abc', normalized: '0000000abc'"])
     """
     errors: list[str] = []
-    
+
     if value is None:
         return None, errors
-    
+
     scheme_lower = scheme.lower()
-    
+
     if scheme_lower not in SCHEME_VALIDATORS:
         # No specific validator, just return stripped uppercase
         return value.strip().upper(), errors
-    
+
     normalizer, validator = SCHEME_VALIDATORS[scheme_lower]
     normalized = normalizer(value)
-    
+
     if normalized is None:
         return None, errors
-    
+
     # Call validator with original for better error messages
     is_valid, error = validator(normalized, original=value)
     if not is_valid:
         errors.append(error)
-    
+
     return normalized, errors
 
 

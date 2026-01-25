@@ -33,63 +33,15 @@ from entityspine.domain.chat import (
     create_chat_session,
     create_chat_workspace,
 )
-
-# v2.3.2 Extraction/NLP domain models (moved from capture-spine)
-from entityspine.domain.extraction import (
-    ContentLink,
-    ExtractedEntity,
-    ExtractionStats,
-    ExtractionType,
-    LinkDirection,
-    LinkEvidence,
-    LinkType,
-    SignificanceComponent,
-    SignificanceScore,
-    StoryCluster,
-    StoryEntity,
-    StoryMetrics,
-    StoryStatus,
-    StoryTimeline,
-    TextSpan,
-)
-
-# v2.3.3 Workflow/Execution domain models (moved from spine-core)
-from entityspine.domain.workflow import (
-    # Enums
-    WorkflowStatus,
-    TaskStatus,
-    StageStatus,
-    QualityStatus,
-    QualityCategory,
-    # Execution tracking
-    ExecutionContext,
-    new_execution_context,
-    new_batch_id,
-    # Result pattern
-    Ok,
-    Err,
-    Result,
-    try_result,
-    # Task/Stage models
-    TaskResult,
-    StageRecord,
-    QualityResult,
-    # Workflow definitions
-    WorkflowStep,
-    WorkflowDefinition,
-    WorkflowRun,
-)
-
-# v2.3.3 Error domain models (moved from spine-core)
-from entityspine.domain.errors import (
-    ErrorCategory,
-    ErrorSeverity,
-    ErrorContext,
-    ErrorRecord,
-    create_error_context,
-    is_retryable_category,
-)
 from entityspine.domain.claim import IdentifierClaim
+
+# Clustering models
+from entityspine.domain.clustering import (
+    BlockingConfig,
+    ClusterInfo,
+    ClusterStatus,
+    DuplicateCandidate,
+)
 from entityspine.domain.entity import Entity
 from entityspine.domain.enums import (
     # Observation enums (v2.2.5)
@@ -139,146 +91,6 @@ from entityspine.domain.enums import (
     TransactionCode,
     VendorNamespace,
 )
-from entityspine.domain.factories import (
-    ambiguous_result,
-    create_candidate,
-    create_claim,
-    create_entity,
-    create_listing,
-    create_security,
-    found_result,
-    not_found_result,
-)
-
-# Knowledge Graph domain models
-from entityspine.domain.graph import (
-    Address,
-    # v2.2.4 KG High-Confidence node types
-    Asset,
-    Brand,
-    Case,
-    Contract,
-    EntityAddress,
-    EntityCluster,
-    EntityClusterMember,
-    EntityRelationship,
-    Event,
-    FilingParticipant,
-    Geo,
-    InsiderTransaction,
-    NodeKind,
-    NodeRef,
-    OwnershipPosition,
-    PersonRole,
-    Product,
-    Relationship,
-    RoleAssignment,
-    # Graph traversal result types
-    RelatedEntity,
-    OfficerInfo,
-    PathStep,
-    EntityPath,
-    EntityNetwork,
-)
-from entityspine.domain.listing import Listing
-from entityspine.domain.protocols import (
-    ClaimStoreProtocol,
-    EntityStoreProtocol,
-    FullStoreProtocol,
-    ListingStoreProtocol,
-    ResolverProtocol,
-    SearchProtocol,
-    SecurityStoreProtocol,
-    StorageLifecycleProtocol,
-)
-from entityspine.domain.resolution import ResolutionResult
-from entityspine.domain.security import Security
-
-# Timeline models
-from entityspine.domain.timeline import (
-    TimelineEventType,
-    TimelineEvent,
-    EntitySnapshot,
-    StateDiff,
-)
-
-# Clustering models
-from entityspine.domain.clustering import (
-    ClusterStatus,
-    DuplicateCandidate,
-    ClusterInfo,
-    BlockingConfig,
-)
-
-# Financial observation models
-from entityspine.domain.financial_observation import (
-    MetricCategory as OldMetricCategory,
-    MetricCode as OldMetricCode,
-    MetricVariant,
-    ObservationType as OldObservationType,
-    DataSourceType,
-    FiscalPeriodType,
-    FiscalPeriod as OldFiscalPeriod,
-    DataSource,
-    MetricDefinition,
-    FinancialObservation,
-    ObservationSet as OldObservationSet,
-    # Factory functions
-    create_factset_observation,
-    create_bloomberg_observation,
-    create_sec_observation,
-    create_analyst_estimate,
-    create_press_release_observation,
-)
-
-# v2.2.5 Observation models (new architecture)
-from entityspine.domain.observation import (
-    MetricSpec,
-    FiscalPeriod,
-    ProvenanceRef,
-    SourceKey,
-    EstimateInfo,
-    ValueWithUnits,
-    Observation,
-    ObservationSet,
-)
-
-# v2.3.0 Market infrastructure models
-from entityspine.domain.markets import (
-    # Domain models
-    Exchange,
-    ExchangeSegment,  # v2.3.1
-    TradingSession,
-    BrokerDealer,
-    BrokerDealerRegistration,
-    BrokerDealerDisciplinaryAction,
-    Clearinghouse,
-    ClearingMembership,
-    ExchangeMembership,
-    MarketParticipant,
-    SelfRegulatoryOrg,
-    # Factory functions
-    create_exchange,
-    create_broker_dealer,
-    create_clearinghouse,
-    create_exchange_segment,  # v2.3.1
-    # Reference data (re-exported for backward compatibility)
-    US_EQUITY_EXCHANGES,
-    US_OPTIONS_EXCHANGES,
-    US_FUTURES_EXCHANGES,
-    US_OTC_MARKETS,
-    EUROPEAN_EXCHANGES,
-    APAC_EXCHANGES,
-    AMERICAS_EXCHANGES,
-    MENA_EXCHANGES,
-    US_CLEARINGHOUSES,
-    GLOBAL_CLEARINGHOUSES,
-    BLOOMBERG_FEED_SOURCES,
-    THOMSON_EXCHANGE_CODES,
-    FACTSET_EXCHANGE_CODES,
-    ALL_KNOWN_MICS,
-    lookup_exchange_by_mic,  # v2.3.1 helper
-)
 
 # Market infrastructure enums
 from entityspine.domain.enums.markets import (
@@ -298,6 +110,174 @@ from entityspine.domain.enums.markets import (
     TradingSessionType,
 )
 
+# v2.3.3 Error domain models (moved from spine-core)
+from entityspine.domain.errors import (
+    ErrorCategory,
+    ErrorContext,
+    ErrorRecord,
+    ErrorSeverity,
+    create_error_context,
+    is_retryable_category,
+)
+
+# v2.3.2 Extraction/NLP domain models (moved from capture-spine)
+from entityspine.domain.extraction import (
+    ContentLink,
+    ExtractedEntity,
+    ExtractionStats,
+    ExtractionType,
+    LinkDirection,
+    LinkEvidence,
+    LinkType,
+    SignificanceComponent,
+    SignificanceScore,
+    StoryCluster,
+    StoryEntity,
+    StoryMetrics,
+    StoryStatus,
+    StoryTimeline,
+    TextSpan,
+)
+from entityspine.domain.factories import (
+    ambiguous_result,
+    create_candidate,
+    create_claim,
+    create_entity,
+    create_listing,
+    create_security,
+    found_result,
+    not_found_result,
+)
+from entityspine.domain.financial_observation import (
+    DataSource,
+    DataSourceType,
+    FinancialObservation,
+    FiscalPeriodType,
+    MetricDefinition,
+    MetricVariant,
+    create_analyst_estimate,
+    create_bloomberg_observation,
+    # Factory functions
+    create_factset_observation,
+    create_press_release_observation,
+    create_sec_observation,
+)
+from entityspine.domain.financial_observation import (
+    FiscalPeriod as OldFiscalPeriod,
+)
+
+# Financial observation models
+from entityspine.domain.financial_observation import (
+    MetricCategory as OldMetricCategory,
+)
+from entityspine.domain.financial_observation import (
+    MetricCode as OldMetricCode,
+)
+from entityspine.domain.financial_observation import (
+    ObservationSet as OldObservationSet,
+)
+
+# Knowledge Graph domain models
+from entityspine.domain.graph import (
+    Address,
+    # v2.2.4 KG High-Confidence node types
+    Asset,
+    Brand,
+    Case,
+    Contract,
+    EntityAddress,
+    EntityCluster,
+    EntityClusterMember,
+    EntityNetwork,
+    EntityPath,
+    EntityRelationship,
+    Event,
+    FilingParticipant,
+    Geo,
+    InsiderTransaction,
+    NodeKind,
+    NodeRef,
+    OfficerInfo,
+    OwnershipPosition,
+    PathStep,
+    PersonRole,
+    Product,
+    # Graph traversal result types
+    RelatedEntity,
+    Relationship,
+    RoleAssignment,
+)
+from entityspine.domain.listing import Listing
+
+# v2.3.0 Market infrastructure models
+# Note: Market constants moved to domain.reference_data.markets
+from entityspine.domain.markets import (
+    # ALL_KNOWN_MICS,
+    # AMERICAS_EXCHANGES,
+    # APAC_EXCHANGES,
+    # BLOOMBERG_FEED_SOURCES,
+    # EUROPEAN_EXCHANGES,
+    # FACTSET_EXCHANGE_CODES,
+    # GLOBAL_CLEARINGHOUSES,
+    # MENA_EXCHANGES,
+    # THOMSON_EXCHANGE_CODES,
+    # US_CLEARINGHOUSES,
+    # Reference data (re-exported for backward compatibility)
+    # US_EQUITY_EXCHANGES,
+    # US_FUTURES_EXCHANGES,
+    # US_OPTIONS_EXCHANGES,
+    # US_OTC_MARKETS,
+    BrokerDealer,
+    BrokerDealerDisciplinaryAction,
+    BrokerDealerRegistration,
+    Clearinghouse,
+    ClearingMembership,
+    # Domain models
+    Exchange,
+    ExchangeMembership,
+    ExchangeSegment,  # v2.3.1
+    MarketParticipant,
+    SelfRegulatoryOrg,
+    TradingSession,
+    # create_broker_dealer,
+    # create_clearinghouse,
+    # Factory functions
+    # create_exchange,
+    # create_exchange_segment,  # v2.3.1
+    # lookup_exchange_by_mic,  # v2.3.1 helper (doesn't exist)
+)
+
+# v2.2.5 Observation models (new architecture)
+from entityspine.domain.observation import (
+    EstimateInfo,
+    FiscalPeriod,
+    MetricSpec,
+    Observation,
+    ObservationSet,
+    ProvenanceRef,
+    SourceKey,
+    ValueWithUnits,
+)
+from entityspine.domain.protocols import (
+    ClaimStoreProtocol,
+    EntityStoreProtocol,
+    FullStoreProtocol,
+    ListingStoreProtocol,
+    ResolverProtocol,
+    SearchProtocol,
+    SecurityStoreProtocol,
+    StorageLifecycleProtocol,
+)
+from entityspine.domain.resolution import ResolutionResult
+from entityspine.domain.security import Security
+
+# Timeline models
+from entityspine.domain.timeline import (
+    EntitySnapshot,
+    StateDiff,
+    TimelineEvent,
+    TimelineEventType,
+)
 from entityspine.domain.validators import (
     SCHEME_SCOPES,
     compute_address_hash,
@@ -333,6 +313,33 @@ from entityspine.domain.validators import (
     validate_scheme_scope,
     validate_sedol,
     validate_ticker,
+)
+
+# v2.3.3 Workflow/Execution domain models (moved from spine-core)
+from entityspine.domain.workflow import (
+    Err,
+    # Execution tracking
+    ExecutionContext,
+    # Result pattern
+    Ok,
+    QualityCategory,
+    QualityResult,
+    QualityStatus,
+    Result,
+    StageRecord,
+    StageStatus,
+    # Task/Stage models
+    TaskResult,
+    TaskStatus,
+    WorkflowDefinition,
+    WorkflowRun,
+    # Enums
+    WorkflowStatus,
+    # Workflow definitions
+    WorkflowStep,
+    new_batch_id,
+    new_execution_context,
+    try_result,
 )
 
 __all__ = [

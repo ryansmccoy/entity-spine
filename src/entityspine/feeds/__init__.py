@@ -44,19 +44,18 @@ Integration with EntitySpine:
 """
 
 from entityspine.feeds.adapters import (
-    SECTickerFeedAdapter,
-    MICFeedAdapter,
-    LEIFeedAdapter,
     CountryFeedAdapter,
     CurrencyFeedAdapter,
     ISINLEIFeedAdapter,
+    LEIFeedAdapter,
+    MICFeedAdapter,
+    SECTickerFeedAdapter,
 )
-
 from entityspine.feeds.sync import (
+    FeedSpineEntitySpineSync,
+    sync_lei_to_registry,
     sync_mic_to_registry,
     sync_sec_to_store,
-    sync_lei_to_registry,
-    FeedSpineEntitySpineSync,
 )
 
 __all__ = [
@@ -64,10 +63,10 @@ __all__ = [
     "SECTickerFeedAdapter",
     "MICFeedAdapter",
     "LEIFeedAdapter",
-    "CountryFeedAdapter", 
+    "CountryFeedAdapter",
     "CurrencyFeedAdapter",
     "ISINLEIFeedAdapter",
-    
+
     # Sync utilities
     "sync_mic_to_registry",
     "sync_sec_to_store",

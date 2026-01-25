@@ -31,16 +31,14 @@ Design Principles:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from entityspine.core.identifier import (
     IdentifierType,
     classify_identifier,
-    looks_like_cik,
-    looks_like_ticker,
 )
 from entityspine.domain import (
     Entity,
@@ -48,7 +46,6 @@ from entityspine.domain import (
     MatchReason,
     ResolutionCandidate,
     ResolutionResult,
-    ResolutionStatus,
     ResolutionTier,
     create_candidate,
     found_result,
@@ -113,7 +110,7 @@ class EntityResolver:
     def __init__(
         self,
         config: ResolverConfig | None = None,
-        store: "SqliteStore | None" = None,
+        store: SqliteStore | None = None,
     ):
         """
         Initialize the resolver.
@@ -134,8 +131,8 @@ class EntityResolver:
 
         # Create store if not provided
         if self._store is None:
-            from entityspine.stores.sqlite_store import SqliteStore
             from entityspine.core.config import get_settings
+            from entityspine.stores.sqlite_store import SqliteStore
 
             # Use config db_path if not explicitly provided
             if self.config.db_path:
@@ -144,7 +141,7 @@ class EntityResolver:
                 # Get from environment/config - use persistent by default
                 settings = get_settings()
                 db_path = settings.db_path
-                
+
             self._store = SqliteStore(db_path)
             self._store.initialize()
 
@@ -164,7 +161,7 @@ class EntityResolver:
         self._initialized = True
 
     @property
-    def store(self) -> "SqliteStore":
+    def store(self) -> SqliteStore:
         """Get the underlying store."""
         self._ensure_initialized()
         return self._store  # type: ignore
@@ -638,7 +635,7 @@ class EntityResolver:
     # Context Manager Support
     # =========================================================================
 
-    def __enter__(self) -> "EntityResolver":
+    def __enter__(self) -> EntityResolver:
         self._ensure_initialized()
         return self
 

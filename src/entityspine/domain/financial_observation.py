@@ -8,20 +8,16 @@ STDLIB ONLY - NO PYDANTIC.
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any
 
 from entityspine.domain.enums import (
     MetricCategory,
     MetricCode,
-    ObservationType,
     VendorNamespace,
-    PeriodType,
 )
 from entityspine.domain.timestamps import generate_ulid, utc_now
-
 
 # =============================================================================
 # Legacy enums (for backward compatibility)
@@ -75,7 +71,7 @@ class FiscalPeriod:
     year: int
     period_type: FiscalPeriodType = FiscalPeriodType.ANNUAL
     quarter: int | None = None
-    
+
     def __str__(self) -> str:
         if self.period_type == FiscalPeriodType.ANNUAL:
             return f"FY{self.year}"
@@ -99,7 +95,7 @@ class DataSource:
     vendor: VendorNamespace = VendorNamespace.OTHER
     dataset: str | None = None
     source_id: str | None = None
-    
+
     def __str__(self) -> str:
         parts = [self.source_type.value]
         if self.vendor != VendorNamespace.OTHER:
@@ -126,7 +122,7 @@ class MetricDefinition:
     variant: MetricVariant = MetricVariant.REPORTED
     name: str | None = None
     unit: str | None = None
-    
+
     def __str__(self) -> str:
         name = self.name or self.code.value
         if self.variant != MetricVariant.REPORTED:
@@ -153,19 +149,19 @@ class FinancialObservation:
     observation_id: str = field(default_factory=generate_ulid)
     entity_id: str | None = None
     security_id: str | None = None
-    
+
     metric: MetricDefinition | None = None
     period: FiscalPeriod | None = None
-    
+
     value: Decimal | None = None
     currency: str = "USD"
-    
+
     source: DataSource | None = None
     as_of: datetime | None = None
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     confidence: float = 1.0
-    
+
     def __str__(self) -> str:
         metric_str = str(self.metric) if self.metric else "unknown"
         period_str = str(self.period) if self.period else "unknown"
@@ -183,14 +179,14 @@ class ObservationSet:
     """
     entity_id: str
     observations: list[FinancialObservation] = field(default_factory=list)
-    
+
     def add(self, obs: FinancialObservation) -> None:
         """Add an observation."""
         self.observations.append(obs)
-    
+
     def __len__(self) -> int:
         return len(self.observations)
-    
+
     def __iter__(self):
         return iter(self.observations)
 
@@ -210,7 +206,7 @@ def create_factset_observation(
 ) -> FinancialObservation:
     """Create a FactSet observation."""
     period_type = FiscalPeriodType.QUARTERLY if quarter else FiscalPeriodType.ANNUAL
-    
+
     return FinancialObservation(
         entity_id=entity_id,
         metric=MetricDefinition(
@@ -240,7 +236,7 @@ def create_bloomberg_observation(
 ) -> FinancialObservation:
     """Create a Bloomberg observation."""
     period_type = FiscalPeriodType.QUARTERLY if quarter else FiscalPeriodType.ANNUAL
-    
+
     return FinancialObservation(
         entity_id=entity_id,
         metric=MetricDefinition(
@@ -270,7 +266,7 @@ def create_sec_observation(
 ) -> FinancialObservation:
     """Create an SEC filing observation."""
     period_type = FiscalPeriodType.QUARTERLY if quarter else FiscalPeriodType.ANNUAL
-    
+
     return FinancialObservation(
         entity_id=entity_id,
         metric=MetricDefinition(
@@ -300,7 +296,7 @@ def create_analyst_estimate(
 ) -> FinancialObservation:
     """Create an analyst estimate observation."""
     period_type = FiscalPeriodType.QUARTERLY if quarter else FiscalPeriodType.ANNUAL
-    
+
     return FinancialObservation(
         entity_id=entity_id,
         metric=MetricDefinition(
@@ -328,7 +324,7 @@ def create_press_release_observation(
 ) -> FinancialObservation:
     """Create a press release observation."""
     period_type = FiscalPeriodType.QUARTERLY if quarter else FiscalPeriodType.ANNUAL
-    
+
     return FinancialObservation(
         entity_id=entity_id,
         metric=MetricDefinition(

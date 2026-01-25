@@ -37,7 +37,6 @@ from datetime import date, datetime
 from entityspine.domain.enums.markets import AssetClass, MicSource, VenueKind
 from entityspine.domain.timestamps import utc_now
 
-
 # =============================================================================
 # VenueRef - Typed Reference for All Venue Types
 # =============================================================================
@@ -89,37 +88,37 @@ class VenueRef:
         last_verified: When last verified.
         confidence: Confidence score (0.0-1.0).
     """
-    
+
     mic: str
     name: str
-    
+
     short_name: str | None = None
     venue_kind: VenueKind = VenueKind.STOCK_EXCHANGE
     asset_classes: tuple[AssetClass, ...] = (AssetClass.EQUITY,)
-    
+
     # Location
     country_code: str | None = None
     jurisdiction: str | None = None
     city: str | None = None
     timezone: str | None = None
-    
+
     # MIC hierarchy
     operating_mic: str | None = None
     is_segment: bool = False
-    
+
     # Operator
     operator_name: str | None = None
     operator_lei: str | None = None
-    
+
     # Regulatory
     sec_registered: bool = False
     esma_registered: bool = False
     regulator: str | None = None
-    
+
     # Lifecycle
     opened_on: date | None = None
     closed_on: date | None = None
-    
+
     # Provenance
     source: MicSource = MicSource.CURATED
     source_url: str | None = None
@@ -127,17 +126,17 @@ class VenueRef:
     captured_at: datetime = field(default_factory=utc_now)
     last_verified: date | None = None
     confidence: float = 1.0
-    
+
     @property
     def is_active(self) -> bool:
         """Check if venue is currently active."""
         return self.closed_on is None
-    
+
     @property
     def display_name(self) -> str:
         """Get display name (short name if available)."""
         return self.short_name or self.name
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
@@ -198,7 +197,7 @@ MAJOR_EQUITY_VENUES: dict[str, VenueRef] = {
         country_code="US", jurisdiction="US", city="New York", timezone="America/New_York",
         sec_registered=True, regulator="SEC", opened_on=date(2016, 9, 2),
     ),
-    
+
     # === NASDAQ Segments ===
     "XNGS": VenueRef(
         mic="XNGS", name="Nasdaq Global Select Market", short_name="NGS",
@@ -218,7 +217,7 @@ MAJOR_EQUITY_VENUES: dict[str, VenueRef] = {
         country_code="US", jurisdiction="US", city="New York", timezone="America/New_York",
         operating_mic="XNAS", is_segment=True, operator_name="Nasdaq Inc.",
     ),
-    
+
     # === US OTC Markets ===
     "OTCM": VenueRef(
         mic="OTCM", name="OTC Markets Group", short_name="OTCM",
@@ -226,7 +225,7 @@ MAJOR_EQUITY_VENUES: dict[str, VenueRef] = {
         country_code="US", jurisdiction="US", city="New York", timezone="America/New_York",
         regulator="FINRA",
     ),
-    
+
     # === European Exchanges ===
     "XLON": VenueRef(
         mic="XLON", name="London Stock Exchange", short_name="LSE",
@@ -259,7 +258,7 @@ MAJOR_EQUITY_VENUES: dict[str, VenueRef] = {
         country_code="CH", jurisdiction="CH", city="Zurich", timezone="Europe/Zurich",
         regulator="FINMA",
     ),
-    
+
     # === Asia-Pacific Exchanges ===
     "XJPX": VenueRef(
         mic="XJPX", name="Japan Exchange Group", short_name="JPX",
@@ -625,7 +624,7 @@ MAJOR_CLEARINGHOUSES: dict[str, VenueRef] = {
         country_code="US", jurisdiction="US", city="Chicago", timezone="America/Chicago",
         operator_name="Intercontinental Exchange",
     ),
-    
+
     # European Clearinghouses
     "LCHL": VenueRef(
         mic="LCHL", name="LCH Ltd", short_name="LCH",
@@ -731,7 +730,7 @@ def get_major_venues(
         List of matching VenueRef instances.
     """
     results = []
-    
+
     for venue in ALL_MAJOR_VENUES.values():
         if asset_class and asset_class not in venue.asset_classes:
             continue
@@ -742,7 +741,7 @@ def get_major_venues(
         if country_code and venue.country_code != country_code:
             continue
         results.append(venue)
-    
+
     return results
 
 

@@ -29,17 +29,14 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
-from enum import Enum
-from typing import TYPE_CHECKING, Callable, Iterator
+from typing import TYPE_CHECKING
 
-from entityspine.domain import Entity, EntityType
+from entityspine.domain import Entity
 from entityspine.domain.enums import RelationshipType, RoleType
 from entityspine.domain.graph import (
     EntityRelationship,
-    PersonRole,
-    RoleAssignment,
     # Domain graph result types - we use our richer versions locally
 )
 
@@ -154,7 +151,7 @@ class GraphService:
         >>> print(f"Found {network.node_count} related entities")
     """
 
-    def __init__(self, store: "SqliteStore"):
+    def __init__(self, store: SqliteStore):
         """
         Initialize the graph service.
 

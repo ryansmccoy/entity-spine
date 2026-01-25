@@ -9,10 +9,8 @@ Provides FastAPI dependency functions for:
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
-from pathlib import Path
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 
 from pydantic_settings import BaseSettings
 
@@ -48,10 +46,10 @@ def get_settings() -> Settings:
 
 
 # Global resolver instance (lazy initialization)
-_resolver: "EntityResolver | None" = None
+_resolver: EntityResolver | None = None
 
 
-def get_resolver() -> "EntityResolver":
+def get_resolver() -> EntityResolver:
     """
     Get the EntityResolver instance.
 

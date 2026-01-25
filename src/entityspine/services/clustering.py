@@ -32,22 +32,20 @@ Design Principles:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
-from typing import TYPE_CHECKING, Iterator
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 from entityspine.core.timestamps import utc_now
 from entityspine.core.ulid import generate_ulid
-from entityspine.domain import Entity, EntityStatus
-from entityspine.domain.enums import ClusterRole
-from entityspine.domain.graph import EntityCluster, EntityClusterMember
+from entityspine.domain import Entity
 from entityspine.domain.clustering import (
+    BlockingConfig,
+    ClusterInfo,
     ClusterStatus,
     DuplicateCandidate,
-    ClusterInfo,
-    BlockingConfig,
 )
+from entityspine.domain.enums import ClusterRole
+from entityspine.domain.graph import EntityCluster, EntityClusterMember
 from entityspine.services.fuzzy import (
     FuzzyMatcher,
     compute_name_similarity,
@@ -93,7 +91,7 @@ class ClusteringService:
 
     def __init__(
         self,
-        store: "SqliteStore",
+        store: SqliteStore,
         *,
         blocking_config: BlockingConfig | None = None,
     ):

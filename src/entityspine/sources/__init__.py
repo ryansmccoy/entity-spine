@@ -61,13 +61,6 @@ Example:
     >>> print(f"NVIDIA: {nvidia.legal_name}")
 """
 
-from entityspine.sources.sec import (
-    SECTickerSource,
-    SECTickerSnapshot,
-    SEC_EXCHANGE_TO_MIC,
-    get_mic_for_exchange,
-)
-
 # Base utilities (for creating new sources)
 from entityspine.sources.base import (
     BaseSnapshot,
@@ -75,44 +68,27 @@ from entityspine.sources.base import (
     decode_content,
     download_url,
     generate_snapshot_id,
-    parse_date_flexible,
-    parse_datetime_flexible,
     get_csv_field,
     normalize_csv_headers,
+    parse_date_flexible,
+    parse_datetime_flexible,
 )
 
-# ISO 10383 MIC (Market Identifier Codes)
-from entityspine.sources.iso10383 import (
-    ISO10383Source,
-    MICRegistry,
-    MICRecord,
-    MICSnapshot,
-    MICChange,
-    diff_mic_records,
-    fetch_mic_list,
-    lookup_mic,
-)
-
-# ISO 3166 Country Codes
-from entityspine.sources.iso3166 import (
-    ISO3166Source,
-    CountryRegistry,
-    CountryRecord,
-    CountrySnapshot,
-    get_country_registry,
-    is_valid_country_code,
-)
-
-# ISO 4217 Currency Codes
-from entityspine.sources.iso4217 import (
-    ISO4217Source,
-    CurrencyRegistry,
-    CurrencyRecord,
-    CurrencySnapshot,
-    get_currency_registry,
-    is_valid_currency_code,
-    get_currency_decimals,
-    CURRENCY_SYMBOLS,
+# GLEIF LEI (Legal Entity Identifiers)
+from entityspine.sources.gleif import (
+    BICLEIMapping,
+    BICLEISnapshot,
+    GLEIFBICLEISource,
+    GLEIFISINLEISource,
+    GLEIFSource,
+    ISINLEIMapping,
+    ISINLEISnapshot,
+    LEIChange,
+    LEIRecord,
+    LEIRegistry,
+    LEISnapshot,
+    lookup_lei,
+    validate_lei,
 )
 
 # GLEIF MIC-to-LEI relationship
@@ -124,21 +100,44 @@ from entityspine.sources.gleif_mic_lei import (
     get_lei_for_mic,
 )
 
-# GLEIF LEI (Legal Entity Identifiers)
-from entityspine.sources.gleif import (
-    GLEIFSource,
-    GLEIFISINLEISource,
-    GLEIFBICLEISource,
-    LEIRegistry,
-    LEIRecord,
-    LEISnapshot,
-    LEIChange,
-    ISINLEIMapping,
-    ISINLEISnapshot,
-    BICLEIMapping,
-    BICLEISnapshot,
-    lookup_lei,
-    validate_lei,
+# ISO 3166 Country Codes
+from entityspine.sources.iso3166 import (
+    CountryRecord,
+    CountryRegistry,
+    CountrySnapshot,
+    ISO3166Source,
+    get_country_registry,
+    is_valid_country_code,
+)
+
+# ISO 4217 Currency Codes
+from entityspine.sources.iso4217 import (
+    CURRENCY_SYMBOLS,
+    CurrencyRecord,
+    CurrencyRegistry,
+    CurrencySnapshot,
+    ISO4217Source,
+    get_currency_decimals,
+    get_currency_registry,
+    is_valid_currency_code,
+)
+
+# ISO 10383 MIC (Market Identifier Codes)
+from entityspine.sources.iso10383 import (
+    ISO10383Source,
+    MICChange,
+    MICRecord,
+    MICRegistry,
+    MICSnapshot,
+    diff_mic_records,
+    fetch_mic_list,
+    lookup_mic,
+)
+from entityspine.sources.sec import (
+    SEC_EXCHANGE_TO_MIC,
+    SECTickerSnapshot,
+    SECTickerSource,
+    get_mic_for_exchange,
 )
 
 __all__ = [
@@ -152,13 +151,13 @@ __all__ = [
     "parse_datetime_flexible",
     "get_csv_field",
     "normalize_csv_headers",
-    
+
     # SEC
     "SECTickerSource",
     "SECTickerSnapshot",
     "SEC_EXCHANGE_TO_MIC",
     "get_mic_for_exchange",
-    
+
     # ISO 10383 MIC
     "ISO10383Source",
     "MICRegistry",
@@ -168,7 +167,7 @@ __all__ = [
     "diff_mic_records",
     "fetch_mic_list",
     "lookup_mic",
-    
+
     # ISO 3166 Countries
     "ISO3166Source",
     "CountryRegistry",
@@ -176,7 +175,7 @@ __all__ = [
     "CountrySnapshot",
     "get_country_registry",
     "is_valid_country_code",
-    
+
     # ISO 4217 Currencies
     "ISO4217Source",
     "CurrencyRegistry",
@@ -186,14 +185,14 @@ __all__ = [
     "is_valid_currency_code",
     "get_currency_decimals",
     "CURRENCY_SYMBOLS",
-    
+
     # GLEIF MIC-LEI
     "GLEIFMICLEISource",
     "MICLEIMapping",
     "MICLEISnapshot",
     "fetch_mic_lei_mappings",
     "get_lei_for_mic",
-    
+
     # GLEIF LEI
     "GLEIFSource",
     "GLEIFISINLEISource",

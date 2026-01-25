@@ -208,7 +208,7 @@ class Neo4jStore:
     # Node Operations
     # =========================================================================
 
-    async def upsert_entity(self, entity: "Entity") -> None:
+    async def upsert_entity(self, entity: Entity) -> None:
         """
         Create or update an entity node.
 
@@ -285,8 +285,8 @@ class Neo4jStore:
 
     async def sync_entity_with_relationships(
         self,
-        entity: "Entity",
-        relationships: list["EntityRelationship"],
+        entity: Entity,
+        relationships: list[EntityRelationship],
     ) -> None:
         """
         Sync an entity and all its relationships.

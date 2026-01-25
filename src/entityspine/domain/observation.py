@@ -20,22 +20,21 @@ from decimal import Decimal
 from hashlib import sha256
 
 from entityspine.domain.enums import (
-    # Existing enums we reuse
-    VendorNamespace,
     # New enums added for observations
     AccountingBasis,
     EstimateScope,
-    MetricCode,
     MetricCategory,
+    MetricCode,
     ObservationType,
-    PerShareType,
     PeriodType,
+    PerShareType,
     Presentation,
     ProvenanceKind,
     ScopeType,
+    # Existing enums we reuse
+    VendorNamespace,
 )
 from entityspine.domain.timestamps import generate_ulid, utc_now
-
 
 # =============================================================================
 # MetricSpec - Structured metric specification
@@ -73,7 +72,7 @@ class MetricSpec:
         custom_code: For unmapped metrics
         custom_name: Human-readable name for custom metrics
     """
-    
+
     code: MetricCode
     category: MetricCategory = MetricCategory.OTHER
     basis: AccountingBasis = AccountingBasis.GAAP
@@ -82,7 +81,7 @@ class MetricSpec:
     scope: ScopeType | None = None
     custom_code: str | None = None
     custom_name: str | None = None
-    
+
     def __post_init__(self):
         """Validate MetricSpec."""
         # EPS-like metrics should have per_share specified
@@ -90,14 +89,14 @@ class MetricSpec:
             if self.per_share is None:
                 # Default to diluted for EPS if not specified
                 object.__setattr__(self, "per_share", PerShareType.DILUTED)
-    
+
     def __str__(self) -> str:
         """Human-readable representation."""
         parts = [self.code.value.upper()]
-        
+
         if self.per_share:
             parts.append(f"({self.per_share.value})")
-        
+
         qualifiers = []
         if self.basis != AccountingBasis.GAAP:
             qualifiers.append(self.basis.value)
@@ -105,12 +104,12 @@ class MetricSpec:
             qualifiers.append(self.presentation.value)
         if self.scope and self.scope != ScopeType.TOTAL:
             qualifiers.append(self.scope.value)
-        
+
         if qualifiers:
             parts.append(f"[{', '.join(qualifiers)}]")
-        
+
         return " ".join(parts)
-    
+
     @property
     def canonical_key(self) -> str:
         """Stable key for grouping/matching."""
@@ -123,9 +122,9 @@ class MetricSpec:
             self.scope.value if self.scope else "total",
         ]
         return ":".join(parts)
-    
+
     # --- Factory methods for common metrics ---
-    
+
     @classmethod
     def revenue(cls, presentation: Presentation = Presentation.REPORTED) -> "MetricSpec":
         return cls(
@@ -133,7 +132,7 @@ class MetricSpec:
             category=MetricCategory.INCOME_STATEMENT,
             presentation=presentation,
         )
-    
+
     @classmethod
     def eps_gaap_diluted(cls) -> "MetricSpec":
         return cls(
@@ -144,7 +143,7 @@ class MetricSpec:
             per_share=PerShareType.DILUTED,
             scope=ScopeType.TOTAL,
         )
-    
+
     @classmethod
     def eps_gaap_basic(cls) -> "MetricSpec":
         return cls(
@@ -155,7 +154,7 @@ class MetricSpec:
             per_share=PerShareType.BASIC,
             scope=ScopeType.TOTAL,
         )
-    
+
     @classmethod
     def eps_company_adjusted(cls, per_share: PerShareType = PerShareType.DILUTED) -> "MetricSpec":
         """Company-adjusted EPS (excludes stock comp, etc.)"""
@@ -167,7 +166,7 @@ class MetricSpec:
             per_share=per_share,
             scope=ScopeType.TOTAL,
         )
-    
+
     @classmethod
     def eps_vendor_normalized(cls, per_share: PerShareType = PerShareType.DILUTED) -> "MetricSpec":
         """Vendor-normalized EPS (FactSet, Bloomberg, etc.)"""
@@ -179,7 +178,7 @@ class MetricSpec:
             per_share=per_share,
             scope=ScopeType.TOTAL,
         )
-    
+
     @classmethod
     def net_income(cls, presentation: Presentation = Presentation.REPORTED) -> "MetricSpec":
         return cls(
@@ -187,7 +186,7 @@ class MetricSpec:
             category=MetricCategory.INCOME_STATEMENT,
             presentation=presentation,
         )
-    
+
     @classmethod
     def ebitda(cls, presentation: Presentation = Presentation.REPORTED) -> "MetricSpec":
         return cls(
@@ -195,7 +194,7 @@ class MetricSpec:
             category=MetricCategory.INCOME_STATEMENT,
             presentation=presentation,
         )
-    
+
     @classmethod
     def fcf(cls) -> "MetricSpec":
         return cls(
@@ -231,7 +230,7 @@ class FiscalPeriod:
         period_start: Start date if known
         period_end: End date if known
     """
-    
+
     fiscal_year: int
     period_type: PeriodType
     quarter: int | None = None
@@ -239,7 +238,7 @@ class FiscalPeriod:
     fye_month: int = 12
     period_start: date | None = None
     period_end: date | None = None
-    
+
     def __post_init__(self):
         """Validate FiscalPeriod."""
         if self.period_type == PeriodType.QUARTERLY:
@@ -248,7 +247,7 @@ class FiscalPeriod:
         if self.period_type == PeriodType.SEMI_ANNUAL:
             if self.half is None or not (1 <= self.half <= 2):
                 raise ValueError(f"Semi-annual period requires half 1-2, got {self.half}")
-    
+
     def __str__(self) -> str:
         if self.period_type == PeriodType.ANNUAL:
             return f"FY{self.fiscal_year}"
@@ -262,24 +261,24 @@ class FiscalPeriod:
             return f"TTM {self.fiscal_year}"
         else:
             return f"{self.period_type.value} {self.fiscal_year}"
-    
+
     @property
     def canonical_key(self) -> str:
         """Stable string for hashing/grouping."""
         return f"{self.fiscal_year}:{self.period_type.value}:{self.quarter or 0}:{self.half or 0}"
-    
+
     @classmethod
     def annual(cls, year: int, fye_month: int = 12) -> "FiscalPeriod":
         return cls(fiscal_year=year, period_type=PeriodType.ANNUAL, fye_month=fye_month)
-    
+
     @classmethod
     def quarterly(cls, year: int, quarter: int, fye_month: int = 12) -> "FiscalPeriod":
         return cls(fiscal_year=year, period_type=PeriodType.QUARTERLY, quarter=quarter, fye_month=fye_month)
-    
+
     @classmethod
     def semi_annual(cls, year: int, half: int, fye_month: int = 12) -> "FiscalPeriod":
         return cls(fiscal_year=year, period_type=PeriodType.SEMI_ANNUAL, half=half, fye_month=fye_month)
-    
+
     @classmethod
     def ttm(cls, year: int, ending_quarter: int | None = None) -> "FiscalPeriod":
         return cls(fiscal_year=year, period_type=PeriodType.TTM, quarter=ending_quarter)
@@ -315,32 +314,32 @@ class ProvenanceRef:
         snapshot_date: Vendor snapshot date
         snapshot_version: Vendor snapshot version
     """
-    
+
     kind: ProvenanceKind
     external_id: str
-    
+
     provenance_id: str = field(default_factory=generate_ulid)
     published_at: datetime | None = None
     document_url: str | None = None
     document_title: str | None = None
-    
+
     # SEC filing specific
     accession_number: str | None = None
     form_type: str | None = None
     filing_date: date | None = None
-    
+
     # Vendor snapshot specific
     snapshot_date: date | None = None
     snapshot_version: str | None = None
-    
+
     def __post_init__(self):
         """Validate ProvenanceRef."""
         if not self.external_id or not self.external_id.strip():
             raise ValueError("external_id cannot be empty")
-    
+
     def __str__(self) -> str:
         return f"{self.kind.value}:{self.external_id}"
-    
+
     @classmethod
     def sec_filing(
         cls,
@@ -357,7 +356,7 @@ class ProvenanceRef:
             filing_date=filing_date,
             published_at=datetime.combine(filing_date, datetime.min.time()),
         )
-    
+
     @classmethod
     def vendor_snapshot(
         cls,
@@ -372,7 +371,7 @@ class ProvenanceRef:
             external_id=ext_id,
             snapshot_date=snapshot_date,
         )
-    
+
     @classmethod
     def press_release(
         cls,
@@ -389,7 +388,7 @@ class ProvenanceRef:
             document_url=url,
             document_title=title,
         )
-    
+
     @classmethod
     def broker_note(
         cls,
@@ -430,28 +429,28 @@ class SourceKey:
         xbrl_namespace: XBRL namespace (us-gaap, ifrs-full)
         xbrl_tag: XBRL tag name (Revenues, NetIncomeLoss)
     """
-    
+
     vendor: VendorNamespace | None = None
     dataset: str | None = None
     field_name: str | None = None
     xbrl_namespace: str | None = None
     xbrl_tag: str | None = None
-    
+
     def __str__(self) -> str:
         if self.xbrl_tag:
             return f"{self.xbrl_namespace or 'xbrl'}:{self.xbrl_tag}"
         if self.vendor and self.field_name:
             return f"{self.vendor.value}:{self.field_name}"
         return self.field_name or self.dataset or "unknown"
-    
+
     @classmethod
     def factset(cls, field_name: str, dataset: str = "ff_fundamentals") -> "SourceKey":
         return cls(vendor=VendorNamespace.FACTSET, dataset=dataset, field_name=field_name)
-    
+
     @classmethod
     def bloomberg(cls, field_name: str, dataset: str = "bloomberg") -> "SourceKey":
         return cls(vendor=VendorNamespace.BLOOMBERG, dataset=dataset, field_name=field_name)
-    
+
     @classmethod
     def sec_xbrl(cls, tag: str, namespace: str = "us-gaap") -> "SourceKey":
         return cls(vendor=VendorNamespace.SEC, xbrl_namespace=namespace, xbrl_tag=tag)
@@ -484,28 +483,28 @@ class EstimateInfo:
         guidance_low: Low end of guidance range
         guidance_high: High end of guidance range
     """
-    
+
     scope: EstimateScope
     estimator: str
-    
+
     analyst_id: str | None = None
     analyst_name: str | None = None
-    
+
     # Consensus statistics
     num_estimates: int | None = None
     high_estimate: Decimal | None = None
     low_estimate: Decimal | None = None
-    
+
     # Company guidance
     guidance_type: str | None = None
     guidance_low: Decimal | None = None
     guidance_high: Decimal | None = None
-    
+
     def __post_init__(self):
         """Validate EstimateInfo."""
         if not self.estimator or not self.estimator.strip():
             raise ValueError("estimator cannot be empty")
-    
+
     def __str__(self) -> str:
         return f"{self.scope.value}:{self.estimator}"
 
@@ -534,18 +533,18 @@ class ValueWithUnits:
         scale: Multiplier from raw to normalized (1, 1000, 1000000)
         currency: ISO 4217 currency code
     """
-    
+
     value_normalized: Decimal
     value_raw: Decimal
     unit: str
     scale: int = 1
     currency: str | None = None
-    
+
     def __post_init__(self):
         """Validate ValueWithUnits."""
         if self.scale <= 0:
             raise ValueError(f"scale must be positive, got {self.scale}")
-    
+
     @classmethod
     def from_raw(
         cls,
@@ -562,7 +561,7 @@ class ValueWithUnits:
             scale=scale,
             currency=currency,
         )
-    
+
     @classmethod
     def from_normalized(
         cls,
@@ -579,15 +578,15 @@ class ValueWithUnits:
             scale=scale,
             currency=currency,
         )
-    
+
     def in_millions(self) -> Decimal:
         """Get value in millions."""
         return self.value_normalized / Decimal("1000000")
-    
+
     def in_billions(self) -> Decimal:
         """Get value in billions."""
         return self.value_normalized / Decimal("1000000000")
-    
+
     def __str__(self) -> str:
         if self.currency:
             return f"{self.currency} {self.value_normalized:,.2f}"
@@ -648,65 +647,65 @@ class Observation:
         created_at: Record creation timestamp
         updated_at: Last update timestamp
     """
-    
+
     # Required fields
     entity_id: str
     metric: MetricSpec
     period: FiscalPeriod
     value: ValueWithUnits
-    
+
     # Primary key
     observation_id: str = field(default_factory=generate_ulid)
-    
+
     # Optional target
     security_id: str | None = None
-    
+
     # Observation type
     observation_type: ObservationType = ObservationType.ACTUAL
-    
+
     # For non-numeric values
     value_string: str | None = None
-    
+
     # Time semantics
     as_of: datetime | None = None
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     # Provenance
     provenance_ref: ProvenanceRef | None = None
     source_key: SourceKey | None = None
-    
+
     # Estimate metadata
     estimate_info: EstimateInfo | None = None
-    
+
     # Supersession chain
     supersedes_id: str | None = None
     superseded_by_id: str | None = None
-    
+
     # Quality
     confidence: float = 1.0
-    
+
     # Raw data
     raw_value: str | None = None
     notes: str | None = None
-    
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate Observation."""
         if not self.entity_id or not self.entity_id.strip():
             raise ValueError("entity_id cannot be empty")
-        
+
         if not (0.0 <= self.confidence <= 1.0):
             raise ValueError(f"confidence must be between 0.0 and 1.0, got {self.confidence}")
-        
+
         # Estimates should have estimate_info
         if self.observation_type in (ObservationType.ESTIMATE, ObservationType.CONSENSUS, ObservationType.GUIDANCE):
             if self.estimate_info is None:
                 # Don't raise, just note - some workflows may set it later
                 pass
-    
+
     @property
     def observation_key(self) -> str:
         """
@@ -726,17 +725,17 @@ class Observation:
             self.period.canonical_key,
             self.as_of.isoformat() if self.as_of else "na",
         ]
-        
+
         if self.provenance_ref:
             parts.append(self.provenance_ref.external_id)
-        
+
         if self.estimate_info:
             parts.append(self.estimate_info.estimator)
             parts.append(self.estimate_info.scope.value)
-        
+
         key_string = "|".join(parts)
         return sha256(key_string.encode()).hexdigest()[:32]
-    
+
     def __repr__(self) -> str:
         return (
             f"Observation("
@@ -769,33 +768,33 @@ class ObservationSet:
         period: Period being tracked
         observations: List of observations
     """
-    
+
     entity_id: str
     metric: MetricSpec
     period: FiscalPeriod
     observations: list["Observation"] = field(default_factory=list)
-    
+
     def get_by_type(self, obs_type: ObservationType) -> list["Observation"]:
         """Filter by observation type."""
         return [o for o in self.observations if o.observation_type == obs_type]
-    
+
     def get_estimates(self) -> list["Observation"]:
         return self.get_by_type(ObservationType.ESTIMATE)
-    
+
     def get_actuals(self) -> list["Observation"]:
         return self.get_by_type(ObservationType.ACTUAL)
-    
+
     def get_consensus(self) -> "Observation | None":
         consensus = self.get_by_type(ObservationType.CONSENSUS)
         return consensus[0] if consensus else None
-    
+
     def get_latest_actual(self) -> "Observation | None":
         """Get most recent actual (by as_of timestamp)."""
         actuals = self.get_actuals()
         if not actuals:
             return None
         return max(actuals, key=lambda o: o.as_of or datetime.min)
-    
+
     def get_authoritative_actual(self) -> "Observation | None":
         """
         Get authoritative actual (not superseded, prefer SEC).
@@ -806,7 +805,7 @@ class ObservationSet:
         3. Any actual
         """
         actuals = [o for o in self.get_actuals() if o.superseded_by_id is None]
-        
+
         # SEC filings first
         sec = [
             o for o in actuals
@@ -814,9 +813,9 @@ class ObservationSet:
         ]
         if sec:
             return max(sec, key=lambda o: o.as_of or datetime.min)
-        
+
         # Any non-superseded actual
         if actuals:
             return max(actuals, key=lambda o: o.as_of or datetime.min)
-        
+
         return None

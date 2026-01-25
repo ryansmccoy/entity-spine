@@ -28,8 +28,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from entityspine.api.deps import Settings, get_resolver, get_settings
 from entityspine.api.schemas import (
-    BatchResolveRequest,
     BatchResolutionResponse,
+    BatchResolveRequest,
     EntityResponse,
     ErrorResponse,
     HealthResponse,
@@ -218,7 +218,7 @@ async def resolve_batch(
     resolved_count = 0
     not_found_count = 0
 
-    for query, result in zip(request.queries, results):
+    for query, result in zip(request.queries, results, strict=False):
         response = ResolutionResponse.from_domain(result)
         result_dict[query] = response
         if result.entity:
@@ -461,7 +461,7 @@ async def get_entity_network(
         from entityspine.services.graph_service import GraphService
         graph = GraphService(resolver.store)
         network = graph.get_entity_network(entity_id, max_depth=max_depth)
-        
+
         nodes = [
             {
                 "id": eid,
@@ -471,7 +471,7 @@ async def get_entity_network(
             }
             for eid, e in network.nodes.items()
         ]
-        
+
         edges = [
             {
                 "source": edge.source_entity_id,
@@ -480,7 +480,7 @@ async def get_entity_network(
             }
             for edge in network.edges
         ]
-        
+
         return {
             "center_id": entity_id,
             "center_name": network.center.primary_name if network.center else None,
@@ -517,7 +517,7 @@ async def get_subsidiaries(
         from entityspine.services.graph_service import GraphService
         graph = GraphService(resolver.store)
         subsidiaries = graph.get_subsidiaries(entity_id)
-        
+
         return {
             "parent_id": entity_id,
             "subsidiaries": [
@@ -559,7 +559,7 @@ async def get_officers(
         from entityspine.services.graph_service import GraphService
         graph = GraphService(resolver.store)
         officers = graph.get_officers(entity_id, current_only=current_only)
-        
+
         return {
             "company_id": entity_id,
             "officers": [
@@ -606,7 +606,7 @@ async def find_path(
         from entityspine.services.graph_service import GraphService
         graph = GraphService(resolver.store)
         path = graph.find_path(source, target, max_depth=max_depth)
-        
+
         if not path.found:
             return {
                 "source": source,
@@ -615,7 +615,7 @@ async def find_path(
                 "path": [],
                 "distance": -1,
             }
-        
+
         return {
             "source": source,
             "target": target,

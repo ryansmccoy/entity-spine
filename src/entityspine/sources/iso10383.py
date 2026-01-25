@@ -44,10 +44,11 @@ import io
 import json
 import logging
 import urllib.request
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from entityspine.domain.timestamps import utc_now
 
@@ -173,12 +174,12 @@ class MICRecord:
     operating_mic: str
     mic_type: str  # OPRT or SGMT
     name: str
-    
+
     # New fields from ISO 10383 (2024+ format)
     legal_entity_name: str | None = None
     lei: str | None = None  # Links MIC to legal entity!
     market_category_code: str | None = None
-    
+
     # Optional fields
     acronym: str | None = None
     country_code: str | None = None
@@ -190,26 +191,26 @@ class MICRecord:
     last_validation_date: date | None = None
     expiry_date: date | None = None
     comments: str | None = None
-    
+
     # Provenance (links to Bronze snapshot)
     snapshot_id: str | None = None
     captured_at: datetime = field(default_factory=utc_now)
-    
+
     @property
     def is_operating(self) -> bool:
         """Check if this is an operating MIC (parent)."""
         return self.mic_type == MIC_TYPE_OPERATING
-    
+
     @property
     def is_segment(self) -> bool:
         """Check if this is a segment MIC (child)."""
         return self.mic_type == MIC_TYPE_SEGMENT
-    
+
     @property
     def is_active(self) -> bool:
         """Check if MIC is currently active."""
         return self.status in (MIC_STATUS_ACTIVE, MIC_STATUS_UPDATED)
-    
+
     @property
     def parent_mic(self) -> str:
         """Get parent MIC (operating_mic for segments, self for operating)."""
@@ -275,12 +276,12 @@ class ISO10383Source:
         >>> nyse = next(r for r in records if r['mic'] == 'XNYS')
         >>> print(f"NYSE: {nyse['name']}")
     """
-    
+
     name: str = "iso10383-mic"
     csv_url: str = ISO10383_CSV_URL
     xml_url: str = ISO10383_XML_URL
     format: str = "csv"
-    
+
     def __init__(
         self,
         csv_url: str | None = None,
@@ -299,12 +300,12 @@ class ISO10383Source:
             self.csv_url = csv_url
         self.format = format
         self.cache_dir = Path(cache_dir) if cache_dir else None
-        
+
         # Last fetch metadata
         self._last_etag: str | None = None
         self._last_modified: str | None = None
         self._last_snapshot: MICSnapshot | None = None
-    
+
     async def fetch(self) -> list[dict[str, Any]]:
         """
         Fetch MIC records from ISO 20022.
@@ -317,13 +318,13 @@ class ISO10383Source:
             ValueError: If parsing fails.
         """
         logger.info(f"Fetching ISO 10383 MIC list from {self.csv_url}")
-        
+
         # Download raw content
         content, metadata = await self._download()
-        
+
         # Parse records
         records = self._parse_csv(content)
-        
+
         # Create snapshot metadata
         content_hash = hashlib.sha256(content).hexdigest()
         self._last_snapshot = MICSnapshot(
@@ -337,14 +338,14 @@ class ISO10383Source:
             last_modified=metadata.get("last_modified"),
             captured_at=utc_now(),
         )
-        
+
         # Optionally cache raw content
         if self.cache_dir:
             self._save_bronze_snapshot(content)
-        
+
         logger.info(f"Parsed {len(records)} MIC codes from ISO 10383")
         return records
-    
+
     async def fetch_as_records(self) -> list[MICRecord]:
         """
         Fetch and return typed MICRecord objects.
@@ -354,7 +355,7 @@ class ISO10383Source:
         """
         raw_records = await self.fetch()
         snapshot_id = self._last_snapshot.snapshot_id if self._last_snapshot else None
-        
+
         return [
             MICRecord(
                 mic=r["mic"],
@@ -379,7 +380,7 @@ class ISO10383Source:
             )
             for r in raw_records
         ]
-    
+
     async def _download(self) -> tuple[bytes, dict[str, str]]:
         """
         Download raw content from ISO 20022.
@@ -395,13 +396,13 @@ class ISO10383Source:
                     "Accept": "text/csv, application/csv, */*",
                 },
             )
-            
+
             # Add conditional headers if we have previous values
             if self._last_etag:
                 req.add_header("If-None-Match", self._last_etag)
             if self._last_modified:
                 req.add_header("If-Modified-Since", self._last_modified)
-            
+
             with urllib.request.urlopen(req, timeout=60) as response:
                 content = response.read()
                 metadata = {
@@ -409,25 +410,25 @@ class ISO10383Source:
                     "last_modified": response.headers.get("Last-Modified"),
                     "content_type": response.headers.get("Content-Type"),
                 }
-                
+
                 # Update cached headers
                 if metadata["etag"]:
                     self._last_etag = metadata["etag"]
                 if metadata["last_modified"]:
                     self._last_modified = metadata["last_modified"]
-                
+
                 return content, metadata
-                
+
         except urllib.error.HTTPError as e:
             if e.code == 304:
                 logger.info("MIC data not modified since last fetch")
                 raise
             logger.error(f"HTTP error fetching MIC data: {e.code} {e.reason}")
-            raise IOError(f"Failed to fetch MIC data: {e}") from e
+            raise OSError(f"Failed to fetch MIC data: {e}") from e
         except Exception as e:
             logger.error(f"Failed to fetch MIC data: {e}")
-            raise IOError(f"Failed to fetch MIC data: {e}") from e
-    
+            raise OSError(f"Failed to fetch MIC data: {e}") from e
+
     def _parse_csv(self, content: bytes) -> list[dict[str, Any]]:
         """
         Parse ISO 10383 CSV content.
@@ -440,18 +441,18 @@ class ISO10383Source:
             text = content.decode("utf-8")
         except UnicodeDecodeError:
             text = content.decode("latin-1")
-        
+
         # Parse CSV
         reader = csv.DictReader(io.StringIO(text))
         records = []
-        
+
         for row in reader:
             record = self._normalize_row(row)
             if record and record.get("mic"):
                 records.append(record)
-        
+
         return records
-    
+
     def _normalize_row(self, row: dict[str, str]) -> dict[str, Any]:
         """
         Normalize a CSV row to standard field names.
@@ -490,7 +491,7 @@ class ISO10383Source:
                         val = row[key].strip() if row[key] else None
                         return val if val else None
             return None
-        
+
         return {
             "mic": get_field(["MIC"]),
             "operating_mic": get_field(["OPERATING MIC", "OPRT_MIC", "OPERATING_MIC"]),
@@ -498,7 +499,7 @@ class ISO10383Source:
             "name": get_field([
                 "MARKET NAME-INSTITUTION DESCRIPTION",
                 "NAME-INSTITUTION DESCRIPTION",
-                "INSTITUTION_DESCRIPTION", 
+                "INSTITUTION_DESCRIPTION",
                 "NAME",
                 "INSTITUTION DESCRIPTION",
             ]),
@@ -526,12 +527,12 @@ class ISO10383Source:
             "expiry_date": get_field(["EXPIRY DATE", "EXPIRY_DATE"]),
             "comments": get_field(["COMMENTS", "CMNTS"]),
         }
-    
+
     def _parse_date(self, date_str: str | None) -> date | None:
         """Parse date from various ISO 10383 formats."""
         if not date_str:
             return None
-        
+
         # Try common formats
         formats = [
             "%Y-%m-%d",      # 2024-01-15
@@ -540,32 +541,32 @@ class ISO10383Source:
             "%d-%m-%Y",      # 15-01-2024
             "%Y%m%d",        # 20240115
         ]
-        
+
         for fmt in formats:
             try:
                 return datetime.strptime(date_str.strip(), fmt).date()
             except ValueError:
                 continue
-        
+
         logger.warning(f"Could not parse date: {date_str}")
         return None
-    
+
     def _save_bronze_snapshot(self, content: bytes) -> Path:
         """Save raw content to Bronze cache directory."""
         if not self.cache_dir:
             raise ValueError("No cache_dir configured")
-        
+
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Filename: mic_YYYYMMDD_HHMMSS_<hash>.csv
         snapshot = self._last_snapshot
         ts = snapshot.captured_at.strftime("%Y%m%d_%H%M%S") if snapshot else "unknown"
         hash_prefix = snapshot.content_hash[:8] if snapshot else "unknown"
         filename = f"mic_{ts}_{hash_prefix}.csv"
-        
+
         filepath = self.cache_dir / filename
         filepath.write_bytes(content)
-        
+
         # Also save metadata
         if snapshot:
             meta_path = self.cache_dir / f"mic_{ts}_{hash_prefix}_meta.json"
@@ -582,10 +583,10 @@ class ISO10383Source:
                 "raw_path": str(filepath),
             }
             meta_path.write_text(json.dumps(meta, indent=2))
-        
+
         logger.info(f"Saved Bronze snapshot to {filepath}")
         return filepath
-    
+
     @property
     def last_snapshot(self) -> MICSnapshot | None:
         """Get metadata from last fetch."""
@@ -620,7 +621,7 @@ class MICRegistry:
         >>> nasdaq_segments = registry.get_segments("XNAS")
         >>> print(f"NASDAQ has {len(nasdaq_segments)} segments")
     """
-    
+
     def __init__(self):
         """Initialize empty registry."""
         self._mics: dict[str, MICRecord] = {}
@@ -628,7 +629,7 @@ class MICRegistry:
         self._by_country: dict[str, list[str]] = {}    # country_code -> [mics]
         self._snapshot: MICSnapshot | None = None
         self._loaded_at: datetime | None = None
-    
+
     async def load_from_source(
         self,
         source: ISO10383Source | None = None,
@@ -644,12 +645,12 @@ class MICRegistry:
         """
         if source is None:
             source = ISO10383Source()
-        
+
         # Create a fresh source to avoid 304 issues with conditional headers
         fresh_source = ISO10383Source(csv_url=source.csv_url, format=source.format)
         records = await fresh_source.fetch_as_records()
         return self.load_records(records, fresh_source.last_snapshot)
-    
+
     def load_records(
         self,
         records: list[MICRecord],
@@ -669,32 +670,32 @@ class MICRegistry:
         self._mics.clear()
         self._by_operating.clear()
         self._by_country.clear()
-        
+
         # Index records
         for rec in records:
             mic = rec.mic.upper()
             self._mics[mic] = rec
-            
+
             # Index by operating MIC
             op_mic = rec.operating_mic.upper() if rec.operating_mic else mic
             if op_mic not in self._by_operating:
                 self._by_operating[op_mic] = []
             if rec.is_segment and mic != op_mic:
                 self._by_operating[op_mic].append(mic)
-            
+
             # Index by country
             if rec.country_code:
                 cc = rec.country_code.upper()
                 if cc not in self._by_country:
                     self._by_country[cc] = []
                 self._by_country[cc].append(mic)
-        
+
         self._snapshot = snapshot
         self._loaded_at = utc_now()
-        
+
         logger.info(f"Loaded {len(self._mics)} MIC codes into registry")
         return len(self._mics)
-    
+
     def get(self, mic: str) -> MICRecord | None:
         """
         Look up MIC by code.
@@ -706,23 +707,23 @@ class MICRegistry:
             MICRecord or None if not found.
         """
         return self._mics.get(mic.upper())
-    
+
     def lookup(self, mic: str) -> MICRecord | None:
         """Alias for get() - provides consistent API across registries."""
         return self.get(mic)
-    
+
     def __getitem__(self, mic: str) -> MICRecord:
         """Look up MIC by code (raises KeyError if not found)."""
         return self._mics[mic.upper()]
-    
+
     def __contains__(self, mic: str) -> bool:
         """Check if MIC exists in registry."""
         return mic.upper() in self._mics
-    
+
     def __len__(self) -> int:
         """Number of MIC codes in registry."""
         return len(self._mics)
-    
+
     def get_segments(self, operating_mic: str) -> list[MICRecord]:
         """
         Get all segment MICs for an operating MIC.
@@ -735,11 +736,11 @@ class MICRegistry:
         """
         segment_mics = self._by_operating.get(operating_mic.upper(), [])
         return [self._mics[mic] for mic in segment_mics if mic in self._mics]
-    
+
     def get_children(self, operating_mic: str) -> list[MICRecord]:
         """Alias for get_segments()."""
         return self.get_segments(operating_mic)
-    
+
     def get_by_country(self, country_code: str) -> list[MICRecord]:
         """
         Get all MICs for a country.
@@ -752,19 +753,19 @@ class MICRegistry:
         """
         mics = self._by_country.get(country_code.upper(), [])
         return [self._mics[mic] for mic in mics if mic in self._mics]
-    
+
     def get_operating_mics(self) -> list[MICRecord]:
         """Get all operating (parent) MICs."""
         return [r for r in self._mics.values() if r.is_operating]
-    
+
     def get_segment_mics(self) -> list[MICRecord]:
         """Get all segment (child) MICs."""
         return [r for r in self._mics.values() if r.is_segment]
-    
+
     def get_active(self) -> list[MICRecord]:
         """Get all active MICs."""
         return [r for r in self._mics.values() if r.is_active]
-    
+
     def search(
         self,
         query: str,
@@ -783,52 +784,52 @@ class MICRegistry:
         """
         query_upper = query.upper()
         results = []
-        
+
         for rec in self._mics.values():
             if not include_inactive and not rec.is_active:
                 continue
-            
+
             # Match MIC code
             if rec.mic.upper() == query_upper:
                 results.append(rec)
                 continue
-            
+
             # Match acronym
             if rec.acronym and query_upper in rec.acronym.upper():
                 results.append(rec)
                 continue
-            
+
             # Match name
             if rec.name and query_upper in rec.name.upper():
                 results.append(rec)
                 continue
-        
+
         return results
-    
+
     def all(self) -> Iterator[MICRecord]:
         """Iterate over all MIC records."""
         return iter(self._mics.values())
-    
+
     @property
     def snapshot(self) -> MICSnapshot | None:
         """Get source snapshot metadata."""
         return self._snapshot
-    
+
     @property
     def loaded_at(self) -> datetime | None:
         """When registry was last loaded."""
         return self._loaded_at
-    
+
     @property
     def countries(self) -> set[str]:
         """Get set of all country codes in registry."""
         return set(self._by_country.keys())
-    
+
     @property
     def operating_mic_count(self) -> int:
         """Number of operating MICs."""
         return len([r for r in self._mics.values() if r.is_operating])
-    
+
     @property
     def segment_mic_count(self) -> int:
         """Number of segment MICs."""
@@ -859,23 +860,23 @@ def diff_mic_records(
         List of MICChange objects describing all changes.
     """
     changes: list[MICChange] = []
-    
+
     old_by_mic = {r.mic: r for r in old_records}
     new_by_mic = {r.mic: r for r in new_records}
-    
+
     all_mics = set(old_by_mic.keys()) | set(new_by_mic.keys())
-    
+
     # Fields to compare (excluding provenance fields)
     compare_fields = [
         "operating_mic", "mic_type", "name", "acronym", "country_code",
         "city", "website", "status", "creation_date", "status_date",
         "last_update_date", "comments",
     ]
-    
+
     for mic in all_mics:
         old_rec = old_by_mic.get(mic)
         new_rec = new_by_mic.get(mic)
-        
+
         if old_rec is None and new_rec is not None:
             # New MIC added
             changes.append(MICChange(
@@ -887,7 +888,7 @@ def diff_mic_records(
                 new_snapshot_id=new_snapshot_id or "",
                 change_type="added",
             ))
-            
+
         elif old_rec is not None and new_rec is None:
             # MIC deleted
             changes.append(MICChange(
@@ -899,19 +900,19 @@ def diff_mic_records(
                 new_snapshot_id=new_snapshot_id or "",
                 change_type="deleted",
             ))
-            
+
         else:
             # Compare fields
             for field_name in compare_fields:
                 old_val = getattr(old_rec, field_name, None)
                 new_val = getattr(new_rec, field_name, None)
-                
+
                 # Convert dates to strings for comparison
                 if isinstance(old_val, date):
                     old_val = old_val.isoformat()
                 if isinstance(new_val, date):
                     new_val = new_val.isoformat()
-                
+
                 if old_val != new_val:
                     changes.append(MICChange(
                         mic=mic,
@@ -922,7 +923,7 @@ def diff_mic_records(
                         new_snapshot_id=new_snapshot_id or "",
                         change_type="modified",
                     ))
-    
+
     return changes
 
 

@@ -118,73 +118,72 @@ from entityspine.domain.protocols import (
     StorageLifecycleProtocol,
 )
 
-# =============================================================================
-# STORAGE BACKENDS (Tier 0-1, stdlib only)
-# =============================================================================
-from entityspine.stores import JsonEntityStore, SqliteStore
+# Re-export domain timeline models
+from entityspine.domain.timeline import (
+    EntitySnapshot,
+    StateDiff,
+    TimelineEvent,
+    TimelineEventType,
+)
 
 # =============================================================================
 # SERVICES (High-level business logic)
 # =============================================================================
 from entityspine.services import RefreshResult, SymbologyRefreshService, SymbologySource
-
-# =============================================================================
-# HIGH-LEVEL RESOLVER API (The "killer feature")
-# =============================================================================
-from entityspine.services.resolver import EntityResolver, ResolverConfig
+from entityspine.services.clustering import (
+    BlockingConfig,
+    ClusterInfo,
+    ClusteringService,
+    ClusterStatus,
+    DuplicateCandidate,
+)
 from entityspine.services.fuzzy import FuzzyMatcher, compute_name_similarity, normalize_company_name
+from entityspine.services.graph_service import (
+    EntityNetwork,
+    EntityPath,
+    GraphService,
+    OfficerInfo,
+    PathStep,
+    RelatedEntity,
+)
 
 # =============================================================================
 # SIMPLE LOOKUP API (Dead-simple identifier lookups)
 # =============================================================================
 from entityspine.services.lookup import (
+    COMMON_COMPANIES,
     Lookup,
-    ticker,
+    bic_from_lei,
     cik,
-    name,
-    tickers,
     ciks,
-    names,
-    fast_ticker,
     fast_cik,
-    offline_ticker,
+    fast_ticker,
+    get_db_path,
+    isins_from_lei,
+    lei_from_isin,
+    name,
+    names,
     offline_cik,
     offline_name,
-    COMMON_COMPANIES,
-    get_db_path,
-    use_shared_db,
+    offline_ticker,
     reset_resolver,
-    lei_from_isin,
-    isins_from_lei,
-    bic_from_lei,
+    ticker,
+    tickers,
+    use_shared_db,
 )
 
-from entityspine.services.graph_service import (
-    GraphService,
-    EntityNetwork,
-    EntityPath,
-    OfficerInfo,
-    PathStep,
-    RelatedEntity,
-)
-from entityspine.services.clustering import (
-    ClusteringService,
-    ClusterInfo,
-    ClusterStatus,
-    DuplicateCandidate,
-    BlockingConfig,
-)
+# =============================================================================
+# HIGH-LEVEL RESOLVER API (The "killer feature")
+# =============================================================================
+from entityspine.services.resolver import EntityResolver, ResolverConfig
 from entityspine.services.timeline import (
     TimelineService,
 )
 
-# Re-export domain timeline models
-from entityspine.domain.timeline import (
-    TimelineEventType,
-    TimelineEvent,
-    EntitySnapshot,
-    StateDiff,
-)
+# =============================================================================
+# STORAGE BACKENDS (Tier 0-1, stdlib only)
+# =============================================================================
+from entityspine.stores import JsonEntityStore, SqliteStore
 
 # Backward compatibility
 EventType = TimelineEventType

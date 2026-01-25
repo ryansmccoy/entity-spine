@@ -111,15 +111,15 @@ def parse_date_flexible(value: str, formats: tuple[str, ...] = DATE_FORMATS) -> 
     """
     if not value or not value.strip():
         return None
-    
+
     value = value.strip()
-    
+
     for fmt in formats:
         try:
             return datetime.strptime(value, fmt).date()
         except ValueError:
             continue
-    
+
     logger.debug(f"Could not parse date: {value}")
     return None
 
@@ -140,15 +140,15 @@ def parse_datetime_flexible(
     """
     if not value or not value.strip():
         return None
-    
+
     value = value.strip()
-    
+
     for fmt in formats:
         try:
             return datetime.strptime(value, fmt)
         except ValueError:
             continue
-    
+
     logger.debug(f"Could not parse datetime: {value}")
     return None
 
@@ -184,23 +184,23 @@ def download_url(
     request_headers = {"User-Agent": user_agent}
     if headers:
         request_headers.update(headers)
-    
+
     request = urllib.request.Request(url, headers=request_headers)
-    
+
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return response.read()
     except ssl.SSLCertVerificationError:
         if not ssl_fallback:
             raise
-        
+
         logger.warning(
             f"SSL verification failed for {url}, retrying without verification"
         )
         context = ssl.create_default_context()
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
-        
+
         with urllib.request.urlopen(request, timeout=timeout, context=context) as response:
             return response.read()
 
@@ -226,7 +226,7 @@ def generate_snapshot_id(prefix: str, content_hash: str, captured_at: datetime |
     """
     if captured_at is None:
         captured_at = utc_now()
-    
+
     timestamp_str = captured_at.strftime("%Y%m%d_%H%M%S")
     return f"{prefix}_{timestamp_str}_{content_hash[:8]}"
 

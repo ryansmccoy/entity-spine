@@ -19,9 +19,8 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import date, datetime
-from pathlib import Path
-from typing import Annotated, Optional
+from datetime import date
+from typing import Annotated
 
 # Check for CLI dependencies
 try:
@@ -97,7 +96,7 @@ def format_entity_table(entity, result=None) -> Table:
     table.add_row("Primary Name", entity.primary_name)
     table.add_row("Type", entity.entity_type.value if hasattr(entity.entity_type, 'value') else str(entity.entity_type))
     table.add_row("Status", entity.status.value if hasattr(entity.status, 'value') else str(entity.status))
-    
+
     if entity.jurisdiction:
         table.add_row("Jurisdiction", entity.jurisdiction)
     if entity.sic_code:
@@ -131,9 +130,9 @@ if HAS_CLI_DEPS:
     @app.command("resolve")
     def resolve_identifier(
         query: Annotated[str, typer.Argument(help="Identifier to resolve (ticker, CIK, name, ISIN, etc.)")],
-        as_of: Annotated[Optional[str], typer.Option("--as-of", help="Point-in-time date (YYYY-MM-DD)")] = None,
-        mic: Annotated[Optional[str], typer.Option("--mic", help="Market Identifier Code for ticker disambiguation")] = None,
-        db_path: Annotated[Optional[str], typer.Option("--db", help="Database path")] = None,
+        as_of: Annotated[str | None, typer.Option("--as-of", help="Point-in-time date (YYYY-MM-DD)")] = None,
+        mic: Annotated[str | None, typer.Option("--mic", help="Market Identifier Code for ticker disambiguation")] = None,
+        db_path: Annotated[str | None, typer.Option("--db", help="Database path")] = None,
         tier: Annotated[int, typer.Option("--tier", help="Resolution tier (0-3)")] = 1,
         output: Annotated[str, typer.Option("--output", "-o", help="Output format: table, json")] = "table",
     ):
@@ -149,14 +148,14 @@ if HAS_CLI_DEPS:
             entityspine resolve "Apple Inc" --as-of 2020-01-01
         """
         resolver = get_resolver(db_path, tier)
-        
+
         as_of_date = None
         if as_of:
             as_of_date = date.fromisoformat(as_of)
-        
+
         with console.status(f"Resolving '{query}'..."):
             result = resolver.resolve(query, as_of=as_of_date, mic=mic)
-        
+
         if result.status.value == "found" and result.entity:
             if output == "json":
                 data = {
@@ -173,22 +172,21 @@ if HAS_CLI_DEPS:
             else:
                 table = format_entity_table(result.entity, result)
                 console.print(table)
+        elif output == "json":
+            rprint(format_json_output({"status": "not_found", "query": query}))
         else:
-            if output == "json":
-                rprint(format_json_output({"status": "not_found", "query": query}))
-            else:
-                console.print(f"[red]Not found:[/red] No entity matches '{query}'")
-                if result.warnings:
-                    for warning in result.warnings:
-                        console.print(f"  [yellow]Warning:[/yellow] {warning}")
+            console.print(f"[red]Not found:[/red] No entity matches '{query}'")
+            if result.warnings:
+                for warning in result.warnings:
+                    console.print(f"  [yellow]Warning:[/yellow] {warning}")
 
 
     @app.command("search")
     def search_entities(
         query: Annotated[str, typer.Argument(help="Search query")],
         limit: Annotated[int, typer.Option("--limit", "-n", help="Maximum results")] = 10,
-        entity_type: Annotated[Optional[str], typer.Option("--type", "-t", help="Filter by entity type")] = None,
-        db_path: Annotated[Optional[str], typer.Option("--db", help="Database path")] = None,
+        entity_type: Annotated[str | None, typer.Option("--type", "-t", help="Filter by entity type")] = None,
+        db_path: Annotated[str | None, typer.Option("--db", help="Database path")] = None,
         tier: Annotated[int, typer.Option("--tier", help="Resolution tier")] = 1,
         output: Annotated[str, typer.Option("--output", "-o", help="Output format")] = "table",
     ):
@@ -201,14 +199,14 @@ if HAS_CLI_DEPS:
             entityspine search "bank" --type organization
         """
         resolver = get_resolver(db_path, tier)
-        
+
         with console.status(f"Searching for '{query}'..."):
             results = resolver.search(query, limit=limit)
-        
+
         if not results:
             console.print(f"[yellow]No results found for '{query}'[/yellow]")
             return
-        
+
         if output == "json":
             data = [
                 {
@@ -227,7 +225,7 @@ if HAS_CLI_DEPS:
             table.add_column("Type")
             table.add_column("CIK/Source ID")
             table.add_column("Score", justify="right")
-            
+
             for r in results:
                 table.add_row(
                     r.entity.primary_name,
@@ -235,7 +233,7 @@ if HAS_CLI_DEPS:
                     r.entity.source_id or "N/A",
                     f"{r.confidence:.2%}",
                 )
-            
+
             console.print(table)
             console.print(f"\n[dim]Found {len(results)} results[/dim]")
 
@@ -243,7 +241,7 @@ if HAS_CLI_DEPS:
     @app.command("batch")
     def batch_resolve(
         identifiers: Annotated[list[str], typer.Argument(help="Identifiers to resolve")],
-        db_path: Annotated[Optional[str], typer.Option("--db", help="Database path")] = None,
+        db_path: Annotated[str | None, typer.Option("--db", help="Database path")] = None,
         tier: Annotated[int, typer.Option("--tier", help="Resolution tier")] = 1,
         output: Annotated[str, typer.Option("--output", "-o", help="Output format")] = "table",
     ):
@@ -255,10 +253,10 @@ if HAS_CLI_DEPS:
             entityspine batch 0000320193 0000789019 --output json
         """
         resolver = get_resolver(db_path, tier)
-        
+
         with console.status(f"Resolving {len(identifiers)} identifiers..."):
             results = [resolver.resolve(q) for q in identifiers]
-        
+
         if output == "json":
             data = [
                 {
@@ -278,7 +276,7 @@ if HAS_CLI_DEPS:
             table.add_column("Name")
             table.add_column("CIK")
             table.add_column("Score", justify="right")
-            
+
             for i, r in enumerate(results):
                 status_style = "green" if r.status.value == "found" else "red"
                 table.add_row(
@@ -288,7 +286,7 @@ if HAS_CLI_DEPS:
                     r.entity.source_id if r.entity else "N/A",
                     f"{r.confidence:.2%}",
                 )
-            
+
             console.print(table)
 
 
@@ -301,7 +299,7 @@ if HAS_CLI_DEPS:
     def graph_network(
         entity: Annotated[str, typer.Argument(help="Entity identifier (ticker, CIK, or ID)")],
         depth: Annotated[int, typer.Option("--depth", "-d", help="Traversal depth")] = 2,
-        db_path: Annotated[Optional[str], typer.Option("--db", help="Database path")] = None,
+        db_path: Annotated[str | None, typer.Option("--db", help="Database path")] = None,
         tier: Annotated[int, typer.Option("--tier", help="Resolution tier")] = 2,
         output: Annotated[str, typer.Option("--output", "-o", help="Output format")] = "tree",
     ):
@@ -314,21 +312,21 @@ if HAS_CLI_DEPS:
         """
         if tier < 2:
             console.print("[yellow]Warning: Graph features work best with Tier 2+[/yellow]")
-        
+
         resolver = get_resolver(db_path, tier)
-        
+
         # First resolve the entity
         result = resolver.resolve(entity)
         if not result.entity:
             console.print(f"[red]Entity not found: {entity}[/red]")
             return
-        
+
         # Try to get graph service
         try:
             from entityspine.services.graph_service import GraphService
             graph = GraphService(resolver.store)
             network = graph.get_entity_network(result.entity.entity_id, max_depth=depth)
-            
+
             if output == "json":
                 data = {
                     "center": result.entity.primary_name,
@@ -342,7 +340,7 @@ if HAS_CLI_DEPS:
                 rprint(format_json_output(data))
             else:
                 tree = Tree(f"[bold cyan]{result.entity.primary_name}[/bold cyan]")
-                
+
                 for d in range(1, depth + 1):
                     entities_at_depth = network.entities_at_depth(d)
                     if entities_at_depth:
@@ -351,10 +349,10 @@ if HAS_CLI_DEPS:
                             depth_branch.add(f"{e.primary_name}")
                         if len(entities_at_depth) > 10:
                             depth_branch.add(f"[dim]... and {len(entities_at_depth) - 10} more[/dim]")
-                
+
                 console.print(Panel(tree, title="Entity Network"))
                 console.print(f"\nTotal: {network.node_count} nodes, {network.edge_count} edges")
-                
+
         except ImportError:
             console.print("[yellow]Graph service requires Tier 2+ features[/yellow]")
         except Exception as e:
@@ -364,7 +362,7 @@ if HAS_CLI_DEPS:
     @graph_app.command("subsidiaries")
     def graph_subsidiaries(
         entity: Annotated[str, typer.Argument(help="Parent entity identifier")],
-        db_path: Annotated[Optional[str], typer.Option("--db", help="Database path")] = None,
+        db_path: Annotated[str | None, typer.Option("--db", help="Database path")] = None,
         tier: Annotated[int, typer.Option("--tier", help="Resolution tier")] = 2,
         output: Annotated[str, typer.Option("--output", "-o", help="Output format")] = "tree",
     ):
@@ -376,16 +374,16 @@ if HAS_CLI_DEPS:
         """
         resolver = get_resolver(db_path, tier)
         result = resolver.resolve(entity)
-        
+
         if not result.entity:
             console.print(f"[red]Entity not found: {entity}[/red]")
             return
-        
+
         try:
             from entityspine.services.graph_service import GraphService
             graph = GraphService(resolver.store)
             subsidiaries = graph.get_subsidiaries(result.entity.entity_id)
-            
+
             if output == "json":
                 data = [{"name": s.entity.primary_name, "type": str(s.relationship_type)} for s in subsidiaries]
                 rprint(format_json_output(data))
@@ -394,7 +392,7 @@ if HAS_CLI_DEPS:
                 for sub in subsidiaries:
                     tree.add(f"{sub.entity.primary_name}")
                 console.print(Panel(tree, title="Subsidiaries"))
-                
+
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
 
@@ -403,7 +401,7 @@ if HAS_CLI_DEPS:
     def graph_officers(
         entity: Annotated[str, typer.Argument(help="Company identifier")],
         current_only: Annotated[bool, typer.Option("--current", help="Only current officers")] = True,
-        db_path: Annotated[Optional[str], typer.Option("--db", help="Database path")] = None,
+        db_path: Annotated[str | None, typer.Option("--db", help="Database path")] = None,
         tier: Annotated[int, typer.Option("--tier", help="Resolution tier")] = 2,
         output: Annotated[str, typer.Option("--output", "-o", help="Output format")] = "table",
     ):
@@ -416,20 +414,20 @@ if HAS_CLI_DEPS:
         """
         resolver = get_resolver(db_path, tier)
         result = resolver.resolve(entity)
-        
+
         if not result.entity:
             console.print(f"[red]Entity not found: {entity}[/red]")
             return
-        
+
         try:
             from entityspine.services.graph_service import GraphService
             graph = GraphService(resolver.store)
             officers = graph.get_officers(result.entity.entity_id, current_only=current_only)
-            
+
             if not officers:
                 console.print("[yellow]No officers found (data may not be loaded)[/yellow]")
                 return
-            
+
             if output == "json":
                 data = [
                     {
@@ -447,7 +445,7 @@ if HAS_CLI_DEPS:
                 table.add_column("Title")
                 table.add_column("Role")
                 table.add_column("Current")
-                
+
                 for o in officers:
                     table.add_row(
                         o.person.primary_name,
@@ -455,9 +453,9 @@ if HAS_CLI_DEPS:
                         o.role_type.value,
                         "✓" if o.is_current else "✗",
                     )
-                
+
                 console.print(table)
-                
+
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
 
@@ -470,7 +468,7 @@ if HAS_CLI_DEPS:
     @filings_app.command("list")
     def filings_list(
         cik: Annotated[str, typer.Argument(help="Company CIK")],
-        form_type: Annotated[Optional[str], typer.Option("--form", "-f", help="Filter by form type (10-K, 10-Q, 8-K)")] = None,
+        form_type: Annotated[str | None, typer.Option("--form", "-f", help="Filter by form type (10-K, 10-Q, 8-K)")] = None,
         limit: Annotated[int, typer.Option("--limit", "-n", help="Maximum results")] = 10,
         output: Annotated[str, typer.Option("--output", "-o", help="Output format")] = "table",
     ):
@@ -481,7 +479,7 @@ if HAS_CLI_DEPS:
             entityspine filings list 0000320193
             entityspine filings list 0000320193 --form 10-K
         """
-        console.print(f"[yellow]Filing listing requires database with filing data loaded[/yellow]")
+        console.print("[yellow]Filing listing requires database with filing data loaded[/yellow]")
         console.print(f"Searching for CIK: {cik}, Form: {form_type or 'all'}")
 
 
@@ -499,7 +497,7 @@ if HAS_CLI_DEPS:
             entityspine filings parse 0000320193-24-000081
             entityspine filings parse 0000320193-24-000081 --sections
         """
-        console.print(f"[yellow]Filing parsing requires py-sec-edgar integration[/yellow]")
+        console.print("[yellow]Filing parsing requires py-sec-edgar integration[/yellow]")
         console.print(f"Would parse: {accession}")
 
 
@@ -524,7 +522,7 @@ if HAS_CLI_DEPS:
             resolver = get_resolver(path, tier)
             # Force initialization
             resolver._ensure_initialized()
-        
+
         console.print(f"[green]✓[/green] Database initialized: {path}")
 
 
@@ -541,12 +539,12 @@ if HAS_CLI_DEPS:
         with console.status("Loading SEC company tickers..."):
             resolver = get_resolver(path, tier=1)
             resolver._ensure_initialized()
-            
+
             # Check if data loaded
             count = 0
             if hasattr(resolver.store, 'count_entities'):
                 count = resolver.store.count_entities()
-        
+
         console.print(f"[green]✓[/green] Loaded {count:,} entities from SEC data")
 
 
@@ -562,19 +560,19 @@ if HAS_CLI_DEPS:
         """
         resolver = get_resolver(path, tier=1)
         resolver._ensure_initialized()
-        
+
         table = Table(title="Database Statistics")
         table.add_column("Metric", style="cyan")
         table.add_column("Value", justify="right")
-        
+
         count = 0
         if hasattr(resolver.store, 'count_entities'):
             count = resolver.store.count_entities()
-        
+
         table.add_row("Entities", f"{count:,}")
         table.add_row("Database Path", str(path))
         table.add_row("Tier", str(resolver.config.tier.value))
-        
+
         console.print(table)
 
 
@@ -587,7 +585,7 @@ if HAS_CLI_DEPS:
     def serve(
         host: Annotated[str, typer.Option("--host", "-h", help="Host to bind")] = "127.0.0.1",
         port: Annotated[int, typer.Option("--port", "-p", help="Port to bind")] = 8000,
-        db_path: Annotated[Optional[str], typer.Option("--db", help="Database path")] = None,
+        db_path: Annotated[str | None, typer.Option("--db", help="Database path")] = None,
         tier: Annotated[int, typer.Option("--tier", help="Resolution tier")] = 1,
         reload: Annotated[bool, typer.Option("--reload", help="Enable auto-reload")] = False,
     ):
@@ -603,14 +601,14 @@ if HAS_CLI_DEPS:
         except ImportError:
             console.print("[red]uvicorn not installed. Run: pip install entityspine[api][/red]")
             raise typer.Exit(1)
-        
-        console.print(f"[cyan]Starting EntitySpine API server...[/cyan]")
+
+        console.print("[cyan]Starting EntitySpine API server...[/cyan]")
         console.print(f"  Host: {host}")
         console.print(f"  Port: {port}")
         console.print(f"  Tier: {tier}")
         console.print(f"  Docs: http://{host}:{port}/docs")
         console.print()
-        
+
         uvicorn.run(
             "entityspine.api.app:app",
             host=host,

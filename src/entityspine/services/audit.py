@@ -16,18 +16,19 @@ Design Principles:
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
+import logging
 import sqlite3
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, date
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Generic
 from pathlib import Path
-import logging
+from typing import Any
 
-from entityspine.core.timestamps import utc_now, to_iso8601, from_iso8601
+from entityspine.core.timestamps import from_iso8601, to_iso8601, utc_now
 from entityspine.core.ulid import generate_ulid
 
 logger = logging.getLogger(__name__)
@@ -75,43 +76,43 @@ class ChangeEvent:
     """
     # Primary key
     event_id: str = field(default_factory=generate_ulid)
-    
+
     # What changed
     entity_kind: EntityKind = EntityKind.ENTITY
     entity_id: str = ""
     change_type: ChangeType = ChangeType.UPDATE
-    
+
     # Before/after state (JSON serialized)
-    before_state: Optional[str] = None  # JSON
-    after_state: Optional[str] = None   # JSON
-    
+    before_state: str | None = None  # JSON
+    after_state: str | None = None   # JSON
+
     # Change details
     changed_fields: tuple = field(default_factory=tuple)  # Fields that changed
-    change_reason: Optional[str] = None
-    
+    change_reason: str | None = None
+
     # Source tracking
     source_system: str = "unknown"
-    source_ref: Optional[str] = None
-    user_id: Optional[str] = None
-    
+    source_ref: str | None = None
+    user_id: str | None = None
+
     # Timing
     occurred_at: datetime = field(default_factory=utc_now)
-    
+
     # Reversion support
-    parent_event_id: Optional[str] = None  # For grouped changes
+    parent_event_id: str | None = None  # For grouped changes
     is_revertible: bool = True
-    reverted_by: Optional[str] = None  # Event ID that reverted this
-    
+    reverted_by: str | None = None  # Event ID that reverted this
+
     # Checksum for integrity
-    checksum: Optional[str] = None
-    
+    checksum: str | None = None
+
     def __post_init__(self):
         """Compute checksum if not provided."""
         if self.checksum is None:
             content = f"{self.entity_kind.value}:{self.entity_id}:{self.change_type.value}:{self.before_state}:{self.after_state}"
             object.__setattr__(self, 'checksum', hashlib.sha256(content.encode()).hexdigest()[:16])
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event_id": self.event_id,
             "entity_kind": self.entity_kind.value,
@@ -130,9 +131,9 @@ class ChangeEvent:
             "reverted_by": self.reverted_by,
             "checksum": self.checksum,
         }
-    
+
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ChangeEvent":
+    def from_dict(cls, d: dict[str, Any]) -> ChangeEvent:
         return cls(
             event_id=d["event_id"],
             entity_kind=EntityKind(d["entity_kind"]),
@@ -165,8 +166,8 @@ class ListenerRegistration:
     """Registration for a change listener."""
     listener_id: str
     listener: ChangeListener
-    entity_kinds: Optional[List[EntityKind]] = None  # None = all
-    change_types: Optional[List[ChangeType]] = None  # None = all
+    entity_kinds: list[EntityKind] | None = None  # None = all
+    change_types: list[ChangeType] | None = None  # None = all
     priority: int = 0  # Higher = called first
 
 
@@ -176,47 +177,47 @@ class ListenerRegistration:
 
 class AuditStoreProtocol(ABC):
     """Protocol for audit trail storage."""
-    
+
     @abstractmethod
     def record_change(self, event: ChangeEvent) -> None:
         """Record a change event."""
         ...
-    
+
     @abstractmethod
-    def get_event(self, event_id: str) -> Optional[ChangeEvent]:
+    def get_event(self, event_id: str) -> ChangeEvent | None:
         """Get a specific event by ID."""
         ...
-    
+
     @abstractmethod
     def get_entity_history(
         self,
         entity_kind: EntityKind,
         entity_id: str,
         limit: int = 100,
-    ) -> List[ChangeEvent]:
+    ) -> list[ChangeEvent]:
         """Get change history for an entity."""
         ...
-    
+
     @abstractmethod
     def get_state_at(
         self,
         entity_kind: EntityKind,
         entity_id: str,
         at_time: datetime,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get entity state at a point in time (JSON)."""
         ...
-    
+
     @abstractmethod
     def get_changes_since(
         self,
         since: datetime,
-        entity_kinds: Optional[List[EntityKind]] = None,
+        entity_kinds: list[EntityKind] | None = None,
         limit: int = 1000,
-    ) -> List[ChangeEvent]:
+    ) -> list[ChangeEvent]:
         """Get all changes since a given time."""
         ...
-    
+
     @abstractmethod
     def mark_reverted(self, event_id: str, reverted_by: str) -> None:
         """Mark an event as reverted."""
@@ -229,7 +230,7 @@ class AuditStoreProtocol(ABC):
 
 class SqliteAuditStore(AuditStoreProtocol):
     """SQLite-based audit trail storage."""
-    
+
     SCHEMA = """
     CREATE TABLE IF NOT EXISTS audit_events (
         event_id TEXT PRIMARY KEY,
@@ -259,24 +260,24 @@ class SqliteAuditStore(AuditStoreProtocol):
     CREATE INDEX IF NOT EXISTS idx_audit_parent 
         ON audit_events(parent_event_id);
     """
-    
+
     def __init__(self, db_path: str | Path = ":memory:"):
         self.db_path = str(db_path)
-        self._conn: Optional[sqlite3.Connection] = None
-    
+        self._conn: sqlite3.Connection | None = None
+
     def initialize(self) -> None:
         """Initialize the audit store."""
         self._conn = sqlite3.connect(self.db_path)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(self.SCHEMA)
         self._conn.commit()
-    
+
     def close(self) -> None:
         """Close the connection."""
         if self._conn:
             self._conn.close()
             self._conn = None
-    
+
     def record_change(self, event: ChangeEvent) -> None:
         """Record a change event."""
         self._conn.execute(
@@ -295,20 +296,20 @@ class SqliteAuditStore(AuditStoreProtocol):
             )
         )
         self._conn.commit()
-    
-    def get_event(self, event_id: str) -> Optional[ChangeEvent]:
+
+    def get_event(self, event_id: str) -> ChangeEvent | None:
         """Get a specific event."""
         row = self._conn.execute(
             "SELECT * FROM audit_events WHERE event_id = ?", (event_id,)
         ).fetchone()
         return self._row_to_event(row) if row else None
-    
+
     def get_entity_history(
         self,
         entity_kind: EntityKind,
         entity_id: str,
         limit: int = 100,
-    ) -> List[ChangeEvent]:
+    ) -> list[ChangeEvent]:
         """Get change history for an entity."""
         rows = self._conn.execute(
             """SELECT * FROM audit_events 
@@ -318,13 +319,13 @@ class SqliteAuditStore(AuditStoreProtocol):
             (entity_kind.value, entity_id, limit)
         ).fetchall()
         return [self._row_to_event(row) for row in rows]
-    
+
     def get_state_at(
         self,
         entity_kind: EntityKind,
         entity_id: str,
         at_time: datetime,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get entity state at a point in time."""
         # Find the most recent event before at_time
         row = self._conn.execute(
@@ -335,13 +336,13 @@ class SqliteAuditStore(AuditStoreProtocol):
             (entity_kind.value, entity_id, to_iso8601(at_time))
         ).fetchone()
         return row["after_state"] if row else None
-    
+
     def get_changes_since(
         self,
         since: datetime,
-        entity_kinds: Optional[List[EntityKind]] = None,
+        entity_kinds: list[EntityKind] | None = None,
         limit: int = 1000,
-    ) -> List[ChangeEvent]:
+    ) -> list[ChangeEvent]:
         """Get all changes since a given time."""
         if entity_kinds:
             placeholders = ",".join("?" * len(entity_kinds))
@@ -361,7 +362,7 @@ class SqliteAuditStore(AuditStoreProtocol):
                 (to_iso8601(since), limit)
             ).fetchall()
         return [self._row_to_event(row) for row in rows]
-    
+
     def mark_reverted(self, event_id: str, reverted_by: str) -> None:
         """Mark an event as reverted."""
         self._conn.execute(
@@ -369,7 +370,7 @@ class SqliteAuditStore(AuditStoreProtocol):
             (reverted_by, event_id)
         )
         self._conn.commit()
-    
+
     def _row_to_event(self, row: sqlite3.Row) -> ChangeEvent:
         """Convert a database row to a ChangeEvent."""
         return ChangeEvent(
@@ -406,11 +407,11 @@ class AuditManager:
     - Enables reversion to previous states
     - Notifies listeners of changes
     """
-    
+
     def __init__(self, store: AuditStoreProtocol):
         self.store = store
-        self._listeners: List[ListenerRegistration] = []
-    
+        self._listeners: list[ListenerRegistration] = []
+
     def record(
         self,
         entity_kind: EntityKind,
@@ -418,18 +419,18 @@ class AuditManager:
         change_type: ChangeType,
         before: Any = None,
         after: Any = None,
-        changed_fields: Optional[List[str]] = None,
-        reason: Optional[str] = None,
+        changed_fields: list[str] | None = None,
+        reason: str | None = None,
         source_system: str = "unknown",
-        source_ref: Optional[str] = None,
-        user_id: Optional[str] = None,
-        parent_event_id: Optional[str] = None,
+        source_ref: str | None = None,
+        user_id: str | None = None,
+        parent_event_id: str | None = None,
     ) -> ChangeEvent:
         """Record a change and notify listeners."""
         # Serialize states
         before_json = json.dumps(before, default=str) if before else None
         after_json = json.dumps(after, default=str) if after else None
-        
+
         # Auto-detect changed fields if not provided
         if changed_fields is None and before and after:
             if isinstance(before, dict) and isinstance(after, dict):
@@ -437,7 +438,7 @@ class AuditManager:
                     k for k in set(before.keys()) | set(after.keys())
                     if before.get(k) != after.get(k)
                 ]
-        
+
         event = ChangeEvent(
             entity_kind=entity_kind,
             entity_id=entity_id,
@@ -451,52 +452,52 @@ class AuditManager:
             user_id=user_id,
             parent_event_id=parent_event_id,
         )
-        
+
         # Store
         self.store.record_change(event)
-        
+
         # Notify listeners
         self._notify_listeners(event)
-        
+
         return event
-    
+
     def get_history(
         self,
         entity_kind: EntityKind,
         entity_id: str,
         limit: int = 100,
-    ) -> List[ChangeEvent]:
+    ) -> list[ChangeEvent]:
         """Get change history for an entity."""
         return self.store.get_entity_history(entity_kind, entity_id, limit)
-    
+
     def get_state_at(
         self,
         entity_kind: EntityKind,
         entity_id: str,
         at_time: datetime,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Get entity state at a point in time."""
         state_json = self.store.get_state_at(entity_kind, entity_id, at_time)
         return json.loads(state_json) if state_json else None
-    
+
     def can_revert(self, event_id: str) -> bool:
         """Check if an event can be reverted."""
         event = self.store.get_event(event_id)
         if not event:
             return False
         return event.is_revertible and event.reverted_by is None
-    
+
     def create_revert_event(
         self,
         event_id: str,
-        reason: Optional[str] = None,
-        user_id: Optional[str] = None,
-    ) -> Optional[ChangeEvent]:
+        reason: str | None = None,
+        user_id: str | None = None,
+    ) -> ChangeEvent | None:
         """Create a reversion event (caller must apply the actual revert)."""
         original = self.store.get_event(event_id)
         if not original or not self.can_revert(event_id):
             return None
-        
+
         # Create revert event (swaps before/after)
         revert = self.record(
             entity_kind=original.entity_kind,
@@ -508,17 +509,17 @@ class AuditManager:
             user_id=user_id,
             parent_event_id=event_id,
         )
-        
+
         # Mark original as reverted
         self.store.mark_reverted(event_id, revert.event_id)
-        
+
         return revert
-    
+
     def add_listener(
         self,
         listener: ChangeListener,
-        entity_kinds: Optional[List[EntityKind]] = None,
-        change_types: Optional[List[ChangeType]] = None,
+        entity_kinds: list[EntityKind] | None = None,
+        change_types: list[ChangeType] | None = None,
         priority: int = 0,
     ) -> str:
         """Add a change listener."""
@@ -532,7 +533,7 @@ class AuditManager:
         self._listeners.append(registration)
         self._listeners.sort(key=lambda r: -r.priority)
         return registration.listener_id
-    
+
     def remove_listener(self, listener_id: str) -> bool:
         """Remove a change listener."""
         for i, reg in enumerate(self._listeners):
@@ -540,7 +541,7 @@ class AuditManager:
                 self._listeners.pop(i)
                 return True
         return False
-    
+
     def _notify_listeners(self, event: ChangeEvent) -> None:
         """Notify relevant listeners of a change."""
         for reg in self._listeners:
@@ -549,7 +550,7 @@ class AuditManager:
                 continue
             if reg.change_types and event.change_type not in reg.change_types:
                 continue
-            
+
             try:
                 reg.listener(event)
             except Exception as e:

@@ -1787,7 +1787,7 @@ class EntityPath:
     @property
     def found(self) -> bool:
         return len(self.steps) > 0
-    
+
     @property
     def path_description(self) -> str:
         """Human-readable path description."""

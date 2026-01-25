@@ -32,10 +32,9 @@ Example:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
-
 
 # =============================================================================
 # Error Categories
@@ -60,33 +59,33 @@ class ErrorCategory(str, Enum):
         >>> category.is_likely_transient()
         True
     """
-    
+
     # Infrastructure errors (usually transient)
     NETWORK = "NETWORK"           # Connection, timeout, DNS
     DATABASE = "DATABASE"         # Connection pool, query timeout
     STORAGE = "STORAGE"           # Disk, S3, file system
     RATE_LIMIT = "RATE_LIMIT"     # API rate limiting
-    
+
     # Source/data errors
     SOURCE = "SOURCE"             # Upstream API, file not found
     PARSE = "PARSE"               # Data parsing, format errors
     VALIDATION = "VALIDATION"     # Schema, constraint violations
     ENCODING = "ENCODING"         # Character encoding issues
-    
+
     # Configuration errors (never retryable)
     CONFIG = "CONFIG"             # Missing config, invalid settings
     AUTH = "AUTH"                 # Authentication, authorization
     PERMISSION = "PERMISSION"     # File/resource access denied
-    
+
     # Application errors
     PIPELINE = "PIPELINE"         # Pipeline execution failures
     ORCHESTRATION = "ORCHESTRATION"  # Workflow, scheduler errors
     DEPENDENCY = "DEPENDENCY"     # Missing package, version conflict
-    
+
     # Internal errors
     INTERNAL = "INTERNAL"         # Bugs, unexpected state
     UNKNOWN = "UNKNOWN"           # Uncategorized errors
-    
+
     def is_likely_transient(self) -> bool:
         """
         True if errors in this category are typically transient.
@@ -99,7 +98,7 @@ class ErrorCategory(str, Enum):
             ErrorCategory.STORAGE,
             ErrorCategory.RATE_LIMIT,
         )
-    
+
     def is_retryable(self) -> bool:
         """
         True if errors in this category might benefit from retry.
@@ -114,7 +113,7 @@ class ErrorCategory(str, Enum):
             ErrorCategory.RATE_LIMIT,
             ErrorCategory.SOURCE,
         )
-    
+
     def requires_investigation(self) -> bool:
         """
         True if errors in this category likely need human investigation.
@@ -136,7 +135,7 @@ class ErrorSeverity(str, Enum):
     
     Used for alerting thresholds and dashboard filtering.
     """
-    
+
     DEBUG = "DEBUG"       # Detailed debugging info
     INFO = "INFO"         # Informational (expected errors)
     WARNING = "WARNING"   # Concerning but not critical
@@ -189,40 +188,40 @@ class ErrorContext:
         >>> ctx.to_dict()
         {'category': 'SOURCE', 'pipeline': 'ingest_sec_filings', ...}
     """
-    
+
     # Classification
     category: ErrorCategory = ErrorCategory.UNKNOWN
     severity: ErrorSeverity = ErrorSeverity.ERROR
-    
+
     # Execution context
     pipeline: str | None = None
     workflow: str | None = None
     step: str | None = None
     run_id: str | None = None
     execution_id: str | None = None
-    
+
     # Source context
     source_name: str | None = None
     source_type: str | None = None
-    
+
     # Request context
     url: str | None = None
     http_status: int | None = None
-    
+
     # Retry context
     retry_count: int = 0
     retryable: bool | None = None  # None = unknown
     retry_after_seconds: int | None = None
-    
+
     # Additional metadata
     metadata: dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+
     def __post_init__(self) -> None:
         """Infer retryable if not explicitly set."""
         if self.retryable is None:
             self.retryable = self.category.is_retryable()
-    
+
     def to_dict(self) -> dict[str, Any]:
         """
         Convert to dictionary for logging/serialization.
@@ -234,24 +233,24 @@ class ErrorContext:
             "severity": self.severity.value,
             "timestamp": self.timestamp.isoformat(),
         }
-        
+
         optional_fields = [
             "pipeline", "workflow", "step", "run_id", "execution_id",
             "source_name", "source_type", "url", "http_status",
             "retry_count", "retryable", "retry_after_seconds",
         ]
-        
+
         for field_name in optional_fields:
             value = getattr(self, field_name)
             if value is not None and value != 0:
                 result[field_name] = value
-        
+
         if self.metadata:
             result["metadata"] = self.metadata
-        
+
         return result
-    
-    def with_retry(self, count: int, after_seconds: int | None = None) -> "ErrorContext":
+
+    def with_retry(self, count: int, after_seconds: int | None = None) -> ErrorContext:
         """
         Create copy with updated retry information.
         
@@ -280,8 +279,8 @@ class ErrorContext:
             metadata=dict(self.metadata),
             timestamp=self.timestamp,
         )
-    
-    def with_metadata(self, **kwargs: Any) -> "ErrorContext":
+
+    def with_metadata(self, **kwargs: Any) -> ErrorContext:
         """
         Create copy with additional metadata.
         
@@ -335,7 +334,7 @@ class ErrorRecord:
         resolved: Whether error has been acknowledged/resolved
         resolved_at: When error was resolved
     """
-    
+
     error_id: str
     error_type: str
     message: str
@@ -344,18 +343,18 @@ class ErrorRecord:
     caused_by: str | None = None  # error_id of causing error
     resolved: bool = False
     resolved_at: datetime | None = None
-    
+
     @property
     def is_retryable(self) -> bool:
         """True if error context indicates retryability."""
         return self.context.retryable or False
-    
+
     @property
     def category(self) -> ErrorCategory:
         """Shortcut to context.category."""
         return self.context.category
-    
-    def mark_resolved(self) -> "ErrorRecord":
+
+    def mark_resolved(self) -> ErrorRecord:
         """Create copy marked as resolved."""
         return ErrorRecord(
             error_id=self.error_id,
@@ -365,7 +364,7 @@ class ErrorRecord:
             stack_trace=self.stack_trace,
             caused_by=self.caused_by,
             resolved=True,
-            resolved_at=datetime.now(timezone.utc),
+            resolved_at=datetime.now(UTC),
         )
 
 
@@ -408,7 +407,7 @@ def create_error_context(
     """
     if isinstance(category, str):
         category = ErrorCategory(category)
-    
+
     return ErrorContext(
         category=category,
         pipeline=pipeline,

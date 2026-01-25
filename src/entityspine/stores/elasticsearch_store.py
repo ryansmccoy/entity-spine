@@ -248,7 +248,7 @@ class ElasticsearchStore:
     # Indexing
     # =========================================================================
 
-    async def index_entity(self, entity: "Entity", identifiers: list[dict] | None = None) -> None:
+    async def index_entity(self, entity: Entity, identifiers: list[dict] | None = None) -> None:
         """
         Index a single entity.
 
@@ -263,7 +263,7 @@ class ElasticsearchStore:
             document=doc,
         )
 
-    async def bulk_index(self, entities: list[tuple["Entity", list[dict] | None]]) -> dict:
+    async def bulk_index(self, entities: list[tuple[Entity, list[dict] | None]]) -> dict:
         """
         Bulk index multiple entities.
 
@@ -294,7 +294,7 @@ class ElasticsearchStore:
             ignore=[404],
         )
 
-    def _entity_to_doc(self, entity: "Entity", identifiers: list[dict] | None = None) -> dict:
+    def _entity_to_doc(self, entity: Entity, identifiers: list[dict] | None = None) -> dict:
         """Convert entity to Elasticsearch document."""
         doc = {
             "entity_id": entity.entity_id,

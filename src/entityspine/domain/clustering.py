@@ -10,13 +10,11 @@ These models represent entity clustering and deduplication concepts:
 - BlockingConfig: Configuration for blocking/candidate generation
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
 from entityspine.domain.graph import EntityCluster, EntityClusterMember
-from entityspine.domain.timestamps import utc_now
 
 if TYPE_CHECKING:
     from entityspine.domain.entity import Entity

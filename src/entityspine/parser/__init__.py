@@ -13,22 +13,20 @@ Usage:
 """
 
 from .exhibit21 import (
+    # Models
+    Exhibit21Parse,
     # Parser
     Exhibit21Parser,
     HTMLTableParser,
-    TextLineParser,
-    
-    # Models
-    Exhibit21Parse,
-    SubsidiaryParse,
-    ParseConfidence,
     OwnershipType,
-    
+    ParseConfidence,
+    SubsidiaryParse,
+    TextLineParser,
+    clean_entity_name,
+    detect_inactive_status,
     # Utilities
     normalize_jurisdiction,
     parse_ownership,
-    clean_entity_name,
-    detect_inactive_status,
 )
 
 __all__ = [
@@ -36,13 +34,13 @@ __all__ = [
     "Exhibit21Parser",
     "HTMLTableParser",
     "TextLineParser",
-    
+
     # Models
     "Exhibit21Parse",
     "SubsidiaryParse",
     "ParseConfidence",
     "OwnershipType",
-    
+
     # Utilities
     "normalize_jurisdiction",
     "parse_ownership",

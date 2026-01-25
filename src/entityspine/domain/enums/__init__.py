@@ -19,43 +19,23 @@ Import patterns:
 # =============================================================================
 # Core entity and security enums
 # =============================================================================
+# =============================================================================
+# Asset, contract, and product enums
+# =============================================================================
+from entityspine.domain.enums.assets import (
+    AssetStatus,
+    AssetType,
+    ContractStatus,
+    ContractType,
+    ProductStatus,
+    ProductType,
+)
 from entityspine.domain.enums.core import (
     EntityStatus,
     EntityType,
     ListingStatus,
     SecurityStatus,
     SecurityType,
-)
-
-# =============================================================================
-# Identifier and claim enums
-# =============================================================================
-from entityspine.domain.enums.identifiers import (
-    ClaimStatus,
-    IdentifierScheme,
-    IdentifierScope,
-    SanctionStatus,
-)
-
-# =============================================================================
-# Resolution and matching enums
-# =============================================================================
-from entityspine.domain.enums.resolution import (
-    MatchReason,
-    ResolutionStatus,
-    ResolutionTier,
-    ResolutionWarning,
-)
-
-# =============================================================================
-# Graph relationship and role enums
-# =============================================================================
-from entityspine.domain.enums.graph import (
-    ClusterRole,
-    ParticipantType,
-    PositionType,
-    RelationshipType,
-    RoleType,
 )
 
 # =============================================================================
@@ -69,47 +49,30 @@ from entityspine.domain.enums.events import (
 )
 
 # =============================================================================
-# Asset, contract, and product enums
-# =============================================================================
-from entityspine.domain.enums.assets import (
-    AssetStatus,
-    AssetType,
-    ContractStatus,
-    ContractType,
-    ProductStatus,
-    ProductType,
-)
-
-# =============================================================================
-# Financial observation enums
-# =============================================================================
-from entityspine.domain.enums.observations import (
-    AccountingBasis,
-    EstimateScope,
-    MetricCategory,
-    MetricCode,
-    ObservationType,
-    PeriodType,
-    PerShareType,
-    Presentation,
-    ProvenanceKind,
-    ScopeType,
-)
-
-# =============================================================================
-# Vendor and data source enums
-# =============================================================================
-from entityspine.domain.enums.vendors import VendorNamespace
-
-# =============================================================================
 # Geographic enums
 # =============================================================================
 from entityspine.domain.enums.geo import AddressType, GeoType
 
 # =============================================================================
-# Transaction enums
+# Graph relationship and role enums
 # =============================================================================
-from entityspine.domain.enums.transactions import TransactionCode
+from entityspine.domain.enums.graph import (
+    ClusterRole,
+    ParticipantType,
+    PositionType,
+    RelationshipType,
+    RoleType,
+)
+
+# =============================================================================
+# Identifier and claim enums
+# =============================================================================
+from entityspine.domain.enums.identifiers import (
+    ClaimStatus,
+    IdentifierScheme,
+    IdentifierScope,
+    SanctionStatus,
+)
 
 # =============================================================================
 # Market infrastructure enums (v2.3.0)
@@ -130,6 +93,42 @@ from entityspine.domain.enums.markets import (
     RegistrationType,
     TradingSessionType,
 )
+
+# =============================================================================
+# Financial observation enums
+# =============================================================================
+from entityspine.domain.enums.observations import (
+    AccountingBasis,
+    EstimateScope,
+    MetricCategory,
+    MetricCode,
+    ObservationType,
+    PeriodType,
+    PerShareType,
+    Presentation,
+    ProvenanceKind,
+    ScopeType,
+)
+
+# =============================================================================
+# Resolution and matching enums
+# =============================================================================
+from entityspine.domain.enums.resolution import (
+    MatchReason,
+    ResolutionStatus,
+    ResolutionTier,
+    ResolutionWarning,
+)
+
+# =============================================================================
+# Transaction enums
+# =============================================================================
+from entityspine.domain.enums.transactions import TransactionCode
+
+# =============================================================================
+# Vendor and data source enums
+# =============================================================================
+from entityspine.domain.enums.vendors import VendorNamespace
 
 # =============================================================================
 # __all__ for explicit exports
