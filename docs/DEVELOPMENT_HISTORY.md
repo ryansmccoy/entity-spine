@@ -31,11 +31,11 @@ This document provides a chronological summary of commits, features, and files a
 
 1. **Modular Enum System** - Split 857-line enums.py into 10 focused modules
 2. **Financial Observation Model v2.2.5** - 8 dataclasses for financial metrics with provenance
-3. **Calendar Event Support** - 40+ event types aligned with FactSet/SEC
+3. **Calendar Event Support** - 40+ event types aligned with SEC filings
 4. **Tier 4/5 Storage** - Elasticsearch + Neo4j stores with sync service
 5. **CLI** - Comprehensive command-line interface
 6. **React Visualization Apps** - 3D graph visualization dashboards
-7. **FactSet Integration** - Entity loading and identifier crosswalk
+7. **SEC Data Integration** - Entity loading from public SEC data
 8. **Documentation Overhaul** - ADRs, features docs, and reorganization
 
 ---
@@ -83,8 +83,8 @@ class Entity:
 ### "How Do We Handle Multi-Vendor Data Conflicts?"
 
 **The Problem:** Same entity exists in multiple sources with different data:
-- FactSet says Apple HQ is "One Apple Park Way"
-- Bloomberg says "1 Apple Park Way" 
+- Vendor A says Apple HQ is "One Apple Park Way"
+- Vendor B says "1 Apple Park Way" 
 - SEC filing says "Apple Park, Cupertino"
 
 **The Discussion:**
@@ -194,7 +194,7 @@ print(obs.dedup_key)
 
 ### "How Do Calendar Events Differ From Historical Events?"
 
-**The Problem:** FactSet Events Calendar has future events (earnings calls, dividends) while historical events have outcomes.
+**The Problem:** Event calendars have future events (earnings calls, dividends) while historical events have outcomes.
 
 **The Discussion:**
 > User: "I need to track scheduled earnings dates AND completed M&A with amounts."
@@ -343,7 +343,7 @@ tests/unit/domain/test_observation.py   # NEW - 35 tests
 **Type:** `feat(domain)`  
 **Title:** Enhance Event model with calendar event support
 
-**Why:** FactSet Events Calendar integration required scheduling, fiscal period, and monetary value support.
+**Why:** Calendar event support required scheduling, fiscal period, and monetary value support for earnings, dividends, and corporate actions.
 
 **What Changed:**
 ```
@@ -523,15 +523,15 @@ docs/FINANCIAL_DATA_EXTENSION.md      # NEW
 
 **Source Priority System:**
 ```
-Bloomberg (1) > FactSet (2) > Thomson Reuters (3) > SEC (4) > User (5)
+Vendor_A (1) > Vendor_B (2) > Vendor_C (3) > SEC (4) > User (5)
 ```
 
 ---
 
-### Commit 10: `b1ee064` - FactSet Integration Guide
-**Date:** Wed Jan 28 22:50:19 2026  
-**Type:** `docs`  
-**Title:** Add FactSet integration guide and API docs
+### Commit 10: `b1ee064` - Data Integration Guide
+**Date:** Wed Jan 28 22:50:19 2026
+**Type:** `docs`
+**Title:** Add data integration guide and API docs
 
 **What Changed:**
 ```

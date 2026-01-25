@@ -131,48 +131,42 @@ nav:
   
   - Getting Started:
     - Installation: README.md
-    - Quick Start: README.md
-    - Tier Architecture: architecture/ARCHITECTURE_AND_TIERS.md
+    - Core Concepts: guides/CORE_CONCEPTS.md
+    - Working with SEC Data: guides/SEC_DATA_GUIDE.md
+    - Storage Tiers: architecture/ARCHITECTURE_AND_TIERS.md
   
-  - Release v0.3.3:
-    - Release Overview: DOCUMENTATION_REVIEW.md
-    - What's New: FEATURE_MATRIX.md
-    - Pre-Release Checklist: PRE_RELEASE_CHECKLIST.md
-    - Release Audit: RELEASE_AUDIT_REPORT.md
-    - Project Structure: PROJECT_STRUCTURE_AUDIT.md
-    - Changelog: changelog/CHANGELOG.md
+  - Entity Resolution:
+    - Entities & Identifiers: api/domain/index.md
+    - Identifier Claims: api/domain/claim.md
+    - Resolution Strategies: design/current/01_RESOLUTION_AND_TEMPORALITY.md
+  
+  - Corporate Networks:
+    - Building Relationships: guides/CORPORATE_NETWORKS.md
+    - Data Model: design/current/00_UNIFIED_DATA_MODEL_V2_2.md
+    - Events & Changes: api/domain/event.md
+  
+  - Financial Markets:
+    - Market Architecture: guides/MARKET_DATA_ARCHITECTURE.md
+    - Observation Model: features/observation-model.md
+    - Data Extension: features/financial-data-extension.md
+    - Financial Data Pitfalls: guides/FINANCIAL_DATA_PITFALLS.md
+  
+  - Advanced Topics:
+    - Data Ingestion: features/ingestion.md
+    - Tier Capabilities: design/current/05_TIER_CAPABILITIES_AND_LIMITS.md
+    - Protocols & Interfaces: design/current/06_PROTOCOLS_AND_INTERFACES.md
+    - SQLite Best Practices: design/current/07_SQLITE_OPS_BEST_PRACTICES.md
   
   - API Reference:
-    - Domain Models:
-      - Overview: api/domain/index.md
-      - Entity: api/domain/entity.md
-      - IdentifierClaim: api/domain/claim.md
-      - Event: api/domain/event.md
-      - Enums: api/domain/enums.md
+    - Domain Models: api/domain/index.md
+    - Entity API: api/domain/entity.md
+    - Claims API: api/domain/claim.md
+    - Events API: api/domain/event.md
+    - Enums: api/domain/enums.md
     - Services: api/services-reference.md
+    - Quick Reference: design/current/16_QUICK_REFERENCE.md
   
-  - Guides:
-    - Financial Data Pitfalls: guides/FINANCIAL_DATA_PITFALLS.md
-    - Multi-Vendor EPS: guides/MULTI_VENDOR_EPS_GUIDE.md
-    - Market Data Architecture: guides/MARKET_DATA_ARCHITECTURE.md
-    - Development Guidelines: GUARDRAILS.md
-  
-  - Design:
-    - Overview: design/README.md
-    - Current Design:
-      - Unified Data Model: design/current/00_UNIFIED_DATA_MODEL_V2_2.md
-      - Resolution & Temporality: design/current/01_RESOLUTION_AND_TEMPORALITY.md
-      - Tier Capabilities: design/current/05_TIER_CAPABILITIES_AND_LIMITS.md
-      - Protocols & Interfaces: design/current/06_PROTOCOLS_AND_INTERFACES.md
-      - SQLite Best Practices: design/current/07_SQLITE_OPS_BEST_PRACTICES.md
-      - Quick Reference: design/current/16_QUICK_REFERENCE.md
-    - Architecture:
-      - Architecture & Tiers: architecture/ARCHITECTURE_AND_TIERS.md
-      - Code Conventions: architecture/CONVENTIONS.md
-      - Model Architecture: architecture/MODEL_ARCHITECTURE.md
-      - Unified Data Model: architecture/UNIFIED_DATA_MODEL.md
-  
-  - ADRs:
+  - Architecture Decisions:
     - Overview: adrs/README.md
     - ADR-001 stdlib-only Domain: adrs/001-stdlib-only-domain.md
     - ADR-002 ULID over UUID: adrs/002-ulid-over-uuid.md
@@ -182,23 +176,28 @@ nav:
     - ADR-006 Time Semantics: adrs/006-time-semantics.md
     - ADR-007 Enum Package Split: adrs/007-enum-package-split.md
   
-  - Features:
-    - FactSet Integration: features/factset-integration.md
-    - Observation Model: features/observation-model.md
-    - Financial Data Extension: features/financial-data-extension.md
-    - Data Ingestion: features/ingestion.md
-  
-  - Integration:
+  - Integration Examples:
     - Filing Facts Schema: integration/filing-facts-schema.md
     - LLM Prompts: integration/llm-prompt.md
     - Test Scenarios: integration/test-scenarios.md
   
   - Development:
-    - History: DEVELOPMENT_HISTORY.md
+    - Guidelines: GUARDRAILS.md
+    - Code Conventions: architecture/CONVENTIONS.md
+    - Model Architecture: architecture/MODEL_ARCHITECTURE.md
+    - Development History: DEVELOPMENT_HISTORY.md
     - RFCs:
       - Architecture Improvements: rfcs/001-architecture-improvements.md
-      - API Design Overview: rfcs/API_ACCESS_POINTS_DESIGN.md
+      - API Design: rfcs/API_ACCESS_POINTS_DESIGN.md
       - Roadmap: rfcs/ROADMAP.md
+  
+  - Release v0.3.3:
+    - Release Overview: DOCUMENTATION_REVIEW.md
+    - What's New: FEATURE_MATRIX.md
+    - Pre-Release Checklist: PRE_RELEASE_CHECKLIST.md
+    - Release Audit: RELEASE_AUDIT_REPORT.md
+    - Project Structure: PROJECT_STRUCTURE_AUDIT.md
+    - Changelog: changelog/CHANGELOG.md
 
 # Extra configuration
 extra:
