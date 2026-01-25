@@ -1,7 +1,7 @@
 # EntitySpine Documentation
 
-> **Version**: 0.3.3  
-> **Last Updated**: 2025-01
+> **Version**: 0.4.0  
+> **Last Updated**: January 27, 2026
 
 ## 📚 Documentation Index
 
@@ -9,10 +9,30 @@
 |----------|-------------|
 | [MANIFESTO.md](MANIFESTO.md) | Core design philosophy — Entity ≠ Security ≠ Listing |
 | [UNIFIED_DATA_MODEL.md](UNIFIED_DATA_MODEL.md) | Complete schema reference |
+| [SERVICES_REFERENCE.md](SERVICES_REFERENCE.md) | **NEW** - Audit, Conflicts, Data Quality services |
 | [FILING_FACTS_SCHEMA.md](FILING_FACTS_SCHEMA.md) | Integration contract for py-sec-edgar |
 | [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) | Domain model layer architecture |
 | [MIGRATION.md](MIGRATION.md) | v0.3.0 migration guide |
 | [08_MODELS_AND_VALIDATION.md](08_MODELS_AND_VALIDATION.md) | Domain model details and validation |
+
+## 🆕 Recent Updates (January 2026)
+
+### Complete Services Inventory
+
+| Service | Module | Lines | Purpose |
+|---------|--------|-------|---------|
+| **Graph** | `services/graph_service.py` | 812 | Relationship traversal, network analysis |
+| **Timeline** | `services/timeline.py` | 549 | Point-in-time queries, entity snapshots |
+| **Exhibit 21** | `parser/exhibit21.py` | 918 | Corporate hierarchy parsing |
+| **Audit** | `services/audit.py` | — | Change tracking with reversion |
+| **Conflicts** | `services/conflicts.py` | — | Duplicate detection & resolution |
+| **Data Quality** | `services/data_quality.py` | — | Validation & cleansing |
+| **Fuzzy** | `services/fuzzy.py` | — | Name matching & normalization |
+| **Clustering** | `services/clustering.py` | — | Entity grouping |
+| **Resolver** | `services/resolver.py` | — | Multi-identifier resolution |
+| **Symbology** | `services/symbology_refresh.py` | — | Identifier refresh |
+
+See [SERVICES_REFERENCE.md](SERVICES_REFERENCE.md) for full API documentation.
 
 ## 🏗️ Architecture Overview
 

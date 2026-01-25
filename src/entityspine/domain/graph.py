@@ -1515,3 +1515,108 @@ class Event:
 
         kwargs.setdefault("updated_at", utc_now())
         return replace(self, **kwargs)
+
+
+# =============================================================================
+# Graph Traversal Result Types
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class RelatedEntity:
+    """
+    An entity related through a relationship edge.
+    
+    Used as a result type for graph traversal operations.
+    """
+
+    entity_id: str
+    entity_name: str
+    relationship_type: RelationshipType | str
+    direction: str  # "outgoing" or "incoming"
+    depth: int = 1
+    relationship_id: str | None = None
+
+
+@dataclass(frozen=True)
+class OfficerInfo:
+    """
+    Information about an officer/executive.
+    
+    Combines PersonRole data with entity information.
+    """
+
+    person_id: str
+    person_name: str
+    role_type: RoleType
+    title: str | None
+    start_date: date | None
+    end_date: date | None
+    is_current: bool
+    org_id: str
+    confidence: float = 1.0
+
+
+@dataclass(frozen=True)
+class PathStep:
+    """A step in a path between two entities."""
+
+    entity_id: str
+    entity_name: str
+    relationship_type: RelationshipType | str | None
+    direction: str | None  # "outgoing" or "incoming"
+
+
+@dataclass
+class EntityPath:
+    """A path between two entities in the graph."""
+
+    source_id: str
+    source_name: str
+    target_id: str
+    target_name: str
+    steps: list[PathStep]
+    total_distance: int
+
+    @property
+    def found(self) -> bool:
+        return len(self.steps) > 0
+    
+    @property
+    def path_description(self) -> str:
+        """Human-readable path description."""
+        if not self.found:
+            return f"No path from {self.source_name} to {self.target_name}"
+        names = [self.source_name] + [s.entity_name for s in self.steps]
+        return " → ".join(names)
+
+
+@dataclass
+class EntityNetwork:
+    """
+    A network of entities around a central entity.
+    
+    Represents a subgraph centered on a specific entity.
+    """
+
+    center_id: str
+    center_name: str
+    nodes: dict[str, str]  # entity_id -> entity_name
+    edges: list[tuple[str, str, str]]  # (from_id, to_id, relationship_type)
+    depth_map: dict[str, int]  # entity_id -> depth from center
+
+    @property
+    def node_count(self) -> int:
+        return len(self.nodes)
+
+    @property
+    def edge_count(self) -> int:
+        return len(self.edges)
+
+    def entities_at_depth(self, depth: int) -> list[str]:
+        """Get all entity IDs at a specific depth."""
+        return [
+            eid
+            for eid, d in self.depth_map.items()
+            if d == depth
+        ]

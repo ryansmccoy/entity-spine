@@ -240,6 +240,9 @@ def found_result(
     warnings: list[str] | None = None,
     security: Security | None = None,
     listing: Listing | None = None,
+    confidence: float = 1.0,
+    match_reason: MatchReason | None = None,
+    candidates: list[ResolutionCandidate] | None = None,
     **kwargs,
 ) -> ResolutionResult:
     """
@@ -253,8 +256,21 @@ def found_result(
         warnings: Optional list of warnings
         security: Optional resolved security
         listing: Optional resolved listing
+        confidence: Confidence score (default 1.0)
+        match_reason: Why this entity was matched
+        candidates: List of candidates (created automatically if not provided)
         **kwargs: Additional ResolutionResult fields
     """
+    # Build candidates list
+    if candidates is None:
+        candidates = [
+            ResolutionCandidate(
+                entity_id=entity.entity_id,
+                score=confidence,
+                match_reason=match_reason or MatchReason.UNKNOWN,
+            )
+        ]
+
     return ResolutionResult(
         entity=entity,
         security=security,
@@ -264,7 +280,8 @@ def found_result(
         query=query,
         elapsed_ms=elapsed_ms,
         warnings=warnings or [],
-        confidence=1.0,
+        confidence=confidence,
+        candidates=candidates,
         **kwargs,
     )
 

@@ -123,6 +123,51 @@ from entityspine.domain.protocols import (
 # =============================================================================
 from entityspine.stores import JsonEntityStore, SqliteStore
 
+# =============================================================================
+# SERVICES (High-level business logic)
+# =============================================================================
+from entityspine.services import RefreshResult, SymbologyRefreshService, SymbologySource
+
+# =============================================================================
+# HIGH-LEVEL RESOLVER API (The "killer feature")
+# =============================================================================
+from entityspine.services.resolver import EntityResolver, ResolverConfig
+from entityspine.services.fuzzy import FuzzyMatcher, compute_name_similarity, normalize_company_name
+from entityspine.services.graph_service import (
+    GraphService,
+    EntityNetwork,
+    EntityPath,
+    OfficerInfo,
+    PathStep,
+    RelatedEntity,
+)
+from entityspine.services.clustering import (
+    ClusteringService,
+    ClusterInfo,
+    ClusterStatus,
+    DuplicateCandidate,
+    BlockingConfig,
+)
+from entityspine.services.timeline import (
+    TimelineService,
+)
+
+# Re-export domain timeline models
+from entityspine.domain.timeline import (
+    TimelineEventType,
+    TimelineEvent,
+    EntitySnapshot,
+    StateDiff,
+)
+
+# Backward compatibility
+EventType = TimelineEventType
+
+# =============================================================================
+# SOURCES (Symbology data providers)
+# =============================================================================
+from entityspine.sources import SECTickerSource
+
 __version__ = "0.3.3"
 
 __all__ = [
@@ -204,6 +249,38 @@ __all__ = [
     "SearchProtocol",
     "ResolverProtocol",
     "FullStoreProtocol",
+    # Services
+    "SymbologyRefreshService",
+    "RefreshResult",
+    "SymbologySource",
+    # High-level Resolver API (the "killer feature")
+    "EntityResolver",
+    "ResolverConfig",
+    "FuzzyMatcher",
+    "compute_name_similarity",
+    "normalize_company_name",
+    # Graph traversal
+    "GraphService",
+    "EntityNetwork",
+    "EntityPath",
+    "OfficerInfo",
+    "PathStep",
+    "RelatedEntity",
+    # Entity clustering/deduplication
+    "ClusteringService",
+    "ClusterInfo",
+    "ClusterStatus",
+    "DuplicateCandidate",
+    "BlockingConfig",
+    # Timeline/history
+    "TimelineService",
+    "TimelineEventType",
+    "TimelineEvent",
+    "EntitySnapshot",
+    "StateDiff",
+    "EventType",  # Backward compatibility alias
+    # Sources
+    "SECTickerSource",
     # Factory
     "create_store",
 ]

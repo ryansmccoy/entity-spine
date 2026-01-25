@@ -2,24 +2,30 @@
 
 **A Lightweight Entity Resolution Library for Financial Data**
 
-*Version: 2.0 (v2.2.2 Implementation)*  
-*Updated: January 2026*
+*Version: 2.0 (v0.4.0 Implementation)*  
+*Updated: January 27, 2026*
 
 ---
 
 ## Implementation Status
 
-**EntitySpine v2.2.2 is COMPLETE for Tier 0-1:**
+**EntitySpine v0.4.0 is COMPLETE:**
 
 | Component | Status | Technology |
 |-----------|--------|------------|
-| Domain Models | ✅ Complete | Pydantic v2 (frozen) |
-| E/S/L Split | ✅ Complete | Ticker on Listing |
-| Claims | ✅ Complete | Entity/Security/Listing targets |
+| Domain Models | ✅ Complete | Frozen dataclasses |
+| E/S/L Split | ✅ Complete | Entity → Security → Listing |
+| Claims | ✅ Complete | Scheme-scoped targets |
 | JSON Store | ✅ Complete | Tier 0 |
-| SQLite Store | ✅ Complete | SQLModel + Repository pattern |
-| Resolution | ✅ Complete | With tier warnings |
-| Tests | ✅ 66 passing | Full coverage |
+| SQLite Store | ✅ Complete | Repository pattern |
+| Resolution | ✅ Complete | Multi-identifier |
+| **9 Services** | ✅ Complete | audit, conflicts, data_quality, fuzzy, graph, timeline, clustering, resolver, symbology |
+| **Graph Service** | ✅ Complete | Relationship traversal (812 lines) |
+| **Timeline Service** | ✅ Complete | Point-in-time queries (549 lines) |
+| **Exhibit 21 Parser** | ✅ Complete | Corporate hierarchy (918 lines) |
+| Tests | ✅ 315+ passing | Full coverage |
+
+**See:** [SERVICES_REFERENCE.md](SERVICES_REFERENCE.md) for complete API documentation.
 
 ---
 
@@ -299,28 +305,66 @@ EntitySpine is successful when:
 
 ## Ecosystem Integration
 
-EntitySpine is part of a **three-package ecosystem**:
+EntitySpine is part of the **Spine ecosystem**:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           PY-SEC-EDGAR ECOSYSTEM                             │
+│                           SPINE ECOSYSTEM                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                           py-sec-edgar                               │   │
-│  │                     (Main Application Layer)                         │   │
-│  │  • CLI, filing workflows, SEC EDGAR API                             │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
+│   APPLICATIONS (use all packages)                                            │
+│   ┌──────────────────────────────┐   ┌──────────────────────────────┐       │
+│   │   capture-spine (FULL)       │   │   capture-spine-basic        │       │
+│   │   40+ tables, auth, ES, KG   │   │   6 tables, no auth, simple  │       │
+│   └──────────────────────────────┘   └──────────────────────────────┘       │
+│                                                                              │
+│   LIBRARIES (work independently or together)                                 │
+│   ┌──────────────────────────────────────────────────────────────────────┐  │
+│   │                           py-sec-edgar                                │  │
+│   │                     (SEC Domain Specialist)                           │  │
+│   │  • Exhibits (21, 23, 31, 99), Forms (10-K, 8-K), Companies           │  │
+│   └──────────────────────────────────────────────────────────────────────┘  │
 │                              │                    │                          │
 │                              ▼                    ▼                          │
 │  ┌──────────────────────────────────┐   ┌──────────────────────────────┐   │
-│  │           FeedSpine              │   │      EntitySpine ◀── HERE    │   │
-│  │       (Data Ingestion)           │   │     (Identity Resolution)    │   │
-│  │  • Feed deduplication            │   │  • Ticker/CIK → Entity       │   │
-│  │  • Sighting tracking             │   │  • Claims with provenance    │   │
+│  │           FeedSpine              │   │     EntitySpine ◀── HERE     │   │
+│  │       (Pipeline Specialist)      │   │   (Resolution Specialist)    │   │
+│  │  • Record/Sighting models        │   │  • Entity/Claim models       │   │
+│  │  • Deduplication, change detect  │   │  • Resolution, graph         │   │
 │  └──────────────────────────────────┘   └──────────────────────────────┘   │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Code Ownership
+
+**See:** [DUPLICATION_ANALYSIS.md](../../DUPLICATION_ANALYSIS.md) for full analysis.
+
+**EntitySpine owns (universal concepts):**
+- Entity, Security, Listing models
+- IdentifierClaim (normalized identifier storage)
+- EntityType, EntityStatus enums
+- Resolution services (CIK, ticker, fuzzy matching)
+- Graph service (relationship traversal)
+- Timeline service (point-in-time queries)
+- ULID generation
+- Normalization utilities
+
+**EntitySpine does NOT own (domain-specific):**
+- SEC taxonomy (forms, exhibits) → py-sec-edgar
+- SEC reference data (SIC codes) → py-sec-edgar
+- Feed/record models → FeedSpine
+- UI/reader components → capture-spine-basic
+
+### Cross-Package Integration
+
+**FilingFacts Contract** - py-sec-edgar produces, EntitySpine consumes:
+```python
+from entityspine.integration import ingest_filing_facts
+from py_sec_edgar.exhibits.adapters.entityspine import exhibit_to_filing_facts
+
+facts = exhibit_to_filing_facts(exhibit21_data)
+result = ingest_filing_facts(store, facts)
 ```
 
 ### Cross-Package Improvements Welcome
@@ -331,7 +375,7 @@ EntitySpine is part of a **three-package ecosystem**:
 - If FeedSpine needs entity context → **add EntitySpine adapter to FeedSpine**
 - If py-sec-edgar's integration is clunky → **improve the port interface**
 
-See `design/09_FEEDSPINE_INTEGRATION_ANALYSIS.md` for ecosystem details.
+See `INTEGRATION_MANIFESTO.md` in root for ecosystem details.
 
 ---
 

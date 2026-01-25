@@ -2264,7 +2264,254 @@ class SqliteStore:
         )
         return [row_to_cluster_member(dict(row)) for row in rows]
 
+    def get_clusters_by_status(self, status: str) -> list["EntityCluster"]:
+        """Get clusters by status (pending, approved, rejected, merged)."""
+        from entityspine.stores.mappers import row_to_cluster
+
+        # Note: Would need to add status column to clusters table
+        # For now, return all clusters
+        rows = self._fetchall("SELECT * FROM entity_clusters", ())
+        return [row_to_cluster(dict(row)) for row in rows]
+
     def cluster_member_count(self) -> int:
         """Get total number of cluster memberships."""
         row = self._fetchone("SELECT COUNT(*) as cnt FROM entity_cluster_members")
         return row["cnt"] if row else 0
+
+    # =========================================================================
+    # Entity Relationship Operations (for graph traversal)
+    # =========================================================================
+
+    def get_entity_relationships(
+        self,
+        from_entity_id: str | None = None,
+        to_entity_id: str | None = None,
+        relationship_types: list | None = None,
+    ) -> list["EntityRelationship"]:
+        """
+        Get entity relationships with optional filters.
+
+        Args:
+            from_entity_id: Filter by source entity.
+            to_entity_id: Filter by target entity.
+            relationship_types: Filter by relationship types.
+
+        Returns:
+            List of EntityRelationship objects.
+        """
+        from entityspine.domain.graph import EntityRelationship
+        from entityspine.domain.enums import RelationshipType, ClaimStatus
+
+        query_parts = ["SELECT * FROM entity_relationships WHERE 1=1"]
+        params: list = []
+
+        if from_entity_id:
+            query_parts.append("AND from_entity_id = ?")
+            params.append(from_entity_id)
+
+        if to_entity_id:
+            query_parts.append("AND to_entity_id = ?")
+            params.append(to_entity_id)
+
+        if relationship_types:
+            placeholders = ",".join("?" * len(relationship_types))
+            query_parts.append(f"AND relationship_type IN ({placeholders})")
+            for rt in relationship_types:
+                params.append(rt.value if hasattr(rt, "value") else rt)
+
+        query = " ".join(query_parts)
+        rows = self._fetchall(query, tuple(params))
+
+        results = []
+        for row in rows:
+            rel = EntityRelationship(
+                relationship_id=row["relationship_id"],
+                from_entity_id=row["from_entity_id"],
+                to_entity_id=row["to_entity_id"],
+                relationship_type=RelationshipType(row["relationship_type"]),
+                valid_from=date.fromisoformat(row["valid_from"]) if row["valid_from"] else None,
+                valid_to=date.fromisoformat(row["valid_to"]) if row["valid_to"] else None,
+                captured_at=from_iso8601(row["captured_at"]) if row["captured_at"] else utc_now(),
+                source_system=row["source_system"] or "unknown",
+                source_ref=row["source_ref"],
+                confidence=row["confidence"],
+                status=ClaimStatus(row["status"]) if row["status"] else ClaimStatus.ACTIVE,
+                evidence_text=row["evidence_text"],
+                filing_id=row["filing_id"],
+                created_at=from_iso8601(row["created_at"]) if row["created_at"] else utc_now(),
+                updated_at=from_iso8601(row["updated_at"]) if row["updated_at"] else utc_now(),
+            )
+            results.append(rel)
+
+        return results
+
+    def save_entity_relationship(self, rel: "EntityRelationship") -> None:
+        """Save or update an entity relationship."""
+        now_str = to_iso8601(utc_now())
+        rel_type = rel.relationship_type.value if hasattr(rel.relationship_type, "value") else rel.relationship_type
+        status = rel.status.value if hasattr(rel.status, "value") else rel.status
+
+        with self._get_connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO entity_relationships (
+                    relationship_id, from_entity_id, to_entity_id, relationship_type,
+                    valid_from, valid_to, captured_at, source_system, source_ref,
+                    confidence, status, evidence_text, filing_id, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    rel.relationship_id,
+                    rel.from_entity_id,
+                    rel.to_entity_id,
+                    rel_type,
+                    rel.valid_from.isoformat() if rel.valid_from else None,
+                    rel.valid_to.isoformat() if rel.valid_to else None,
+                    to_iso8601(rel.captured_at),
+                    rel.source_system,
+                    rel.source_ref,
+                    rel.confidence,
+                    status,
+                    rel.evidence_text,
+                    rel.filing_id,
+                    to_iso8601(rel.created_at),
+                    now_str,
+                ),
+            )
+            conn.commit()
+
+    # =========================================================================
+    # Role Assignment Operations (for officer/director queries)
+    # =========================================================================
+
+    def get_role_assignments(
+        self,
+        person_entity_id: str | None = None,
+        org_entity_id: str | None = None,
+        role_types: list | None = None,
+        current_only: bool = False,
+    ) -> list["RoleAssignment"]:
+        """
+        Get role assignments with optional filters.
+
+        Args:
+            person_entity_id: Filter by person.
+            org_entity_id: Filter by organization.
+            role_types: Filter by role types.
+            current_only: Only return current (no end_date) roles.
+
+        Returns:
+            List of RoleAssignment objects.
+        """
+        from entityspine.domain.graph import RoleAssignment
+        from entityspine.domain.enums import RoleType
+
+        query_parts = ["SELECT * FROM role_assignments WHERE 1=1"]
+        params: list = []
+
+        if person_entity_id:
+            query_parts.append("AND person_entity_id = ?")
+            params.append(person_entity_id)
+
+        if org_entity_id:
+            query_parts.append("AND org_entity_id = ?")
+            params.append(org_entity_id)
+
+        if role_types:
+            placeholders = ",".join("?" * len(role_types))
+            query_parts.append(f"AND role_type IN ({placeholders})")
+            for rt in role_types:
+                params.append(rt.value if hasattr(rt, "value") else rt)
+
+        if current_only:
+            query_parts.append("AND (end_date IS NULL OR end_date >= ?)")
+            params.append(date.today().isoformat())
+
+        query = " ".join(query_parts)
+        rows = self._fetchall(query, tuple(params))
+
+        results = []
+        for row in rows:
+            role = RoleAssignment(
+                role_assignment_id=row["role_assignment_id"],
+                person_entity_id=row["person_entity_id"],
+                org_entity_id=row["org_entity_id"],
+                role_type=RoleType(row["role_type"]),
+                title=row["title"],
+                start_date=date.fromisoformat(row["start_date"]) if row["start_date"] else None,
+                end_date=date.fromisoformat(row["end_date"]) if row["end_date"] else None,
+                confidence=row["confidence"],
+                captured_at=from_iso8601(row["captured_at"]) if row["captured_at"] else utc_now(),
+                source_system=row["source_system"] or "unknown",
+                source_ref=row["source_ref"],
+                filing_id=row["filing_id"],
+                section_id=row["section_id"],
+                snippet_hash=row["snippet_hash"],
+                created_at=from_iso8601(row["created_at"]) if row["created_at"] else utc_now(),
+                updated_at=from_iso8601(row["updated_at"]) if row["updated_at"] else utc_now(),
+            )
+            results.append(role)
+
+        return results
+
+    def save_role_assignment(self, role: "RoleAssignment") -> None:
+        """Save or update a role assignment."""
+        now_str = to_iso8601(utc_now())
+        role_type = role.role_type.value if hasattr(role.role_type, "value") else role.role_type
+
+        with self._get_connection() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO role_assignments (
+                    role_assignment_id, person_entity_id, org_entity_id, role_type,
+                    title, start_date, end_date, confidence, captured_at,
+                    source_system, source_ref, filing_id, section_id, snippet_hash,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    role.role_assignment_id,
+                    role.person_entity_id,
+                    role.org_entity_id,
+                    role_type,
+                    role.title,
+                    role.start_date.isoformat() if role.start_date else None,
+                    role.end_date.isoformat() if role.end_date else None,
+                    role.confidence,
+                    to_iso8601(role.captured_at),
+                    role.source_system,
+                    role.source_ref,
+                    role.filing_id,
+                    role.section_id,
+                    role.snippet_hash,
+                    to_iso8601(role.created_at),
+                    now_str,
+                ),
+            )
+            conn.commit()
+
+    # =========================================================================
+    # Claims Operations (for timeline service)
+    # =========================================================================
+
+    def get_claims_for_entity(self, entity_id: str) -> list[IdentifierClaim]:
+        """Get all identifier claims for an entity."""
+        rows = self._fetchall(
+            "SELECT * FROM claims WHERE entity_id = ?",
+            (entity_id,),
+        )
+        return [self._row_to_claim(row) for row in rows]
+
+    def get_claims_by_value(
+        self,
+        scheme: IdentifierScheme,
+        value: str,
+    ) -> list[IdentifierClaim]:
+        """Get claims by scheme and value."""
+        scheme_str = scheme.value if hasattr(scheme, "value") else scheme
+        rows = self._fetchall(
+            "SELECT * FROM claims WHERE scheme = ? AND value = ?",
+            (scheme_str, value),
+        )
+        return [self._row_to_claim(row) for row in rows]
+

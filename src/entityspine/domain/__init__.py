@@ -91,6 +91,12 @@ from entityspine.domain.graph import (
     Product,
     Relationship,
     RoleAssignment,
+    # Graph traversal result types
+    RelatedEntity,
+    OfficerInfo,
+    PathStep,
+    EntityPath,
+    EntityNetwork,
 )
 from entityspine.domain.listing import Listing
 from entityspine.domain.protocols import (
@@ -105,6 +111,23 @@ from entityspine.domain.protocols import (
 )
 from entityspine.domain.resolution import ResolutionResult
 from entityspine.domain.security import Security
+
+# Timeline models
+from entityspine.domain.timeline import (
+    TimelineEventType,
+    TimelineEvent,
+    EntitySnapshot,
+    StateDiff,
+)
+
+# Clustering models
+from entityspine.domain.clustering import (
+    ClusterStatus,
+    DuplicateCandidate,
+    ClusterInfo,
+    BlockingConfig,
+)
+
 from entityspine.domain.validators import (
     SCHEME_SCOPES,
     compute_address_hash,
@@ -255,4 +278,20 @@ __all__ = [
     "validate_scheme_scope",
     "validate_sedol",
     "validate_ticker",
+    # Graph traversal result types
+    "RelatedEntity",
+    "OfficerInfo",
+    "PathStep",
+    "EntityPath",
+    "EntityNetwork",
+    # Timeline models
+    "TimelineEventType",
+    "TimelineEvent",
+    "EntitySnapshot",
+    "StateDiff",
+    # Clustering models
+    "ClusterStatus",
+    "DuplicateCandidate",
+    "ClusterInfo",
+    "BlockingConfig",
 ]

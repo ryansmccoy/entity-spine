@@ -61,12 +61,12 @@ def main() -> None:
             ExtractedEntity(
                 name="Jensen Huang",
                 entity_type="person",
-                role="President and CEO",
+                metadata={"role": "President and CEO"},
             ),
             ExtractedEntity(
                 name="Colette Kress",
                 entity_type="person",
-                role="EVP and CFO",
+                metadata={"role": "EVP and CFO"},
             ),
             ExtractedEntity(
                 name="Taiwan Semiconductor Manufacturing Company",
@@ -81,16 +81,15 @@ def main() -> None:
                 entity_type="organization",
             ),
         ],
-        # Extracted identifiers
+        # Extracted identifiers (entity-level identifiers only)
         identifiers=[
             ExtractedIdentifier(
                 scheme="lei",
                 value="549300S4KLBER65TJQ35",
+                entity_ref="NVIDIA Corporation",
             ),
-            ExtractedIdentifier(
-                scheme="cusip",
-                value="67066G104",
-            ),
+            # Note: CUSIP requires security_id, not entity_id
+            # For company-level identifiers, use LEI, CIK, EIN
         ],
         # Extracted relationships
         relationships=[
@@ -119,16 +118,16 @@ def main() -> None:
         # Extracted events
         events=[
             ExtractedEvent(
-                title="Fiscal Year 2024 Results",
                 event_type="earnings",
                 event_date=date(2024, 1, 28),
-                description="Record revenue of $60.9 billion, up 126% from prior year",
+                description="Fiscal Year 2024 Results: Record revenue of $60.9 billion, up 126% from prior year",
+                related_entities=["NVIDIA Corporation"],
             ),
             ExtractedEvent(
-                title="Stock Split",
                 event_type="corporate_action",
                 event_date=date(2024, 6, 7),
-                description="10-for-1 forward stock split",
+                description="Stock Split: 10-for-1 forward stock split",
+                related_entities=["NVIDIA Corporation"],
             ),
         ],
     )
@@ -160,11 +159,6 @@ def main() -> None:
         for warning in result.warnings:
             print(f"  ⚠️ {warning}")
 
-    if result.errors:
-        print(f"\nErrors:")
-        for error in result.errors:
-            print(f"  ❌ {error}")
-
     # ========================================
     # VERIFY RESULTS
     # ========================================
@@ -185,12 +179,13 @@ def main() -> None:
         for claim in claims:
             print(f"    {claim.scheme.value}: {claim.value}")
 
-        # Get relationships
-        rels = store.get_relationships_for_entity(entity.entity_id)
+        # Get relationships (using source_id method)
+        rels = store.get_relationships_by_source_id(entity.entity_id)
         print(f"  Relationships: {len(rels)}")
         for rel in rels:
-            target = store.get_entity(rel.target_ref.id)
-            target_name = target.primary_name if target else "Unknown"
+            # target_ref is a NodeRef with .id attribute
+            target = store.get_entity(rel.target_ref.id) if hasattr(rel.target_ref, 'id') else None
+            target_name = target.primary_name if target else str(rel.target_ref)
             print(f"    {rel.relationship_type.value} → {target_name}")
 
     # ========================================
