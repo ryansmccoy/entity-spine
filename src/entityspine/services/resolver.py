@@ -135,8 +135,16 @@ class EntityResolver:
         # Create store if not provided
         if self._store is None:
             from entityspine.stores.sqlite_store import SqliteStore
+            from entityspine.core.config import get_settings
 
-            db_path = self.config.db_path or ":memory:"
+            # Use config db_path if not explicitly provided
+            if self.config.db_path:
+                db_path = self.config.db_path
+            else:
+                # Get from environment/config - use persistent by default
+                settings = get_settings()
+                db_path = settings.db_path
+                
             self._store = SqliteStore(db_path)
             self._store.initialize()
 

@@ -133,6 +133,32 @@ from entityspine.services import RefreshResult, SymbologyRefreshService, Symbolo
 # =============================================================================
 from entityspine.services.resolver import EntityResolver, ResolverConfig
 from entityspine.services.fuzzy import FuzzyMatcher, compute_name_similarity, normalize_company_name
+
+# =============================================================================
+# SIMPLE LOOKUP API (Dead-simple identifier lookups)
+# =============================================================================
+from entityspine.services.lookup import (
+    Lookup,
+    ticker,
+    cik,
+    name,
+    tickers,
+    ciks,
+    names,
+    fast_ticker,
+    fast_cik,
+    offline_ticker,
+    offline_cik,
+    offline_name,
+    COMMON_COMPANIES,
+    get_db_path,
+    use_shared_db,
+    reset_resolver,
+    lei_from_isin,
+    isins_from_lei,
+    bic_from_lei,
+)
+
 from entityspine.services.graph_service import (
     GraphService,
     EntityNetwork,
@@ -259,6 +285,26 @@ __all__ = [
     "FuzzyMatcher",
     "compute_name_similarity",
     "normalize_company_name",
+    # Simple Lookup API (dead-simple identifier lookups)
+    "Lookup",
+    "ticker",
+    "cik",
+    "name",
+    "tickers",
+    "ciks",
+    "names",
+    "fast_ticker",
+    "fast_cik",
+    "offline_ticker",
+    "offline_cik",
+    "offline_name",
+    "COMMON_COMPANIES",
+    "get_db_path",
+    "use_shared_db",
+    "reset_resolver",
+    "lei_from_isin",
+    "isins_from_lei",
+    "bic_from_lei",
     # Graph traversal
     "GraphService",
     "EntityNetwork",

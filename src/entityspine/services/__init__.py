@@ -42,6 +42,29 @@ from entityspine.services.fuzzy import (
     normalize_company_name,
 )
 
+# Simple lookup utilities
+from entityspine.services.lookup import (
+    Lookup,
+    ticker,
+    cik,
+    name,
+    tickers,
+    ciks,
+    names,
+    fast_ticker,
+    fast_cik,
+    offline_ticker,
+    offline_cik,
+    offline_name,
+    COMMON_COMPANIES,
+    get_db_path,
+    use_shared_db,
+    reset_resolver,
+    lei_from_isin,
+    isins_from_lei,
+    bic_from_lei,
+)
+
 # Graph traversal
 from entityspine.services.graph_service import (
     GraphService,
@@ -122,6 +145,23 @@ __all__ = [
     "FuzzyMatcher",
     "compute_name_similarity",
     "normalize_company_name",
+    # Lookup utilities
+    "Lookup",
+    "ticker",
+    "cik",
+    "name",
+    "tickers",
+    "ciks",
+    "names",
+    "fast_ticker",
+    "fast_cik",
+    "offline_ticker",
+    "offline_cik",
+    "offline_name",
+    "COMMON_COMPANIES",
+    "get_db_path",
+    "use_shared_db",
+    "reset_resolver",
     # Graph traversal
     "GraphService",
     "EntityNetwork",

@@ -134,6 +134,14 @@ check_db.py
 # Generated site
 site/
 
+# Workspace files (personal dev configs)
+*.code-workspace
+
+# Docker/deployment files in root (not part of package)
+Dockerfile
+docker-compose.yml
+requirements.txt
+
 # Local data
 entityspine_data/
 
