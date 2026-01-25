@@ -134,11 +134,11 @@ class TestSECTickerSource:
 
         source = SECTickerSource()
 
-        # All short tickers return XNAS
-        assert source._infer_exchange("AAPL") == "XNAS"
+        # All short tickers return "Nasdaq" (human-readable name, not MIC code)
+        assert source._infer_exchange("AAPL") == "Nasdaq"
         assert source._infer_exchange("") == "UNKNOWN"
-        # 5-char tickers go to XNAS
-        assert source._infer_exchange("GOOGL") in ("XNAS", "US")  # Either is acceptable
+        # 5-char tickers return US (generic)
+        assert source._infer_exchange("GOOGL") in ("Nasdaq", "US")  # Either is acceptable
 
 
 # =============================================================================
@@ -181,6 +181,7 @@ class TestFeedSpineAdapter:
 
 # =============================================================================
 # Test: EntityEnricher (FeedSpine side)
+# Requires feedspine to be installed - skip if not available
 # =============================================================================
 
 class TestEntityEnricher:
@@ -188,6 +189,7 @@ class TestEntityEnricher:
 
     def test_enricher_properties(self):
         """Test EntityEnricher properties."""
+        feedspine = pytest.importorskip("feedspine", reason="feedspine not installed")
         from feedspine.enricher.entity_enricher import EntityEnricher
 
         # Mock store
@@ -202,6 +204,7 @@ class TestEntityEnricher:
 
     def test_enricher_custom_name(self):
         """Test EntityEnricher with custom name."""
+        feedspine = pytest.importorskip("feedspine", reason="feedspine not installed")
         from feedspine.enricher.entity_enricher import EntityEnricher
 
         class MockStore:
@@ -215,6 +218,7 @@ class TestEntityEnricher:
 
     def test_entity_store_protocol(self):
         """Test EntityStoreProtocol is runtime checkable."""
+        feedspine = pytest.importorskip("feedspine", reason="feedspine not installed")
         from feedspine.enricher.entity_enricher import EntityStoreProtocol
 
         class ValidStore:
@@ -229,6 +233,7 @@ class TestEntityEnricher:
 
 # =============================================================================
 # Test: Integration (EntitySpine + FeedSpine together)
+# Requires feedspine to be installed - skip if not available
 # =============================================================================
 
 class TestEntitySpineFeedSpineIntegration:
@@ -236,6 +241,7 @@ class TestEntitySpineFeedSpineIntegration:
 
     def test_entityspine_store_is_compatible_with_enricher(self):
         """Test EntitySpine SqliteStore works with FeedSpine EntityEnricher."""
+        feedspine = pytest.importorskip("feedspine", reason="feedspine not installed")
         from entityspine import SqliteStore
         from feedspine.enricher.entity_enricher import EntityStoreProtocol
 
@@ -248,6 +254,7 @@ class TestEntitySpineFeedSpineIntegration:
 
     def test_enrich_record_with_cik(self):
         """Test enriching a FeedSpine record with EntitySpine resolution."""
+        feedspine = pytest.importorskip("feedspine", reason="feedspine not installed")
         from entityspine import SqliteStore, create_entity, create_claim
         from entityspine.domain.enums import IdentifierScheme
         from feedspine.enricher.entity_enricher import EntityEnricher

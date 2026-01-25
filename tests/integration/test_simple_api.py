@@ -6,15 +6,39 @@ Tests the facade that hides complexity:
 - Auto-downloads SEC data
 - Returns ResolutionResult (not Entity)
 - Simple resolution flow
+
+Updated: 2026-01-29 to match current EntityResolver API (uses store, not json_path)
 """
 
 import pytest
 
 try:
     from entityspine import EntityResolver
-    from entityspine.adapters.pydantic import ResolutionResult
+    from entityspine.services.resolver import ResolverConfig
+    from entityspine.stores import SqliteStore
 except ImportError:
     pytest.skip("EntityResolver not yet implemented", allow_module_level=True)
+
+# Try importing ResolutionResult from the resolver module (stdlib)
+from entityspine.domain.resolution import ResolutionResult
+
+
+@pytest.fixture
+def loaded_resolver(tmp_path, sample_sec_json):
+    """
+    Create an EntityResolver with pre-loaded SEC data.
+    
+    Uses SqliteStore in-memory with sample data loaded.
+    """
+    store = SqliteStore(":memory:")
+    store.initialize()
+    store.load_sec_json(sample_sec_json)
+    
+    config = ResolverConfig(auto_load_sec=False)  # Already loaded
+    resolver = EntityResolver(config=config, store=store)
+    
+    yield resolver
+    store.close()
 
 
 class TestSimpleAPIZeroConfig:
@@ -35,24 +59,18 @@ class TestSimpleAPIZeroConfig:
         resolver = EntityResolver()
         assert resolver is not None
 
-    def test_resolver_resolve_returns_result(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_resolver_resolve_returns_result(self, loaded_resolver):
         """resolve() returns ResolutionResult, not Entity."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-        result = resolver.resolve("AAPL")
+        result = loaded_resolver.resolve("AAPL")
 
         # v2.2 CRITICAL: Must return ResolutionResult
         assert isinstance(result, ResolutionResult), (
             f"resolve() returned {type(result).__name__}, expected ResolutionResult"
         )
 
-    def test_resolver_result_has_candidates(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_resolver_result_has_candidates(self, loaded_resolver):
         """Result has candidates list."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-        result = resolver.resolve("AAPL")
+        result = loaded_resolver.resolve("AAPL")
 
         assert hasattr(result, "candidates")
         assert isinstance(result.candidates, list)
@@ -61,40 +79,28 @@ class TestSimpleAPIZeroConfig:
 class TestSimpleAPIResolution:
     """Test resolution via simple API."""
 
-    def test_resolve_ticker_aapl(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_resolve_ticker_aapl(self, loaded_resolver):
         """Can resolve AAPL to Apple Inc."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-        result = resolver.resolve("AAPL")
+        result = loaded_resolver.resolve("AAPL")
 
         assert result.best is not None
         assert result.best.score > 0.5
 
-    def test_resolve_cik(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_resolve_cik(self, loaded_resolver):
         """Can resolve by CIK."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-        result = resolver.resolve("320193")  # Apple's CIK
+        result = loaded_resolver.resolve("320193")  # Apple's CIK
 
         assert result.best is not None
 
-    def test_resolve_cik_padded(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_resolve_cik_padded(self, loaded_resolver):
         """Can resolve by padded CIK."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-        result = resolver.resolve("0000320193")  # Padded CIK
+        result = loaded_resolver.resolve("0000320193")  # Padded CIK
 
         assert result.best is not None
 
-    def test_resolve_unknown_returns_empty(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_resolve_unknown_returns_empty(self, loaded_resolver):
         """Unknown query returns empty candidates (not error)."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-        result = resolver.resolve("ZZZZZ_NONEXISTENT")
+        result = loaded_resolver.resolve("ZZZZZ_NONEXISTENT")
 
         assert isinstance(result, ResolutionResult)
         assert result.best is None
@@ -102,26 +108,20 @@ class TestSimpleAPIResolution:
 
 
 class TestSimpleAPIEntityRetrieval:
-    """Test entity retrieval via get()."""
+    """Test entity retrieval via get_entity()."""
 
-    def test_get_entity_by_id(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_get_entity_by_id(self, loaded_resolver):
         """Can get entity by ID after resolution."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-        result = resolver.resolve("AAPL")
+        result = loaded_resolver.resolve("AAPL")
 
         if result.best:
-            entity = resolver.get(result.best.entity_id)
+            entity = loaded_resolver.get_entity(result.best.entity_id)
             assert entity is not None
             assert "apple" in entity.primary_name.lower()
 
-    def test_get_nonexistent_returns_none(self, tmp_path, monkeypatch, sample_sec_json_file):
-        """get() returns None for nonexistent ID."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-        entity = resolver.get("NONEXISTENT_ID")
+    def test_get_nonexistent_returns_none(self, loaded_resolver):
+        """get_entity() returns None for nonexistent ID."""
+        entity = loaded_resolver.get_entity("NONEXISTENT_ID")
 
         assert entity is None
 
@@ -131,15 +131,12 @@ class TestSimpleAPIEntityScopeCorrect:
     v2.2 CRITICAL: Entity from simple API has NO ticker.
     """
 
-    def test_resolved_entity_has_no_ticker(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_resolved_entity_has_no_ticker(self, loaded_resolver):
         """Entity retrieved via simple API has no ticker attribute."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-        result = resolver.resolve("AAPL")
+        result = loaded_resolver.resolve("AAPL")
 
         if result.best:
-            entity = resolver.get(result.best.entity_id)
+            entity = loaded_resolver.get_entity(result.best.entity_id)
             if entity:
                 assert not hasattr(entity, "ticker"), (
                     "v2.2 VIOLATION: Entity from simple API has ticker"
@@ -147,42 +144,49 @@ class TestSimpleAPIEntityScopeCorrect:
 
 
 class TestSimpleAPIBackends:
-    """Test backend selection."""
+    """Test backend selection (via store configuration)."""
 
-    def test_default_backend(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_default_backend(self, tmp_path, monkeypatch):
         """Default backend works."""
         monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
 
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
+        resolver = EntityResolver()
         assert resolver is not None
 
-    def test_explicit_json_backend(self, tmp_path, monkeypatch, sample_sec_json_file):
-        """Can specify JSON backend."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(
-            backend="json",
-            json_path=str(sample_sec_json_file),
-        )
-        assert resolver is not None
-
-    def test_sqlite_backend(self, tmp_path, monkeypatch, sample_sec_json_file):
-        """Can use SQLite backend."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
+    def test_explicit_sqlite_store(self, tmp_path, sample_sec_json):
+        """Can use explicit SqliteStore backend."""
         db_path = tmp_path / "test.db"
-        resolver = EntityResolver(
-            backend="sqlite",
-            db_path=str(db_path),
-            json_path=str(sample_sec_json_file),
-        )
+        store = SqliteStore(db_path)
+        store.initialize()
+        store.load_sec_json(sample_sec_json)
+
+        resolver = EntityResolver(store=store)
         assert resolver is not None
+        
+        result = resolver.resolve("AAPL")
+        assert result.best is not None
+        
+        store.close()
+
+    def test_in_memory_sqlite_backend(self, sample_sec_json):
+        """Can use in-memory SQLite backend."""
+        store = SqliteStore(":memory:")
+        store.initialize()
+        store.load_sec_json(sample_sec_json)
+
+        config = ResolverConfig(auto_load_sec=False)
+        resolver = EntityResolver(config=config, store=store)
+        
+        result = resolver.resolve("MSFT")
+        assert result.best is not None
+        
+        store.close()
 
 
 class TestSimpleAPITypicalWorkflow:
     """Test typical user workflow."""
 
-    def test_full_workflow(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_full_workflow(self, loaded_resolver):
         """
         Complete typical workflow:
         1. Create resolver
@@ -191,18 +195,13 @@ class TestSimpleAPITypicalWorkflow:
         4. Get entity if confident
         5. Use entity data
         """
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        # 1. Create resolver (zero config)
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-
         # 2. Resolve ticker
-        result = resolver.resolve("AAPL")
+        result = loaded_resolver.resolve("AAPL")
 
-        # 3. Check confidence
-        if result.is_confident:
+        # 3. Check if we found a result (best candidate)
+        if result.best and result.best.score > 0.5:
             # 4. Get entity
-            entity = resolver.get(result.best.entity_id)
+            entity = loaded_resolver.get_entity(result.best.entity_id)
 
             # 5. Use entity data
             assert entity is not None
@@ -211,26 +210,18 @@ class TestSimpleAPITypicalWorkflow:
             # Low confidence or no match
             pass
 
-    def test_workflow_with_unknown_ticker(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_workflow_with_unknown_ticker(self, loaded_resolver):
         """Workflow handles unknown ticker gracefully."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-        result = resolver.resolve("ZZZZZ_NONEXISTENT")
+        result = loaded_resolver.resolve("ZZZZZ_NONEXISTENT")
 
         # Should not raise, should return empty result
-        assert not result.is_confident
-        assert result.best is None
+        assert result.best is None or result.best.score < 0.5
 
-    def test_workflow_multiple_resolutions(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_workflow_multiple_resolutions(self, loaded_resolver):
         """Can resolve multiple times with same resolver."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-
-        result1 = resolver.resolve("AAPL")
-        result2 = resolver.resolve("MSFT")
-        result3 = resolver.resolve("TSLA")
+        result1 = loaded_resolver.resolve("AAPL")
+        result2 = loaded_resolver.resolve("MSFT")
+        result3 = loaded_resolver.resolve("TSLA")
 
         assert result1.best is not None
         assert result2.best is not None
@@ -248,36 +239,29 @@ class TestSimpleAPIPySecEdgarIntegration:
     py-sec-edgar will use entityspine like this:
         from entityspine import EntityResolver
         resolver = EntityResolver()
-        result = resolver.resolve_cik(filing["cik"])
+        result = resolver.resolve(filing["cik"])
         if result.best:
             filing["filer_entity_id"] = result.best.entity_id
     """
 
-    def test_resolve_cik_for_filing(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_resolve_cik_for_filing(self, loaded_resolver):
         """Can resolve CIK from filing data."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
         # Simulate py-sec-edgar filing
         filing = {"cik": "0000320193", "form_type": "10-K"}
 
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
-        result = resolver.resolve(filing["cik"])
+        result = loaded_resolver.resolve(filing["cik"])
 
         if result.best:
             filing["filer_entity_id"] = result.best.entity_id
             assert "filer_entity_id" in filing
 
-    def test_batch_resolution(self, tmp_path, monkeypatch, sample_sec_json_file):
+    def test_batch_resolution(self, loaded_resolver):
         """Can resolve multiple CIKs in batch."""
-        monkeypatch.setenv("ENTITYSPINE_CACHE_DIR", str(tmp_path))
-
         ciks = ["320193", "789019", "1318605"]
-
-        resolver = EntityResolver(json_path=str(sample_sec_json_file))
 
         results = {}
         for cik in ciks:
-            result = resolver.resolve(cik)
+            result = loaded_resolver.resolve(cik)
             if result.best:
                 results[cik] = result.best.entity_id
 
