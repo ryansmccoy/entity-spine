@@ -26,7 +26,7 @@ class ListingRepository:
     Note: TICKER lives on Listing, not on Entity or Security.
     """
 
-    def __init__(self, connection: "SqliteConnectionManager"):
+    def __init__(self, connection: SqliteConnectionManager):
         """
         Initialize repository with connection manager.
         

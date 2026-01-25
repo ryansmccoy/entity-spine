@@ -390,4 +390,213 @@ CREATE INDEX IF NOT EXISTS idx_kg_events_occurred ON kg_events(occurred_on);
 CREATE INDEX IF NOT EXISTS idx_kg_events_announced ON kg_events(announced_on);
 CREATE INDEX IF NOT EXISTS idx_kg_events_source ON kg_events(source_system, source_id);
 CREATE INDEX IF NOT EXISTS idx_kg_events_filing ON kg_events(evidence_filing_id);
+
+-- =============================================================================
+-- v2.3.4: Audit Trail Tables
+-- =============================================================================
+
+-- Provenance table (tracks where data came from)
+CREATE TABLE IF NOT EXISTS provenance (
+    provenance_id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL DEFAULT 'file',
+    namespace TEXT NOT NULL DEFAULT 'internal',
+    source_uri TEXT,
+    source_hash TEXT,
+    captured_at TEXT NOT NULL,
+    captured_by TEXT,
+    file_name TEXT,
+    api_endpoint TEXT,
+    api_params TEXT,
+    batch_id TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_provenance_kind ON provenance(kind);
+CREATE INDEX IF NOT EXISTS idx_provenance_namespace ON provenance(namespace);
+CREATE INDEX IF NOT EXISTS idx_provenance_batch ON provenance(batch_id);
+CREATE INDEX IF NOT EXISTS idx_provenance_captured ON provenance(captured_at);
+
+-- Source records table (preserves raw ingested data)
+CREATE TABLE IF NOT EXISTS source_records (
+    record_id TEXT PRIMARY KEY,
+    provenance_id TEXT,
+    raw_data TEXT,
+    record_type TEXT NOT NULL DEFAULT 'unknown',
+    source_key TEXT,
+    processed INTEGER NOT NULL DEFAULT 0,
+    processed_at TEXT,
+    entity_id TEXT,
+    security_id TEXT,
+    listing_id TEXT,
+    error_message TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (provenance_id) REFERENCES provenance(provenance_id),
+    FOREIGN KEY (entity_id) REFERENCES entities(entity_id),
+    FOREIGN KEY (security_id) REFERENCES securities(security_id),
+    FOREIGN KEY (listing_id) REFERENCES listings(listing_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_source_records_provenance ON source_records(provenance_id);
+CREATE INDEX IF NOT EXISTS idx_source_records_type ON source_records(record_type);
+CREATE INDEX IF NOT EXISTS idx_source_records_processed ON source_records(processed);
+CREATE INDEX IF NOT EXISTS idx_source_records_entity ON source_records(entity_id);
+
+-- Merge events table (tracks entity merges)
+CREATE TABLE IF NOT EXISTS merge_events (
+    event_id TEXT PRIMARY KEY,
+    source_entity_id TEXT NOT NULL,
+    target_entity_id TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT 'duplicate_resolution',
+    explanation_id TEXT,
+    run_id TEXT,
+    confidence REAL NOT NULL DEFAULT 1.0,
+    merged_by TEXT,
+    merged_at TEXT NOT NULL,
+    source_snapshot TEXT,
+    reversible INTEGER NOT NULL DEFAULT 1,
+    reversed INTEGER NOT NULL DEFAULT 0,
+    reversed_at TEXT,
+    reversed_by TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (source_entity_id) REFERENCES entities(entity_id),
+    FOREIGN KEY (target_entity_id) REFERENCES entities(entity_id),
+    FOREIGN KEY (explanation_id) REFERENCES explanations(explanation_id),
+    FOREIGN KEY (run_id) REFERENCES resolution_runs(run_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_merge_events_source ON merge_events(source_entity_id);
+CREATE INDEX IF NOT EXISTS idx_merge_events_target ON merge_events(target_entity_id);
+CREATE INDEX IF NOT EXISTS idx_merge_events_run ON merge_events(run_id);
+CREATE INDEX IF NOT EXISTS idx_merge_events_merged_at ON merge_events(merged_at);
+
+-- Split events table (tracks entity splits)
+CREATE TABLE IF NOT EXISTS split_events (
+    event_id TEXT PRIMARY KEY,
+    source_entity_id TEXT NOT NULL,
+    target_entity_ids TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT 'spinoff',
+    explanation_id TEXT,
+    run_id TEXT,
+    split_by TEXT,
+    split_at TEXT NOT NULL,
+    effective_date TEXT,
+    source_snapshot TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (source_entity_id) REFERENCES entities(entity_id),
+    FOREIGN KEY (explanation_id) REFERENCES explanations(explanation_id),
+    FOREIGN KEY (run_id) REFERENCES resolution_runs(run_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_split_events_source ON split_events(source_entity_id);
+CREATE INDEX IF NOT EXISTS idx_split_events_run ON split_events(run_id);
+CREATE INDEX IF NOT EXISTS idx_split_events_split_at ON split_events(split_at);
+
+-- Explanations table (decision reasoning)
+CREATE TABLE IF NOT EXISTS explanations (
+    explanation_id TEXT PRIMARY KEY,
+    decision_type TEXT NOT NULL DEFAULT 'match',
+    summary TEXT,
+    details TEXT,
+    factors TEXT,
+    confidence REAL NOT NULL DEFAULT 1.0,
+    match_scores TEXT,
+    rule_hits TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_explanations_type ON explanations(decision_type);
+CREATE INDEX IF NOT EXISTS idx_explanations_confidence ON explanations(confidence);
+
+-- Resolution runs table (batch execution tracking)
+CREATE TABLE IF NOT EXISTS resolution_runs (
+    run_id TEXT PRIMARY KEY,
+    input_params TEXT,
+    source_record_ids TEXT,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    stage_metrics TEXT,
+    entities_created INTEGER NOT NULL DEFAULT 0,
+    entities_updated INTEGER NOT NULL DEFAULT 0,
+    entities_merged INTEGER NOT NULL DEFAULT 0,
+    claims_created INTEGER NOT NULL DEFAULT 0,
+    claims_superseded INTEGER NOT NULL DEFAULT 0,
+    avg_confidence REAL NOT NULL DEFAULT 0.0,
+    ambiguous_count INTEGER NOT NULL DEFAULT 0,
+    error_count INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'RUNNING',
+    error_message TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_resolution_runs_status ON resolution_runs(status);
+CREATE INDEX IF NOT EXISTS idx_resolution_runs_started ON resolution_runs(started_at);
+
+-- Data quality rules table
+CREATE TABLE IF NOT EXISTS data_quality_rules (
+    rule_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT NOT NULL DEFAULT 'consistency',
+    severity TEXT NOT NULL DEFAULT 'WARNING',
+    target_type TEXT NOT NULL DEFAULT 'entity',
+    check_expression TEXT,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_quality_rules_category ON data_quality_rules(category);
+CREATE INDEX IF NOT EXISTS idx_quality_rules_severity ON data_quality_rules(severity);
+CREATE INDEX IF NOT EXISTS idx_quality_rules_enabled ON data_quality_rules(enabled);
+
+-- Data quality results table
+CREATE TABLE IF NOT EXISTS data_quality_results (
+    result_id TEXT PRIMARY KEY,
+    rule_id TEXT NOT NULL,
+    rule_name TEXT,
+    passed INTEGER NOT NULL DEFAULT 1,
+    severity TEXT NOT NULL DEFAULT 'INFO',
+    message TEXT,
+    details TEXT,
+    entity_id TEXT,
+    claim_id TEXT,
+    security_id TEXT,
+    listing_id TEXT,
+    run_id TEXT,
+    checked_at TEXT NOT NULL,
+    resolved INTEGER NOT NULL DEFAULT 0,
+    resolved_at TEXT,
+    resolved_by TEXT,
+    resolution_notes TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (rule_id) REFERENCES data_quality_rules(rule_id),
+    FOREIGN KEY (entity_id) REFERENCES entities(entity_id),
+    FOREIGN KEY (claim_id) REFERENCES claims(claim_id),
+    FOREIGN KEY (security_id) REFERENCES securities(security_id),
+    FOREIGN KEY (listing_id) REFERENCES listings(listing_id),
+    FOREIGN KEY (run_id) REFERENCES resolution_runs(run_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_quality_results_rule ON data_quality_results(rule_id);
+CREATE INDEX IF NOT EXISTS idx_quality_results_entity ON data_quality_results(entity_id);
+CREATE INDEX IF NOT EXISTS idx_quality_results_passed ON data_quality_results(passed);
+CREATE INDEX IF NOT EXISTS idx_quality_results_resolved ON data_quality_results(resolved);
+CREATE INDEX IF NOT EXISTS idx_quality_results_run ON data_quality_results(run_id);
+
+-- Add provenance_id and explanation_id to claims table if not exists
+-- (Note: SQLite doesn't support ADD COLUMN IF NOT EXISTS, so we use a migration approach)
+"""
+
+# v2.3.4: Migration SQL to add audit trail columns to existing tables
+MIGRATION_V234_SQL = """
+-- Add provenance tracking to claims table
+ALTER TABLE claims ADD COLUMN provenance_id TEXT REFERENCES provenance(provenance_id);
+ALTER TABLE claims ADD COLUMN explanation_id TEXT REFERENCES explanations(explanation_id);
+
+-- Create indexes for new columns
+CREATE INDEX IF NOT EXISTS idx_claims_provenance ON claims(provenance_id);
+CREATE INDEX IF NOT EXISTS idx_claims_explanation ON claims(explanation_id);
 """

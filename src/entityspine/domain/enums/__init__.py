@@ -44,8 +44,11 @@ from entityspine.domain.enums.core import (
 from entityspine.domain.enums.events import (
     CaseStatus,
     CaseType,
+    DataQualitySeverity,
+    DecisionType,
     EventStatus,
     EventType,
+    RunStatus,
 )
 
 # =============================================================================
@@ -161,6 +164,9 @@ __all__ = [
     "EventStatus",
     "CaseType",
     "CaseStatus",
+    "DataQualitySeverity",
+    "DecisionType",
+    "RunStatus",
     # assets
     "AssetType",
     "AssetStatus",

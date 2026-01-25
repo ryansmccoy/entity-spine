@@ -58,6 +58,11 @@ class ChatMessage:
         # Deduplication
         content_hash: SHA256 of content for deduplication
         
+        # Project tagging
+        project_tags: List of project tags (e.g., ['capture-spine', 'frontend'])
+        tagged_at: When project tags were assigned
+        tagged_method: How tags were assigned ('auto', 'llm', 'manual')
+        
         # Optional metadata
         tool_calls: List of tool names invoked (for assistant messages)
         tokens_in: Input tokens (if available)
@@ -80,6 +85,11 @@ class ChatMessage:
 
     # Deduplication
     content_hash: str = ""
+
+    # Project tagging (v2.3.2)
+    project_tags: list[str] = field(default_factory=list)
+    tagged_at: datetime | None = None
+    tagged_method: str | None = None  # 'auto', 'llm', 'manual'
 
     # Optional metadata
     tool_calls: list[str] = field(default_factory=list)
@@ -140,6 +150,9 @@ class ChatSession:
         title: Auto-generated or user-provided title
         message_count: Number of messages in this session
         
+        # Project tagging (aggregated from messages)
+        project_tags: List of all project tags from messages in this session
+        
         # Deduplication
         session_hash: Hash of session metadata for change detection
         
@@ -163,6 +176,9 @@ class ChatSession:
     # Session metadata
     title: str = ""
     message_count: int = 0
+
+    # Project tagging (v2.3.2 - aggregated from messages)
+    project_tags: list[str] = field(default_factory=list)
 
     # Deduplication
     session_hash: str = ""
@@ -211,8 +227,18 @@ class ChatSession:
                 self.created_at = message.timestamp
             if not self.last_message_at or message.timestamp > self.last_message_at:
                 self.last_message_at = message.timestamp
+        # Aggregate project tags from message
+        if message.project_tags:
+            self._update_project_tags()
         # Recompute hash
         self.session_hash = self._compute_hash()
+
+    def _update_project_tags(self) -> None:
+        """Aggregate unique project tags from all messages."""
+        all_tags: set[str] = set()
+        for msg in self.messages:
+            all_tags.update(msg.project_tags)
+        self.project_tags = sorted(all_tags)
 
 
 # =============================================================================

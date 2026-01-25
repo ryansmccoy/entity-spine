@@ -10,9 +10,8 @@ import logging
 from typing import TYPE_CHECKING
 
 from entityspine.core.identifier import looks_like_cik, looks_like_ticker
-from entityspine.core.timestamps import to_iso8601, utc_now
-from entityspine.core.ulid import generate_ulid
-from entityspine.domain import Entity, EntityStatus, EntityType
+from entityspine.core.timestamps import to_iso8601
+from entityspine.domain import Entity
 
 from ..converters import row_to_entity
 
@@ -32,7 +31,7 @@ class EntityRepository:
         conn: SqliteConnectionManager for database access.
     """
 
-    def __init__(self, connection: "SqliteConnectionManager"):
+    def __init__(self, connection: SqliteConnectionManager):
         """
         Initialize repository with connection manager.
         

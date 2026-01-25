@@ -88,23 +88,135 @@ class EntityResolver:
     """
     High-level entity resolution service.
 
-    The main entry point for resolving identifiers to entities.
-
+    EntityResolver is the main entry point for resolving identifiers to entities.
+    It accepts ANY identifier format (CIK, ticker, ISIN, CUSIP, company name) and
+    returns a ResolutionResult with the matched entity, confidence score, and
+    alternative candidates.
+    
+    Manifesto:
+        EntitySpine's killer feature is "resolve anything": given any identifier,
+        find the entity. This is harder than it sounds because:
+        - Tickers are exchange-specific and change over time (FB→META)
+        - CIKs require normalization (320193 vs 0000320193)
+        - Names require fuzzy matching ("Apple" vs "Apple Inc." vs "Apple Inc")
+        - Historical queries need point-in-time resolution
+        
+        EntityResolver orchestrates identifier classification, store lookups, fuzzy
+        matching, and redirect following into a single API. It embodies Principle #2
+        (claims-based identity) by returning confidence scores rather than binary
+        match/no-match, and Principle #3 (Result pattern) by returning explicit
+        ResolutionResult rather than throwing exceptions.
+    
+    Architecture:
+        ```
+        ┌──────────────────────────────────────────────────────────┐
+        │                 EntityResolver Flow                       │
+        └──────────────────────────────────────────────────────────┘
+        
+        resolve("AAPL")
+              │
+              ▼
+        ┌─────────────────┐
+        │ Classify Input  │  → IdentifierType.TICKER
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Route by Type   │
+        │ ├─ CIK: lookup  │
+        │ ├─ ISIN: lookup │
+        │ ├─ Ticker: list │
+        │ └─ Name: fuzzy  │
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Store Lookup    │  → SqliteStore / JsonStore
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Follow Redirect │  (if merged entity)
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │Build Resolution │  → ResolutionResult
+        │    Result       │     ├─ entity
+        └─────────────────┘     ├─ confidence
+                                ├─ candidates[]
+                                └─ match_reason
+        ```
+        Dependencies: SqliteStore (or JsonStore), FuzzyMatcher
+        Storage Tier: Works with T0 (JSON) or T1 (SQLite)
+    
+    Features:
+        - Zero-config operation (auto-downloads SEC data on first use)
+        - Single resolve() method for ALL identifier types
+        - Auto-detection of identifier type (CIK, ISIN, ticker, name)
+        - Temporal resolution with as_of parameter
+        - MIC disambiguation for tickers
+        - Fuzzy name matching with configurable threshold
+        - Merged entity redirect following
+        - Returns ResolutionResult with candidates and confidence
+        - Thread-safe and reusable instance
+    
     Examples:
         >>> resolver = EntityResolver()
+        >>> 
+        >>> # Resolve ticker
         >>> result = resolver.resolve("AAPL")
         >>> print(result.entity.primary_name)
         Apple Inc.
-
+        
+        >>> # Resolve CIK (auto-normalized)
+        >>> result = resolver.resolve("320193")  # or "0000320193"
+        >>> print(result.entity.primary_name)
+        Apple Inc.
+        
         >>> # Fuzzy name matching
         >>> result = resolver.resolve("Apple")
-        >>> print(result.confidence)
-        0.95
-
+        >>> print(f"{result.entity.primary_name} (confidence: {result.confidence})")
+        Apple Inc. (confidence: 0.95)
+        
         >>> # Historical resolution
         >>> result = resolver.resolve("META", as_of=date(2020, 1, 1))
-        >>> print(result.entity.primary_name)  # Before Meta rebrand
-        Facebook, Inc.
+        >>> # Returns None or different entity (before rebrand)
+        
+        >>> # Ticker with MIC for disambiguation
+        >>> result = resolver.resolve("AAPL", mic="XNAS")
+    
+    Performance:
+        - CIK lookup: O(1), ~1ms (indexed)
+        - Ticker lookup: O(1), ~2ms (indexed)
+        - Fuzzy name match: O(n), ~50ms for 14K entities
+        - First resolve() may be slower (auto-load SEC data)
+    
+    Guardrails:
+        - Do NOT create new resolver for each query
+          ✅ Instead: Reuse resolver instance (stateless after init)
+        - Do NOT ignore confidence score for fuzzy matches
+          ✅ Instead: Check confidence threshold for your use case
+        - Do NOT assume ticker is unique without MIC
+          ✅ Instead: Use MIC for disambiguation or accept multiple candidates
+    
+    Context:
+        Problem: Resolving identifiers to entities requires handling multiple
+                 formats, fuzzy matching, temporal validity, and redirects.
+        Solution: EntityResolver provides single API that handles all cases,
+                  returning confidence scores for ambiguous matches.
+    
+    Tags:
+        - entity_resolution
+        - service_layer
+        - identifier_classification
+        - fuzzy_matching
+        - api_entry_point
+    
+    Doc-Types:
+        - MANIFESTO (section: "Core Features", priority: 10)
+        - FEATURES (section: "Entity Resolution", priority: 10)
+        - API_REFERENCE (section: "Services", priority: 10)
     """
 
     def __init__(

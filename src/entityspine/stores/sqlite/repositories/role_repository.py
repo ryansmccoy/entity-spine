@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
-from entityspine.core.timestamps import from_iso8601, to_iso8601, utc_now
+from entityspine.core.timestamps import to_iso8601, utc_now
 from entityspine.domain import RoleAssignment, RoleType
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ class RoleRepository:
     Handles person → org role assignments with evidence.
     """
 
-    def __init__(self, connection: "SqliteConnectionManager"):
+    def __init__(self, connection: SqliteConnectionManager):
         """
         Initialize repository with connection manager.
         

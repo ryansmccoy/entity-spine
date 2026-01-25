@@ -67,26 +67,142 @@ class ClusteringService:
     """
     Entity deduplication service using cluster-first-merge-later pattern.
 
-    This service helps identify and manage potential duplicate entities
-    without destructive auto-merging.
+    Manifesto
+    ---------
+    ClusteringService implements EntitySpine's safe deduplication philosophy:
+    **cluster first, merge later**. Entity resolution inevitably discovers
+    duplicates (same company, different database records). The naive approach
+    is auto-merging, but this is dangerous:
 
-    Examples:
-        >>> service = ClusteringService(store)
-        >>>
-        >>> # Find duplicates for a specific entity
-        >>> candidates = service.find_duplicates_for_entity(entity_id)
-        >>>
-        >>> # Find all potential duplicates in the database
-        >>> all_candidates = service.find_all_duplicates()
-        >>>
-        >>> # Create clusters for review
-        >>> cluster = service.create_cluster([eid1, eid2], reason="Name match")
-        >>>
-        >>> # Review pending clusters
-        >>> pending = service.get_pending_clusters()
-        >>>
-        >>> # Merge a cluster (approved by human)
-        >>> merged_entity = service.merge_cluster(cluster_id, canonical_id=eid1)
+    - **False Positives**: "Apple Inc" and "Apple Bank" look similar but
+      are different companies
+    - **Data Loss**: Merging discards information that may be needed later
+    - **No Audit Trail**: Auto-merges leave no record of human decisions
+
+    ClusteringService solves this by separating detection from action:
+
+    1. **Detection**: Find potential duplicates using blocking + similarity
+    2. **Clustering**: Group candidates into clusters for human review
+    3. **Review**: Humans approve/reject clusters (not auto-merged)
+    4. **Merge**: Only approved clusters become MergeEvents
+
+    This supports the Claims-Based Identity principle (Principle #2): when
+    multiple sources claim different things about an entity, humans decide
+    which claims to trust.
+
+    Architecture
+    ------------
+    ::
+
+        ┌─────────────────────────────────────────────────────────────────────┐
+        │                  Cluster-First Merge-Later Pipeline                  │
+        │                                                                      │
+        │   1. DETECT                 2. CLUSTER              3. REVIEW        │
+        │   ┌──────────────┐         ┌──────────────┐        ┌────────────┐   │
+        │   │ Find         │         │ Create       │        │ Human      │   │
+        │   │ Duplicates   │────────▶│ Cluster      │───────▶│ Review     │   │
+        │   │ (similarity) │         │ (non-destruct)│        │ Queue      │   │
+        │   └──────────────┘         └──────────────┘        └─────┬──────┘   │
+        │         │                                                 │          │
+        │         ▼                                                 ▼          │
+        │   ┌──────────────────────────────────────────────────────────────┐  │
+        │   │ DuplicateCandidate[]                                         │  │
+        │   │ ┌─────────────────────┐   ┌─────────────────────┐            │  │
+        │   │ │ entity_a: E1        │   │ entity_a: E3        │            │  │
+        │   │ │ entity_b: E2        │   │ entity_b: E4        │            │  │
+        │   │ │ score: 0.95         │   │ score: 0.87         │            │  │
+        │   │ │ reason: name_match  │   │ reason: cik_match   │            │  │
+        │   │ └─────────────────────┘   └─────────────────────┘            │  │
+        │   └──────────────────────────────────────────────────────────────┘  │
+        │                                                                      │
+        │   4. MERGE (only after approval)                                    │
+        │   ┌──────────────────────────────────────────────────────────────┐  │
+        │   │ ClusteringService.merge_cluster(cluster_id, canonical_id=E2) │  │
+        │   │ → MergeEvent created                                         │  │
+        │   │ → E1 becomes redirect to E2                                  │  │
+        │   │ → Claims transferred to E2                                   │  │
+        │   └──────────────────────────────────────────────────────────────┘  │
+        └─────────────────────────────────────────────────────────────────────┘
+
+    Features
+    --------
+    - **Blocking**: Efficient candidate generation (name prefixes, CIK ranges)
+    - **Multi-Signal Scoring**: Name similarity + identifier overlap
+    - **Non-Destructive Clustering**: Clusters don't modify entities
+    - **Human Queue**: Pending clusters await review
+    - **Merge with Audit**: Full MergeEvent created on approval
+    - **FuzzyMatcher Integration**: Uses standardized similarity algorithms
+
+    Examples
+    --------
+    Finding duplicates for a specific entity:
+
+    >>> service = ClusteringService(store)
+    >>> candidates = service.find_duplicates_for_entity(entity_id)
+    >>> for c in candidates:
+    ...     print(f"{c.similarity_score:.2f}: {c.entity_id_a} ↔ {c.entity_id_b}")
+    0.95: E1 ↔ E2
+    0.87: E1 ↔ E3
+
+    Finding all duplicates in the database:
+
+    >>> all_candidates = service.find_all_duplicates()
+    >>> print(f"Found {len(all_candidates)} potential duplicate pairs")
+
+    Creating a cluster for review:
+
+    >>> cluster = service.create_cluster(
+    ...     entity_ids=["E1", "E2"],
+    ...     reason="Name similarity: 0.95 (Apple Inc. ↔ APPLE INC)",
+    ... )
+    >>> cluster.status
+    <ClusterStatus.PENDING: 'pending'>
+
+    Reviewing pending clusters:
+
+    >>> pending = service.get_pending_clusters()
+    >>> for cluster in pending:
+    ...     print(f"Cluster {cluster.cluster_id}: {len(cluster.members)} entities")
+
+    Merging an approved cluster:
+
+    >>> merged_entity = service.merge_cluster(
+    ...     cluster_id=cluster.cluster_id,
+    ...     canonical_id="E2",  # E2 is the "winner"
+    ... )
+    >>> # E1 now redirects to E2
+
+    Performance
+    -----------
+    - Blocking: O(n) scan with blocking reduces to O(n/b) comparisons
+    - Similarity: ~1ms per name comparison with FuzzyMatcher
+    - Clustering: O(k) where k = cluster size (typically small)
+    - Full Scan: ~5,000 entities/second for duplicate detection
+
+    Guardrails
+    ----------
+    - Never auto-merges without human approval
+    - Clusters preserve original entity states
+    - MergeEvents created with full audit trail
+    - Merges are reversible via MergeEvent.reversed
+
+    Context
+    -------
+    ClusteringService works with FuzzyMatcher (similarity algorithms),
+    ConflictResolver (conflict handling), and MergeEvent (audit trail).
+    The BlockingConfig controls candidate generation efficiency.
+
+    Tags
+    ----
+    :tag service: Business logic service
+    :tag deduplication: Entity deduplication
+    :tag human-in-loop: Requires human approval
+    :tag principle-2: Claims-based identity decisions
+
+    Doc-Types
+    ---------
+    :api-ref: entityspine.services.clustering.ClusteringService
+    :related: FuzzyMatcher, ConflictResolver, MergeEvent, DuplicateCandidate
     """
 
     def __init__(

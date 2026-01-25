@@ -17,20 +17,130 @@ from entityspine.domain.enums import MatchReason
 @dataclass(frozen=True, slots=True)
 class ResolutionCandidate:
     """
-    A lightweight resolution match result.
+    A lightweight resolution match result containing IDs and match metadata.
 
-    Contains only IDs and match metadata, NOT full objects.
-    Use for efficient multi-candidate returns.
+    Manifesto
+    ---------
+    ResolutionCandidate embodies EntitySpine's "lazy hydration" principle: return
+    IDs first, objects later. When resolving ambiguous queries like "MS" or "AA",
+    we may find multiple potential matches. Rather than hydrating full Entity,
+    Security, and Listing objects for each candidate (expensive), we return
+    lightweight candidates with just IDs and match metadata. The caller decides
+    which candidate to hydrate based on scores and context.
 
-    Attributes:
-        entity_id: Matched entity ID
-        security_id: Matched security ID
-        listing_id: Matched listing ID
-        score: Match confidence score 0.0-1.0
-        match_reason: Why this candidate matched
-        matched_scheme: Which identifier scheme matched
-        matched_value: The actual value that matched
-        warnings: Any warnings specific to this candidate
+    This supports the Result[T] pattern (Principle #3): callers get transparent
+    information about why matches occurred and can make informed decisions about
+    which candidate to accept.
+
+    Architecture
+    ------------
+    ::
+
+        ┌────────────────────────────────────────────────────────────────┐
+        │                    Resolution Process                          │
+        │                                                                │
+        │   Query("MS")                                                  │
+        │       │                                                        │
+        │       ▼                                                        │
+        │   ┌─────────────────────────────────────────────────────────┐  │
+        │   │               ResolutionCandidate[]                     │  │
+        │   │  ┌──────────────────┐   ┌──────────────────┐            │  │
+        │   │  │ score: 0.85     │   │ score: 0.80     │            │  │
+        │   │  │ entity_id: E1   │   │ entity_id: E2   │            │  │
+        │   │  │ match: "ticker" │   │ match: "alias"  │            │  │
+        │   │  │ Morgan Stanley  │   │ Microsoft Corp  │            │  │
+        │   │  └──────────────────┘   └──────────────────┘            │  │
+        │   └─────────────────────────────────────────────────────────┘  │
+        │       │                                                        │
+        │       ▼  (caller decides)                                      │
+        │   resolve.entity ← hydrate(best_candidate.entity_id)           │
+        └────────────────────────────────────────────────────────────────┘
+
+    Features
+    --------
+    - **Lightweight**: IDs only, ~50 bytes vs ~2KB for full object graph
+    - **Ranked**: Score field enables confidence-based selection
+    - **Transparent**: match_reason explains WHY the match occurred
+    - **Traceable**: matched_scheme/value show WHAT matched
+    - **Warning-aware**: Per-candidate warnings (e.g., "ticker expired")
+
+    Examples
+    --------
+    Creating a candidate from a ticker match:
+
+    >>> candidate = ResolutionCandidate(
+    ...     score=0.95,
+    ...     match_reason=MatchReason.EXACT_TICKER,
+    ...     entity_id="01HQ8KQXYZ...",
+    ...     security_id="01HQ8KQABC...",
+    ...     listing_id="01HQ8KQ123...",
+    ...     matched_scheme="ticker",
+    ...     matched_value="AAPL",
+    ... )
+    >>> candidate.has_entity
+    True
+    >>> candidate.score
+    0.95
+
+    Candidate with warnings (expired ticker):
+
+    >>> candidate = ResolutionCandidate(
+    ...     score=0.70,
+    ...     match_reason=MatchReason.HISTORICAL_TICKER,
+    ...     entity_id="01HQ8...",
+    ...     warnings=("ticker_expired_2020-01-15",),
+    ... )
+    >>> len(candidate.warnings)
+    1
+
+    Performance
+    -----------
+    - Memory: ~50 bytes per candidate (IDs + score + reason)
+    - Serialization: JSON-serializable for API responses
+    - Hydration: O(1) lookup when caller needs full objects
+
+    Guardrails
+    ----------
+    - score must be in [0.0, 1.0] range (validated in __post_init__)
+    - warnings automatically converted from list to tuple (immutability)
+    - Frozen dataclass prevents accidental modification
+
+    Context
+    -------
+    Used by EntityResolver to return multiple potential matches. The
+    ResolutionResult.candidates list contains ResolutionCandidate objects
+    ranked by score. Higher scores indicate better matches.
+
+    Tags
+    ----
+    :tag domain-model: Core domain concept
+    :tag resolution: Part of entity resolution subsystem
+    :tag lightweight: Optimized for memory efficiency
+    :tag principle-3: Implements Result[T] transparency
+
+    Doc-Types
+    ---------
+    :api-ref: entityspine.domain.candidate.ResolutionCandidate
+    :related: ResolutionResult, EntityResolver, MatchReason
+
+    Attributes
+    ----------
+    score : float
+        Match confidence score 0.0-1.0 (higher is better).
+    match_reason : MatchReason
+        Why this candidate matched (EXACT_TICKER, FUZZY_NAME, etc.).
+    entity_id : str | None
+        Matched entity ID (ULID).
+    security_id : str | None
+        Matched security ID (ULID).
+    listing_id : str | None
+        Matched listing ID (ULID).
+    matched_scheme : str | None
+        Which identifier scheme matched (e.g., "cik", "ticker", "isin").
+    matched_value : str | None
+        The actual value that matched (e.g., "AAPL", "0000320193").
+    warnings : tuple
+        Any warnings specific to this candidate.
     """
 
     score: float = 0.0

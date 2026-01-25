@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from entityspine.core.timestamps import to_iso8601, utc_now
+from entityspine.core.timestamps import to_iso8601
 from entityspine.domain import Security
 
 from ..converters import row_to_security
@@ -24,7 +24,7 @@ class SecurityRepository:
     Single Responsibility: Security database operations only.
     """
 
-    def __init__(self, connection: "SqliteConnectionManager"):
+    def __init__(self, connection: SqliteConnectionManager):
         """
         Initialize repository with connection manager.
         

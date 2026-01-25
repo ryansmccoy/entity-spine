@@ -22,7 +22,7 @@ class CaseRepository:
     Single Responsibility: Legal case database operations only.
     """
 
-    def __init__(self, connection: "SqliteConnectionManager"):
+    def __init__(self, connection: SqliteConnectionManager):
         """
         Initialize repository with connection manager.
         

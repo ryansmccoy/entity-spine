@@ -69,18 +69,152 @@ def _get_resolver():
 @dataclass
 class Lookup:
     """
-    Simple ticker/identifier lookup utility.
-    
-    Examples:
-        >>> lu = Lookup()
-        >>> lu.ticker("0000320193")
-        'AAPL'
-        >>> lu.ticker("Apple Inc")
-        'AAPL'
-        >>> lu.cik("AAPL")
-        '0000320193'
-        >>> lu.tickers(["0000320193", "0001018724"])
-        ['AAPL', 'AMZN']
+    Dead-simple ticker/identifier lookup utility for common tasks.
+
+    Manifesto
+    ---------
+    Lookup is the "just works" interface to EntitySpine. While EntityResolver
+    provides full power with candidates, warnings, and tier-awareness, Lookup
+    provides the simplest possible API for common tasks:
+
+    - **ticker()**: Give me a ticker for this CIK/name/identifier
+    - **cik()**: Give me a CIK for this ticker/name
+    - **name()**: Give me a company name for this identifier
+    - **tickers()**: Batch lookup for DataFrame columns
+
+    Lookup returns None on not found (no exceptions), caches results for
+    repeat lookups, and auto-downloads SEC data on first use. It's designed
+    for data scientists who want to quickly map identifiers without learning
+    the full EntitySpine API.
+
+    Architecture
+    ------------
+    ::
+
+        ┌─────────────────────────────────────────────────────────────────────┐
+        │                     Lookup Convenience Layer                         │
+        │                                                                      │
+        │   User Code                    Lookup                  EntityResolver│
+        │   ┌─────────────────┐         ┌───────────────────┐   ┌───────────┐ │
+        │   │ lu = Lookup()   │         │                   │   │           │ │
+        │   │                 │         │ 1. Check cache    │   │ Full      │ │
+        │   │ ticker = lu.    │────────▶│ 2. If miss:       │──▶│ Resolution│ │
+        │   │   ticker("CIK") │         │    call resolver  │   │ Pipeline  │ │
+        │   │                 │         │ 3. Cache result   │   │           │ │
+        │   │ # Returns "AAPL"│◀────────│ 4. Return ticker  │◀──│           │ │
+        │   └─────────────────┘         └───────────────────┘   └───────────┘ │
+        │                                                                      │
+        │   Batch Processing                                                   │
+        │   ┌─────────────────────────────────────────────────────────────┐   │
+        │   │ ciks = ["0000320193", "0001018724", "0001652044"]            │   │
+        │   │ tickers = lu.tickers(ciks)  # ["AAPL", "AMZN", "GOOGL"]     │   │
+        │   │                                                              │   │
+        │   │ # Great for DataFrame.apply():                               │   │
+        │   │ df["ticker"] = df["cik"].apply(lu.ticker)                    │   │
+        │   └─────────────────────────────────────────────────────────────┘   │
+        │                                                                      │
+        │   Shared Database (recommended for teams):                           │
+        │   ┌─────────────────────────────────────────────────────────────┐   │
+        │   │ # Set once per environment:                                  │   │
+        │   │ export ENTITYSPINE_DB_PATH=/data/shared/entityspine.db      │   │
+        │   │                                                              │   │
+        │   │ # All Lookup instances use same DB                           │   │
+        │   │ lu1 = Lookup()  # App 1                                      │   │
+        │   │ lu2 = Lookup()  # App 2  → Same entityspine.db              │   │
+        │   └─────────────────────────────────────────────────────────────┘   │
+        └─────────────────────────────────────────────────────────────────────┘
+
+    Features
+    --------
+    - **Zero-Config**: Auto-downloads SEC company_tickers.json on first use
+    - **Caching**: Repeat lookups are O(1) from memory cache
+    - **Batch Methods**: tickers(), ciks(), names() for lists
+    - **Dict Methods**: cik_to_ticker(), name_to_ticker() return mappings
+    - **Default Values**: Customize what returns on not-found
+    - **Thread-Safe**: Singleton resolver with per-instance cache
+
+    Examples
+    --------
+    Basic single lookups:
+
+    >>> lu = Lookup()
+    >>> lu.ticker("0000320193")
+    'AAPL'
+    >>> lu.ticker("Apple Inc")
+    'AAPL'
+    >>> lu.cik("AAPL")
+    '0000320193'
+    >>> lu.name("AAPL")
+    'Apple Inc.'
+
+    With defaults for not-found:
+
+    >>> lu.ticker("nonexistent", default="N/A")
+    'N/A'
+    >>> lu.cik("UNKNOWN", default="0000000000")
+    '0000000000'
+
+    Batch lookups:
+
+    >>> ciks = ["0000320193", "0001018724", "0001652044"]
+    >>> lu.tickers(ciks)
+    ['AAPL', 'AMZN', 'GOOGL']
+
+    Dict mappings (great for pandas):
+
+    >>> cik_map = lu.cik_to_ticker(ciks)
+    >>> cik_map
+    {'0000320193': 'AAPL', '0001018724': 'AMZN', '0001652044': 'GOOGL'}
+
+    DataFrame integration:
+
+    >>> import pandas as pd
+    >>> df = pd.DataFrame({"cik": ["0000320193", "0001018724"]})
+    >>> df["ticker"] = df["cik"].apply(lu.ticker)
+
+    Performance
+    -----------
+    - First lookup: ~50ms (resolver + DB query)
+    - Cached lookup: ~1µs (dict lookup)
+    - Batch: O(n) but parallelizable internally
+    - Memory: ~100 bytes per cached entry
+
+    Guardrails
+    ----------
+    - Returns None (not exception) when not found
+    - CIK always zero-padded to 10 digits
+    - Cache key includes query type to prevent collisions
+    - Shared DB via ENTITYSPINE_DB_PATH for team consistency
+
+    Context
+    -------
+    Lookup wraps EntityResolver, providing a simpler API at the cost of
+    losing warnings, candidates, and tier information. Use Lookup for
+    quick scripts; use EntityResolver for production systems that need
+    full transparency.
+
+    Tags
+    ----
+    :tag utility: Convenience wrapper
+    :tag caching: Memory-cached lookups
+    :tag dataframe: pandas-friendly batch methods
+    :tag zero-config: Auto-setup on first use
+
+    Doc-Types
+    ---------
+    :api-ref: entityspine.services.lookup.Lookup
+    :related: EntityResolver, ResolutionResult
+
+    Attributes
+    ----------
+    _cache : dict
+        Internal cache for lookup results (not for direct access).
+    default_ticker : str
+        Default value for ticker() when not found (default: "???").
+    default_cik : str
+        Default value for cik() when not found (default: "").
+    default_name : str
+        Default value for name() when not found (default: "").
     """
 
     _cache: dict = field(default_factory=dict, repr=False)

@@ -25,7 +25,7 @@ class ClaimRepository:
     Claims are the source of truth for identifiers (CIK, CUSIP, ISIN, etc.).
     """
 
-    def __init__(self, connection: "SqliteConnectionManager"):
+    def __init__(self, connection: SqliteConnectionManager):
         """
         Initialize repository with connection manager.
         

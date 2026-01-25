@@ -23,7 +23,7 @@ class AddressRepository:
     Uses normalized hash for deduplication.
     """
 
-    def __init__(self, connection: "SqliteConnectionManager"):
+    def __init__(self, connection: SqliteConnectionManager):
         """
         Initialize repository with connection manager.
         

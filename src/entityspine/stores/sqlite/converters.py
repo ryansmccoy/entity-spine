@@ -16,7 +16,6 @@ from datetime import UTC, date, datetime
 from entityspine.core.timestamps import from_iso8601, utc_now
 from entityspine.domain import (
     Address,
-    AddressType,
     ClaimStatus,
     Entity,
     EntityStatus,
@@ -136,7 +135,7 @@ def row_to_claim(row: sqlite3.Row) -> IdentifierClaim:
     )
 
 
-def row_to_geo(row: sqlite3.Row) -> "Geo":
+def row_to_geo(row: sqlite3.Row) -> Geo:
     """
     Convert database row to Geo domain dataclass.
     
@@ -179,7 +178,7 @@ def row_to_address(row: sqlite3.Row) -> Address:
     )
 
 
-def row_to_role_assignment(row: sqlite3.Row) -> "RoleAssignment":
+def row_to_role_assignment(row: sqlite3.Row) -> RoleAssignment:
     """
     Convert database row to RoleAssignment domain dataclass.
     
@@ -211,7 +210,7 @@ def row_to_role_assignment(row: sqlite3.Row) -> "RoleAssignment":
     )
 
 
-def row_to_relationship(row: sqlite3.Row) -> "Relationship":
+def row_to_relationship(row: sqlite3.Row) -> Relationship:
     """
     Convert database row to Relationship domain dataclass (generic NodeRef pattern).
     
@@ -251,7 +250,7 @@ def row_to_relationship(row: sqlite3.Row) -> "Relationship":
     )
 
 
-def row_to_entity_relationship(row: sqlite3.Row) -> "EntityRelationship":
+def row_to_entity_relationship(row: sqlite3.Row) -> EntityRelationship:
     """
     Convert database row to EntityRelationship domain dataclass.
     

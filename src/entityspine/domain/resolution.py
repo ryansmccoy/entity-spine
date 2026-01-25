@@ -58,76 +58,161 @@ from entityspine.domain.timestamps import utc_now
 @dataclass(slots=True)
 class ResolutionResult:
     """
-    Result of an entity resolution attempt.
-    
-    ResolutionResult encapsulates everything about a resolution attempt:
-    the query, what was found, confidence scores, warnings about
-    limitations, and timing information.
-    
-    Note:
-        This is NOT frozen (mutable) because resolution builds results
-        incrementally via add_candidate(), add_warning(), etc.
-    
-    Design Principles:
-        - **Transparent**: Never silently ignore parameters - add warnings
-        - **Candidate-based**: Return ranked options, not just best guess
-        - **Tier-honest**: Document what the storage tier couldn't do
-        - **Measurable**: Track timing and confidence for monitoring
-    
-    Attributes:
-        query: The original search string (ticker, name, identifier).
-        status: Resolution outcome (FOUND, NOT_FOUND, AMBIGUOUS, ERROR).
-        tier: Which storage tier provided this result.
-        entity: The resolved Entity object (if found).
-        security: The resolved Security object (if applicable).
-        listing: The resolved Listing object (if applicable).
-        candidates: All resolution candidates with scores.
-        as_of: Requested point-in-time date (for temporal queries).
-        as_of_honored: Whether as_of was actually applied.
-        warnings: Transparency warnings about limitations.
-        limits: Dict describing tier capability limitations.
-        redirect_chain: Entity IDs followed during redirect resolution.
-        confidence: Overall confidence score (0.0 to 1.0).
-        resolved_at: Timestamp when resolution was performed.
-        elapsed_ms: Time taken for resolution in milliseconds.
-    
-    Examples:
-        Simple successful resolution:
-        
-        >>> result = resolver.resolve("AAPL")
-        >>> result.found
-        True
-        >>> result.entity.primary_name
-        'Apple Inc.'
-        >>> result.confidence
-        1.0
-        
-        Resolution with ambiguity:
-        
-        >>> result = resolver.resolve("MS")
-        >>> result.status
-        <ResolutionStatus.AMBIGUOUS: 'ambiguous'>
-        >>> result.candidate_count
-        2
-        >>> for c in result.candidates:
-        ...     print(f"{c.entity_name}: {c.score:.2f}")
-        Morgan Stanley: 0.85
-        Microsoft Corporation: 0.80
-        
-        Temporal query with tier limitation:
-        
-        >>> result = resolver.resolve("META", as_of=date(2020, 1, 1))
-        >>> result.as_of_honored
-        False  # Tier 0 can't do temporal
-        >>> result.warnings
-        ['as_of parameter ignored: listing validity data not available']
-        >>> result.limits
-        {'temporal_resolution': 'current_only', 'fuzzy_matching': 'not_available'}
-    
-    See Also:
-        - ResolutionCandidate: Individual match candidates with scores
-        - Entity, Security, Listing: The resolved domain objects
-        - EntityResolver: The service that produces these results
+    Complete result of an entity resolution attempt with full transparency.
+
+    Manifesto
+    ---------
+    ResolutionResult is the flagship implementation of EntitySpine's Result[T]
+    pattern (Principle #3). It never silently fails or ignores parameters.
+    Instead, it transparently communicates:
+
+    - **What was found**: Entity, Security, Listing objects
+    - **How confident we are**: Numerical scores from 0.0-1.0
+    - **What we couldn't do**: Warnings about tier limitations
+    - **Why we matched**: Full match reason audit trail
+
+    This is critical for financial applications where understanding WHY a
+    match occurred is as important as the match itself. Regulators and auditors
+    need to trace resolution decisions back to their sources.
+
+    Architecture
+    ------------
+    ::
+
+        ┌─────────────────────────────────────────────────────────────────────┐
+        │                     ResolutionResult Structure                       │
+        │                                                                      │
+        │   ┌─────────────────────────────────────────────────────────────┐   │
+        │   │  Query: "AAPL"          Status: FOUND          Tier: T1    │   │
+        │   └─────────────────────────────────────────────────────────────┘   │
+        │                                │                                     │
+        │          ┌────────────────────┴────────────────────┐                │
+        │          ▼                                          ▼                │
+        │   ┌─────────────────┐                    ┌─────────────────────┐    │
+        │   │  Hydrated       │                    │  Candidates[]       │    │
+        │   │  ┌───────────┐  │                    │  ┌───────────────┐  │    │
+        │   │  │ Entity    │  │                    │  │ id, score,    │  │    │
+        │   │  │ Apple Inc.│  │                    │  │ match_reason  │  │    │
+        │   │  └───────────┘  │                    │  └───────────────┘  │    │
+        │   │  ┌───────────┐  │                    └─────────────────────┘    │
+        │   │  │ Security  │  │                                               │
+        │   │  │ AAPL Comm │  │                    ┌─────────────────────┐    │
+        │   │  └───────────┘  │                    │  Warnings[]         │    │
+        │   │  ┌───────────┐  │                    │  - as_of ignored    │    │
+        │   │  │ Listing   │  │                    │  - fuzzy unavail    │    │
+        │   │  │ XNAS:AAPL │  │                    └─────────────────────┘    │
+        │   │  └───────────┘  │                                               │
+        │   └─────────────────┘                    ┌─────────────────────┐    │
+        │                                          │  Limits{}           │    │
+        │   confidence: 1.0                        │  temporal: current  │    │
+        │   elapsed_ms: 15                         │  fuzzy: unavailable │    │
+        │                                          └─────────────────────┘    │
+        └─────────────────────────────────────────────────────────────────────┘
+
+    Features
+    --------
+    - **Tier-Honest**: limits dict documents what storage tier couldn't do
+    - **Temporal-Aware**: as_of queries with as_of_honored flag
+    - **Candidate-Based**: Multiple matches with scores for ambiguous queries
+    - **Redirect-Tracking**: redirect_chain shows entity ID traversal
+    - **Measurable**: elapsed_ms enables performance monitoring
+
+    Examples
+    --------
+    Simple successful resolution:
+
+    >>> result = resolver.resolve("AAPL")
+    >>> result.found
+    True
+    >>> result.entity.primary_name
+    'Apple Inc.'
+    >>> result.confidence
+    1.0
+
+    Checking for ambiguous results:
+
+    >>> result = resolver.resolve("MS")
+    >>> result.status
+    <ResolutionStatus.AMBIGUOUS: 'ambiguous'>
+    >>> for c in result.candidates:
+    ...     print(f"{c.score:.2f}")
+    0.85
+    0.80
+
+    Temporal query with tier limitations:
+
+    >>> result = resolver.resolve("META", as_of=date(2020, 1, 1))
+    >>> result.as_of_honored
+    False
+    >>> result.warnings
+    ['as_of parameter ignored: tier 0 has current data only']
+    >>> result.limits
+    {'temporal_resolution': 'current_only'}
+
+    Performance
+    -----------
+    - Memory: ~2-5KB per result (depending on hydrated objects)
+    - Serialization: All fields JSON-serializable
+    - Timing: elapsed_ms tracks resolution time for SLA monitoring
+
+    Guardrails
+    ----------
+    - Mutable (not frozen) because resolution builds incrementally
+    - status defaults to NOT_FOUND until resolution succeeds
+    - warnings list is append-only during resolution
+    - candidates sorted by score descending
+
+    Context
+    -------
+    ResolutionResult is the primary return type from EntityResolver.resolve().
+    The Tiered Storage design (Principle #5) means different tiers provide
+    different capabilities, all documented in the limits dict.
+
+    Tags
+    ----
+    :tag domain-model: Core domain concept
+    :tag resolution: Primary resolution output
+    :tag principle-3: Result[T] pattern implementation
+    :tag principle-5: Tier capability documentation
+    :tag transparency: Full audit trail
+
+    Doc-Types
+    ---------
+    :api-ref: entityspine.domain.resolution.ResolutionResult
+    :related: EntityResolver, ResolutionCandidate, ResolutionStatus
+
+    Attributes
+    ----------
+    query : str
+        The original search string (ticker, name, identifier).
+    status : ResolutionStatus
+        Resolution outcome (FOUND, NOT_FOUND, AMBIGUOUS, ERROR).
+    tier : ResolutionTier
+        Which storage tier provided this result (T0-T3).
+    entity : Entity | None
+        The resolved Entity object (if found).
+    security : Security | None
+        The resolved Security object (if applicable).
+    listing : Listing | None
+        The resolved Listing object (if applicable).
+    candidates : list[ResolutionCandidate]
+        All resolution candidates with scores (for ambiguous queries).
+    as_of : date | None
+        Requested point-in-time date (for temporal queries).
+    as_of_honored : bool
+        Whether as_of was actually applied by the storage tier.
+    warnings : list[str]
+        Transparency warnings about limitations.
+    limits : dict
+        Dict describing tier capability limitations.
+    redirect_chain : list[str]
+        Entity IDs followed during redirect resolution.
+    confidence : float
+        Overall confidence score (0.0 to 1.0).
+    resolved_at : datetime
+        Timestamp when resolution was performed.
+    elapsed_ms : float
+        Time taken for resolution in milliseconds.
     """
 
     # Query info

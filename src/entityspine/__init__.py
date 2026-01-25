@@ -193,7 +193,7 @@ EventType = TimelineEventType
 # =============================================================================
 from entityspine.sources import SECTickerSource
 
-__version__ = "0.3.3"
+__version__ = "2.3.4"
 
 __all__ = [
     "__version__",

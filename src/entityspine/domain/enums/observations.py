@@ -285,12 +285,23 @@ class ProvenanceKind(str, Enum):
     """
     Type of provenance source.
 
+    FILE: Data loaded from a file
+    API: Data fetched from an API
+    MANUAL: Manually entered data
+    DERIVED: Computed/derived from other data
     SEC_FILING: 10-K, 10-Q, 8-K, etc.
     VENDOR_SNAPSHOT: FactSet, Bloomberg data pull
     PRESS_RELEASE: Company press release
     BROKER_NOTE: Analyst research note
     """
 
+    # v2.3.4: Primary provenance kinds for audit trail
+    FILE = "file"
+    API = "api"
+    MANUAL = "manual"
+    DERIVED = "derived"
+
+    # Document-specific provenance (backward compatible)
     SEC_FILING = "sec_filing"
     VENDOR_SNAPSHOT = "vendor_snapshot"
     PRESS_RELEASE = "press_release"
@@ -298,6 +309,4 @@ class ProvenanceKind(str, Enum):
     COMPANY_WEBSITE = "company_website"
     EARNINGS_CALL = "earnings_call"
     INVESTOR_PRESENTATION = "investor_presentation"
-    API = "api"
-    MANUAL = "manual"
     OTHER = "other"

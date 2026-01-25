@@ -32,7 +32,7 @@ class RelationshipRepository:
     Handles both generic NodeRef relationships and entity-specific relationships.
     """
 
-    def __init__(self, connection: "SqliteConnectionManager"):
+    def __init__(self, connection: SqliteConnectionManager):
         """
         Initialize repository with connection manager.
         

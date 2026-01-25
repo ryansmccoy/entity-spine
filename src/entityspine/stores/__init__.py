@@ -19,8 +19,25 @@ ALL stores return domain dataclasses (entityspine.domain.*).
 Repository Protocols:
     The stores.protocols module defines reusable repository interfaces
     that can be implemented by any backend (SQLite, PostgreSQL, JSON, etc.).
+
+v2.3.4: Added audit trail stores:
+- ProvenanceStore: Source tracking
+- MergeEventStore: Entity merge history
+- ExplanationStore: Decision explanations
+- ResolutionRunStore: Batch execution tracking
+- SourceRecordStore: Raw data preservation
+- DataQualityStore: Quality check results
 """
 
+# v2.3.4: Audit trail stores
+from entityspine.stores.audit_stores import (
+    DataQualityStore,
+    ExplanationStore,
+    MergeEventStore,
+    ProvenanceStore,
+    ResolutionRunStore,
+    SourceRecordStore,
+)
 from entityspine.stores.json_store import JsonEntityStore
 from entityspine.stores.protocols import (
     AddressRepositoryProtocol,
@@ -45,6 +62,13 @@ __all__ = [
     # Stores
     "JsonEntityStore",
     "SqliteStore",
+    # v2.3.4: Audit trail stores
+    "ProvenanceStore",
+    "MergeEventStore",
+    "ExplanationStore",
+    "ResolutionRunStore",
+    "SourceRecordStore",
+    "DataQualityStore",
     # Repository Protocols
     "AddressRepositoryProtocol",
     "AssetRepositoryProtocol",

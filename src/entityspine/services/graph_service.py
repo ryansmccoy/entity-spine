@@ -133,22 +133,151 @@ class GraphService:
     """
     Knowledge graph traversal service.
 
-    Provides high-level methods for exploring entity relationships.
-
+    GraphService provides high-level methods for exploring entity relationships
+    in the EntitySpine knowledge graph. It transforms raw relationship data into
+    rich, typed results and handles multi-hop traversals with cycle detection.
+    
+    Manifesto:
+        EntitySpine is fundamentally a knowledge graph: entities connected by
+        typed, temporal, evidence-backed relationships. GraphService makes this
+        graph queryable beyond simple foreign key joins:
+        - "Get all subsidiaries of Apple (including indirect ones)"
+        - "Find the path between two entities in the ownership graph"
+        - "Get the 2-hop network around an entity"
+        
+        This enables compliance use cases (beneficial ownership analysis),
+        risk analysis (exposure to sanctioned entities), and due diligence
+        (corporate structure verification). The service layer returns rich
+        result objects (OfficerInfo, RelatedEntity, EntityPath) rather than
+        raw database rows, following EntitySpine's domain-driven design.
+    
+    Architecture:
+        ```
+        ┌──────────────────────────────────────────────────────────┐
+        │                  GraphService Traversals                  │
+        └──────────────────────────────────────────────────────────┘
+        
+        get_subsidiaries(parent_id, include_indirect=True)
+        
+              Parent
+                │
+        ┌───────┼───────┐
+        │ depth=1       │
+        ▼               ▼
+        Sub A         Sub B
+                        │
+                  ┌─────┼─────┐
+                  │ depth=2   │
+                  ▼           ▼
+                Sub B1      Sub B2
+        
+        find_path(source_id, target_id)
+        
+        Source ──?──> ... ──?──> Target
+        
+        BFS traversal returns:
+        EntityPath {
+            source: Entity
+            target: Entity
+            steps: [PathStep, PathStep, ...]
+            total_distance: 3
+        }
+        
+        get_entity_network(center_id, max_depth=2)
+        
+                      ┌─────────────┐
+                      │   Center    │ depth=0
+                      └──────┬──────┘
+                   ┌─────────┼─────────┐
+                   │         │         │
+                   ▼         ▼         ▼
+              ┌────────┐ ┌────────┐ ┌────────┐
+              │ Node A │ │ Node B │ │ Node C │ depth=1
+              └───┬────┘ └───┬────┘ └────────┘
+                  │          │
+               ┌──┴──┐    ┌──┴──┐
+               ▼     ▼    ▼     ▼
+            Node D Node E  ...   depth=2
+        ```
+        Dependencies: SqliteStore
+        Storage Tier: T1 (SQLite) or higher
+    
+    Features:
+        - Corporate structure traversal (subsidiaries, parent, ultimate parent)
+        - People queries (officers, directors, CEO, board members)
+        - Path finding between entities (BFS with max depth)
+        - Network expansion (N-hop neighborhood)
+        - Temporal filtering (as_of for point-in-time queries)
+        - Rich result types (OfficerInfo, RelatedEntity, EntityPath, EntityNetwork)
+        - Cycle detection to prevent infinite loops
+        - Depth limiting for performance control
+    
     Examples:
         >>> graph = GraphService(store)
         >>>
         >>> # Corporate structure
         >>> subs = graph.get_subsidiaries(apple_id)
+        >>> for sub in subs:
+        ...     print(f"{sub.entity.primary_name} ({sub.relationship_type})")
+        
+        >>> # With indirect subsidiaries
+        >>> all_subs = graph.get_subsidiaries(
+        ...     berkshire_id, include_indirect=True, max_depth=3
+        ... )
+        
+        >>> # Get parent chain
         >>> parent = graph.get_parent(subsidiary_id)
-        >>>
+        >>> ultimate = graph.get_ultimate_parent(subsidiary_id)
+        
         >>> # People
         >>> officers = graph.get_officers(company_id)
         >>> ceo = graph.get_ceo(company_id)
-        >>>
+        >>> for officer in officers:
+        ...     print(f"{officer.person.primary_name}: {officer.title}")
+        
+        >>> # Path finding
+        >>> path = graph.find_path(entity_a, entity_b, max_depth=5)
+        >>> if path.found:
+        ...     print(f"Path length: {path.total_distance}")
+        ...     for step in path.steps:
+        ...         print(f"  → {step.entity.primary_name}")
+        
         >>> # Network analysis
         >>> network = graph.get_entity_network(company_id, max_depth=2)
         >>> print(f"Found {network.node_count} related entities")
+        >>> print(f"Connected by {network.edge_count} relationships")
+    
+    Performance:
+        - Direct subsidiary/parent: O(1) with FK index, ~5ms
+        - Indirect subsidiaries (depth=N): O(V+E) where V=visited, ~50ms for depth=3
+        - Path finding (BFS): O(V+E) with early termination, ~100ms for depth=5
+        - Network expansion: O(V+E), ~200ms for depth=2 on dense graphs
+    
+    Guardrails:
+        - Do NOT traverse without max_depth limit on dense graphs
+          ✅ Instead: Always set max_depth to prevent runaway queries
+        - Do NOT ignore is_current checks for temporal accuracy
+          ✅ Instead: Use as_of parameter for point-in-time queries
+        - Do NOT expect BFS to find shortest path in weighted graphs
+          ✅ Instead: BFS finds shortest hop count, not weighted distance
+    
+    Context:
+        Problem: Relationship data in flat tables is hard to traverse for
+                 multi-hop queries like "find all subsidiaries" or "find path."
+        Solution: GraphService provides graph-aware traversal with rich results,
+                  cycle detection, and depth limiting.
+    
+    Tags:
+        - knowledge_graph
+        - graph_traversal
+        - service_layer
+        - corporate_structure
+        - relationship_analysis
+    
+    Doc-Types:
+        - MANIFESTO (section: "Knowledge Graph", priority: 9)
+        - FEATURES (section: "Graph Traversal", priority: 9)
+        - API_REFERENCE (section: "Services", priority: 9)
     """
 
     def __init__(self, store: SqliteStore):

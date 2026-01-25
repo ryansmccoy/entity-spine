@@ -23,7 +23,7 @@ class EventRepository:
     Note: Uses kg_events table (graph-native events, not py-sec-edgar events).
     """
 
-    def __init__(self, connection: "SqliteConnectionManager"):
+    def __init__(self, connection: SqliteConnectionManager):
         """
         Initialize repository with connection manager.
         

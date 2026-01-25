@@ -294,14 +294,122 @@ class DuplicateDetector:
 
 class ConflictResolver:
     """
-    Resolves conflicts between entities and claims.
-    
-    Strategies:
-    - KEEP_FIRST: Keep existing, discard incoming
-    - KEEP_LATEST: Replace with newer data
-    - KEEP_HIGHEST_CONFIDENCE: Use confidence scores
-    - MERGE: Combine records
-    - TEMPORAL_SPLIT: Create time-bounded records
+    Resolves conflicts between entities and claims using pluggable strategies.
+
+    Manifesto
+    ---------
+    ConflictResolver handles the inevitable disagreements in financial data.
+    When SEC says a company's name is "Apple Inc." and FactSet says "APPLE INC",
+    or when two sources claim different CIKs for the same entity, we need
+    systematic conflict resolution.
+
+    ConflictResolver provides multiple strategies for different scenarios:
+
+    - **KEEP_FIRST**: Trust existing data (conservative)
+    - **KEEP_LATEST**: Trust newest data (assumes data improves over time)
+    - **KEEP_HIGHEST_CONFIDENCE**: Use source reliability scores
+    - **MERGE**: Combine complementary data
+    - **TEMPORAL_SPLIT**: Both are correct at different times
+    - **MANUAL**: Flag for human review
+
+    This supports the Claims-Based Identity principle (Principle #2): instead
+    of silently picking a winner, we document the conflict and resolution
+    strategy for audit purposes.
+
+    Architecture
+    ------------
+    ::
+
+        ┌─────────────────────────────────────────────────────────────────────┐
+        │                    Conflict Resolution Pipeline                      │
+        │                                                                      │
+        │   Conflicting Claims              Strategy Selection                 │
+        │   ┌─────────────────────┐         ┌───────────────────────────────┐ │
+        │   │ Claim 1: CIK=320193 │         │ ConflictResolver              │ │
+        │   │ source: SEC         │────────▶│                               │ │
+        │   │ confidence: 0.99    │         │ Strategy: KEEP_HIGHEST_CONF   │ │
+        │   ├─────────────────────┤         │                               │ │
+        │   │ Claim 2: CIK=320193 │         │ ┌───────────────────────────┐ │ │
+        │   │ source: FactSet     │         │ │ 1. Sort by confidence     │ │ │
+        │   │ confidence: 0.85    │         │ │ 2. SEC wins (0.99 > 0.85) │ │ │
+        │   └─────────────────────┘         │ │ 3. Return (winner, losers)│ │ │
+        │                                   │ └───────────────────────────┘ │ │
+        │                                   └───────────────┬───────────────┘ │
+        │                                                   │                  │
+        │                                                   ▼                  │
+        │   Resolution Result                                                  │
+        │   ┌─────────────────────────────────────────────────────────────┐   │
+        │   │ Winner: Claim 1 (SEC, confidence=0.99)                       │   │
+        │   │ Losers: [Claim 2] (archived, not deleted)                    │   │
+        │   │ ConflictRecord created for audit                             │   │
+        │   └─────────────────────────────────────────────────────────────┘   │
+        └─────────────────────────────────────────────────────────────────────┘
+
+    Features
+    --------
+    - **Pluggable Strategies**: Different strategies for different use cases
+    - **Extensible**: Add custom strategies via _strategy_handlers dict
+    - **Non-Destructive**: Losers are returned, not deleted (caller decides)
+    - **Typed Returns**: Tuple of (winner, losers) for clear semantics
+    - **Claim-Aware**: Special handling for IdentifierClaim conflicts
+
+    Examples
+    --------
+    Resolving duplicate claims with highest confidence:
+
+    >>> resolver = ConflictResolver(
+    ...     default_strategy=ResolutionStrategy.KEEP_HIGHEST_CONFIDENCE
+    ... )
+    >>> claims = [claim_sec, claim_factset]  # Both claim same identifier
+    >>> winner, losers = resolver.resolve_duplicate_claims(claims)
+    >>> winner.source_system
+    'sec'  # Higher confidence wins
+
+    Resolving with KEEP_LATEST strategy:
+
+    >>> resolver = ConflictResolver(
+    ...     default_strategy=ResolutionStrategy.KEEP_LATEST
+    ... )
+    >>> winner, losers = resolver.resolve_duplicate_claims(claims)
+    >>> winner.created_at > losers[0].created_at
+    True
+
+    Override strategy per-call:
+
+    >>> winner, losers = resolver.resolve_duplicate_claims(
+    ...     claims,
+    ...     strategy=ResolutionStrategy.KEEP_FIRST,
+    ... )
+
+    Performance
+    -----------
+    - Sorting: O(n log n) where n = number of conflicting claims
+    - Memory: O(n) for returning losers list
+    - Typical: <1ms for claim resolution (usually 2-5 claims)
+
+    Guardrails
+    ----------
+    - Raises ValueError if no claims provided
+    - Single claim returns immediately (no conflict)
+    - Losers are returned, not deleted (caller controls persistence)
+
+    Context
+    -------
+    ConflictResolver works with DuplicateDetector (finds conflicts),
+    ConflictRecord (audit trail), and ConflictStore (persistence).
+    The DataQualityScorer can inform confidence scores.
+
+    Tags
+    ----
+    :tag service: Conflict resolution service
+    :tag principle-2: Claims-based identity
+    :tag strategy-pattern: Pluggable resolution strategies
+    :tag audit: Conflict audit trail
+
+    Doc-Types
+    ---------
+    :api-ref: entityspine.services.conflicts.ConflictResolver
+    :related: DuplicateDetector, ConflictRecord, ResolutionStrategy
     """
 
     def __init__(self, default_strategy: ResolutionStrategy = ResolutionStrategy.KEEP_HIGHEST_CONFIDENCE):

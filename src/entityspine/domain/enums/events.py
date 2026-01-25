@@ -176,3 +176,58 @@ class CaseStatus(str, Enum):
     DISMISSED = "dismissed"
     APPEALED = "appealed"
     UNKNOWN = "unknown"
+
+
+class DataQualitySeverity(str, Enum):
+    """
+    Severity level for data quality rules and results.
+
+    Used in DataQualityRule and DataQualityResult.
+
+    Examples:
+        >>> DataQualitySeverity.WARNING.value
+        'warning'
+    """
+
+    INFO = "info"  # Informational, no action required
+    WARNING = "warning"  # May need attention
+    ERROR = "error"  # Requires action
+    CRITICAL = "critical"  # Blocks processing
+
+
+class RunStatus(str, Enum):
+    """
+    Status of a resolution or processing run.
+
+    Used in ResolutionRun to track batch execution state.
+
+    Examples:
+        >>> RunStatus.COMPLETED.value
+        'completed'
+    """
+
+    PENDING = "pending"  # Queued, not started
+    RUNNING = "running"  # Currently executing
+    COMPLETED = "completed"  # Finished successfully
+    FAILED = "failed"  # Finished with error
+    CANCELLED = "cancelled"  # Manually stopped
+
+
+class DecisionType(str, Enum):
+    """
+    Type of resolution decision for audit explanations.
+
+    Used in Explanation to categorize what kind of decision was made.
+
+    Examples:
+        >>> DecisionType.MATCH.value
+        'match'
+    """
+
+    MATCH = "match"  # Identifiers matched to entity
+    REJECT = "reject"  # Candidate rejected
+    MERGE = "merge"  # Entities merged
+    SPLIT = "split"  # Entity split
+    CREATE = "create"  # New entity created
+    UPDATE = "update"  # Entity updated
+    MANUAL = "manual"  # Manual intervention

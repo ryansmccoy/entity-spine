@@ -56,22 +56,148 @@ EventType = TimelineEventType
 
 class TimelineService:
     """
-    Service for tracking entity history and temporal queries.
+    Service for tracking entity history and temporal point-in-time queries.
 
-    Examples:
-        >>> timeline = TimelineService(store)
-        >>>
-        >>> # Get full timeline
-        >>> events = timeline.get_entity_timeline(entity_id)
-        >>> for event in events:
-        ...     print(f"{event.event_date}: {event.description}")
-        >>>
-        >>> # Get state at point in time
-        >>> snapshot = timeline.get_entity_at(entity_id, date(2020, 1, 1))
-        >>>
-        >>> # Compare two dates
-        >>> diff = timeline.compare_states(entity_id, date(2019, 1, 1), date(2024, 1, 1))
-        >>> print(f"Changes detected: {diff.has_changes}")
+    Manifesto
+    ---------
+    TimelineService answers the question: "What did we know about this entity
+    at a specific point in time?" Financial analysis often requires historical
+    context:
+
+    - **Backtesting**: What was Apple's ticker on 2010-01-01?
+    - **Compliance**: Who were the officers when this trade occurred?
+    - **Analytics**: How has this company's identifier graph evolved?
+
+    TimelineService aggregates events from multiple sources (entities, roles,
+    relationships, listings, identifiers) into a unified chronological view.
+    It also supports point-in-time snapshots and state comparison.
+
+    This supports temporal awareness throughout EntitySpine: understanding
+    that facts change over time and historical queries need historical answers.
+
+    Architecture
+    ------------
+    ::
+
+        ┌─────────────────────────────────────────────────────────────────────┐
+        │                     Timeline Service Architecture                    │
+        │                                                                      │
+        │   Event Sources                   TimelineService                    │
+        │   ┌─────────────┐                 ┌───────────────────────────────┐ │
+        │   │ Entity      │─────┐           │                               │ │
+        │   │ created_at  │     │           │  get_entity_timeline()        │ │
+        │   └─────────────┘     │           │  ┌─────────────────────────┐  │ │
+        │   ┌─────────────┐     │           │  │ 2020-01-15: CREATED    │  │ │
+        │   │ Roles       │─────┼──────────▶│  │ 2020-06-01: ROLE_ADDED │  │ │
+        │   │ valid_from  │     │           │  │ 2021-03-15: TICKER_CHG │  │ │
+        │   └─────────────┘     │           │  │ 2023-01-01: ROLE_ENDED │  │ │
+        │   ┌─────────────┐     │           │  └─────────────────────────┘  │ │
+        │   │ Listings    │─────┤           │                               │ │
+        │   │ listed_date │     │           │  get_entity_at(date)          │ │
+        │   └─────────────┘     │           │  ┌─────────────────────────┐  │ │
+        │   ┌─────────────┐     │           │  │ EntitySnapshot          │  │ │
+        │   │ Claims      │─────┘           │  │ - state at 2020-06-01  │  │ │
+        │   │ created_at  │                 │  │ - roles: [CEO, CFO]    │  │ │
+        │   └─────────────┘                 │  │ - listings: [XNAS]     │  │ │
+        │                                   │  └─────────────────────────┘  │ │
+        │                                   │                               │ │
+        │                                   │  compare_states(d1, d2)       │ │
+        │                                   │  ┌─────────────────────────┐  │ │
+        │                                   │  │ StateDiff               │  │ │
+        │                                   │  │ - name_changed: False  │  │ │
+        │                                   │  │ - roles_added: [COO]   │  │ │
+        │                                   │  │ - roles_removed: []    │  │ │
+        │                                   │  └─────────────────────────┘  │ │
+        │                                   └───────────────────────────────┘ │
+        └─────────────────────────────────────────────────────────────────────┘
+
+    Features
+    --------
+    - **Unified Timeline**: Aggregates events from all entity relationships
+    - **Event Filtering**: Filter by date range or event types
+    - **Point-in-Time Snapshots**: Reconstruct entity state at any date
+    - **State Comparison**: Diff two points in time to see what changed
+    - **Provenance Tracking**: Events include source_system attribution
+
+    Examples
+    --------
+    Getting complete entity timeline:
+
+    >>> timeline = TimelineService(store)
+    >>> events = timeline.get_entity_timeline(entity_id)
+    >>> for event in events:
+    ...     print(f"{event.event_date}: {event.description}")
+    2020-01-15: Entity created: Apple Inc.
+    2020-06-01: Officer appointed: Tim Cook (CEO)
+    2021-03-15: Ticker changed: AAPL → AAPL (reconfirmed)
+
+    Filtering timeline by date range:
+
+    >>> events = timeline.get_entity_timeline(
+    ...     entity_id,
+    ...     start_date=date(2020, 1, 1),
+    ...     end_date=date(2021, 12, 31),
+    ... )
+
+    Filtering by event type:
+
+    >>> role_events = timeline.get_entity_timeline(
+    ...     entity_id,
+    ...     event_types=[TimelineEventType.ROLE_ADDED, TimelineEventType.ROLE_ENDED],
+    ... )
+
+    Getting entity state at a point in time:
+
+    >>> snapshot = timeline.get_entity_at(entity_id, date(2020, 6, 15))
+    >>> snapshot.primary_name
+    'Apple Inc.'
+    >>> snapshot.active_roles
+    ['CEO', 'CFO']
+
+    Comparing two points in time:
+
+    >>> diff = timeline.compare_states(
+    ...     entity_id,
+    ...     date(2020, 1, 1),
+    ...     date(2024, 1, 1),
+    ... )
+    >>> diff.has_changes
+    True
+    >>> diff.roles_added
+    ['COO']
+
+    Performance
+    -----------
+    - Timeline Query: O(e) where e = number of events for entity
+    - Snapshot: O(r + l + c) for roles, listings, claims
+    - Comparison: O(s1 + s2) for two snapshot sizes
+    - Typical: <100ms for full timeline of active company
+
+    Guardrails
+    ----------
+    - Events sorted by date (ascending) by default
+    - Snapshot returns None if entity not found
+    - Date range filters are inclusive
+    - Event types validated against TimelineEventType enum
+
+    Context
+    -------
+    TimelineService integrates with all temporal aspects of EntitySpine:
+    Entity (created_at), RoleAssignment (valid_from/valid_to), Listing
+    (listed_date), IdentifierClaim (created_at). Uses domain models from
+    domain/timeline.py (TimelineEvent, EntitySnapshot, StateDiff).
+
+    Tags
+    ----
+    :tag service: Timeline and history service
+    :tag temporal: Point-in-time queries
+    :tag audit: Historical state tracking
+    :tag analytics: Entity evolution analysis
+
+    Doc-Types
+    ---------
+    :api-ref: entityspine.services.timeline.TimelineService
+    :related: TimelineEvent, EntitySnapshot, StateDiff, TimelineEventType
     """
 
     def __init__(self, store: SqliteStore):

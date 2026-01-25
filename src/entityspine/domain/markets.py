@@ -87,61 +87,194 @@ from entityspine.domain.validators import (
 @dataclass(frozen=True, slots=True)
 class Exchange:
     """
-    A securities exchange or trading venue.
-    
-    Represents venues where securities trade, including national exchanges,
-    ATSs, dark pools, and foreign exchanges.
-    
-    Key identifiers:
-    - MIC: Market Identifier Code (ISO 10383) - primary identifier
-    - Operating MIC: For market segments (see ExchangeSegment for structured)
-    - SEC File Number: For SEC-registered exchanges
-    
-    Time Semantics:
-        valid_from: When exchange started operating (business time)
-        valid_to: When exchange ceased operating (None if still active)
-        captured_at: When we ingested this record
-        created_at/updated_at: Record metadata
-    
-    Attributes:
-        exchange_id: ULID primary key.
-        name: Full legal name of the exchange.
-        short_name: Common abbreviated name (e.g., "NYSE", "NASDAQ").
-        mic: Market Identifier Code (ISO 10383).
-        operating_mic: Operating MIC for market segments.
-        exchange_type: Type of exchange/venue.
-        country_code: ISO 3166-1 alpha-2 country code.
-        city: City where headquartered.
-        website: Exchange website URL.
-        status: Operational status.
-        
-        # Regulatory
-        sec_file_number: SEC registration file number.
-        is_sec_registered: Whether registered with SEC as exchange.
-        is_sip_participant: Whether participates in SIP (CTA/CQS/UTP).
-        
-        # Trading info
-        asset_classes: Asset classes traded.
-        trading_currency: Primary trading currency.
-        timezone: Timezone for trading hours.
-        
-        # Parent/subsidiary
-        parent_entity_id: FK to parent Entity (for ownership).
-        operator_entity_id: FK to operating entity.
-        
-        # Validity (business time)
-        valid_from: When exchange started operating.
-        valid_to: When exchange ceased operating.
-        
-        # Provenance
-        source_system: Where this record came from.
-        source_ref: Reference in source system.
-        captured_at: When we captured this record.
-        created_at: Record creation timestamp.
-        updated_at: Record update timestamp.
-        
-        # Claims compatibility
-        claim_target_id: Optional ID for linking to IdentifierClaims.
+    A securities exchange or trading venue with full regulatory metadata.
+
+    Manifesto
+    ---------
+    Exchange models WHERE securities trade - the physical and electronic venues
+    that match buyers and sellers. In EntitySpine's graph model, Exchange sits
+    at the intersection of:
+
+    - **Listings**: Securities trade ON exchanges (Listing.mic → Exchange.mic)
+    - **Entities**: Exchanges are OPERATED BY entities (operator_entity_id)
+    - **Clearinghouses**: Trades clear THROUGH clearing relationships
+    - **Broker-Dealers**: Members CONNECT to exchanges via memberships
+
+    This supports the "TICKER LIVES ON LISTING" principle by providing the
+    venue context that makes a ticker meaningful. "AAPL" alone is ambiguous;
+    "XNAS:AAPL" (NASDAQ) is precise.
+
+    Architecture
+    ------------
+    ::
+
+        ┌─────────────────────────────────────────────────────────────────────┐
+        │                     Exchange in the Graph                            │
+        │                                                                      │
+        │   Entity (Operator)                                                  │
+        │   ┌──────────────────┐                                               │
+        │   │ Nasdaq, Inc.     │                                               │
+        │   │ CIK: 1120193     │◀──────────┐                                   │
+        │   └──────────────────┘           │ operator_entity_id                │
+        │                                   │                                   │
+        │                           ┌───────┴───────┐                          │
+        │                           │   Exchange    │                          │
+        │                           │ ┌───────────┐ │                          │
+        │                           │ │ MIC: XNAS │ │                          │
+        │                           │ │ NASDAQ    │ │                          │
+        │                           │ │ SEC Reg   │ │                          │
+        │                           │ └───────────┘ │                          │
+        │                           └───────┬───────┘                          │
+        │                                   │                                   │
+        │          ┌────────────────────────┼────────────────────────┐         │
+        │          │                        │                        │         │
+        │          ▼                        ▼                        ▼         │
+        │   ┌─────────────┐          ┌─────────────┐          ┌─────────────┐  │
+        │   │  Listing    │          │  Listing    │          │  Listing    │  │
+        │   │ AAPL        │          │ MSFT        │          │ GOOGL       │  │
+        │   │ Apple Inc.  │          │ Microsoft   │          │ Alphabet    │  │
+        │   └─────────────┘          └─────────────┘          └─────────────┘  │
+        │                                                                      │
+        │   Key: MIC (ISO 10383) uniquely identifies venues worldwide          │
+        └─────────────────────────────────────────────────────────────────────┘
+
+    Features
+    --------
+    - **MIC Identification**: ISO 10383 Market Identifier Code as primary key
+    - **Operating MIC**: Supports MIC hierarchy (XNGS → XNAS)
+    - **SEC Registration**: Tracks SEC file number for US exchanges
+    - **SIP Participation**: CTA/CQS/UTP participant flags
+    - **Asset Classes**: What trades here (equity, options, bonds)
+    - **Temporal Validity**: valid_from/valid_to for exchange lifecycle
+    - **Operator Linkage**: FK to operating entity for ownership queries
+
+    Examples
+    --------
+    Creating a US national securities exchange:
+
+    >>> nyse = Exchange(
+    ...     name="New York Stock Exchange",
+    ...     mic="XNYS",
+    ...     short_name="NYSE",
+    ...     exchange_type=ExchangeType.NATIONAL_SECURITIES_EXCHANGE,
+    ...     country_code="US",
+    ...     sec_file_number="1-00000",
+    ...     is_sec_registered=True,
+    ...     is_sip_participant=True,
+    ... )
+    >>> nyse.mic
+    'XNYS'
+
+    Creating a foreign exchange:
+
+    >>> lse = Exchange(
+    ...     name="London Stock Exchange",
+    ...     mic="XLON",
+    ...     country_code="GB",
+    ...     exchange_type=ExchangeType.NATIONAL_SECURITIES_EXCHANGE,
+    ...     timezone="Europe/London",
+    ...     trading_currency="GBP",
+    ... )
+
+    Creating an ATS (dark pool):
+
+    >>> ats = Exchange(
+    ...     name="IEX Exchange",
+    ...     mic="IEXG",
+    ...     exchange_type=ExchangeType.ATS,
+    ...     is_sec_registered=True,
+    ... )
+
+    Performance
+    -----------
+    - Memory: ~500 bytes per exchange (frozen, slotted)
+    - Lookup: MIC indexed for O(1) access
+    - Reference Data: ~300 global exchanges in typical deployment
+
+    Guardrails
+    ----------
+    - MIC validated to ISO 10383 format (4 uppercase letters)
+    - country_code validated to ISO 3166-1 alpha-2
+    - valid_from must precede valid_to when both present
+    - Frozen dataclass ensures thread-safety
+
+    Context
+    -------
+    Exchange works with ExchangeSegment for MIC hierarchy (XNGS segment
+    of XNAS), with Listing for venue placement, and with
+    ExchangeMembership for broker connectivity.
+
+    Time Semantics (v2.3.1):
+        - valid_from/valid_to: When the fact was TRUE IN THE WORLD
+        - captured_at: When we LEARNED about it (ingestion time)
+        - created_at/updated_at: Record metadata only
+
+    Tags
+    ----
+    :tag domain-model: Core domain concept
+    :tag market-structure: Financial market infrastructure
+    :tag iso-10383: MIC standard implementation
+    :tag reference-data: Relatively static lookup data
+
+    Doc-Types
+    ---------
+    :api-ref: entityspine.domain.markets.Exchange
+    :related: Listing, ExchangeSegment, BrokerDealer, Clearinghouse
+
+    Attributes
+    ----------
+    name : str
+        Full legal name of the exchange.
+    mic : str
+        Market Identifier Code (ISO 10383) - primary identifier.
+    exchange_id : str
+        ULID primary key (auto-generated).
+    short_name : str | None
+        Common abbreviated name (e.g., "NYSE", "NASDAQ").
+    legal_name : str | None
+        Full legal entity name.
+    operating_mic : str | None
+        Operating MIC for market segments (prefer ExchangeSegment).
+    sec_file_number : str | None
+        SEC registration file number (for US exchanges).
+    lei : str | None
+        Legal Entity Identifier (if available).
+    exchange_type : ExchangeType
+        Type of exchange/venue (NATIONAL, ATS, ECN, etc.).
+    status : ExchangeStatus
+        Operational status (ACTIVE, SUSPENDED, DEREGISTERED).
+    country_code : str
+        ISO 3166-1 alpha-2 country code.
+    jurisdiction : str | None
+        Regulatory jurisdiction (may differ from country).
+    city : str | None
+        City where headquartered.
+    timezone : str
+        IANA timezone for trading hours.
+    is_sec_registered : bool
+        Whether registered with SEC as exchange.
+    is_sip_participant : bool
+        Whether participates in SIP (CTA/CQS/UTP).
+    is_finra_trf : bool
+        Whether this is a Trade Reporting Facility.
+    asset_classes : tuple[AssetClass, ...]
+        Asset classes traded (EQUITY, OPTIONS, BONDS, etc.).
+    trading_currency : str
+        Primary trading currency (ISO 4217).
+    parent_entity_id : str | None
+        FK to parent Entity (for ownership relationships).
+    operator_entity_id : str | None
+        FK to operating entity.
+    operator_name : str | None
+        Name of operating entity.
+    valid_from : date | None
+        When exchange started operating (business time).
+    valid_to : date | None
+        When exchange ceased operating (None if still active).
+    opened_on : date | None
+        When exchange first opened (alias for clarity).
+    closed_on : date | None
+        When exchange permanently closed (alias for clarity).
     """
 
     # Required fields
@@ -452,22 +585,141 @@ class BrokerDealer:
     """
     A broker-dealer registered with FINRA/SEC.
     
-    Models broker-dealer firms including their regulatory status,
-    business lines, and organizational relationships.
+    BrokerDealer models the regulated firms that execute trades for customers
+    and/or their own accounts. In the market structure graph, broker-dealers
+    connect customers to exchanges and clearing infrastructure.
     
-    Key identifiers:
-    - CRD Number: Central Registration Depository number (primary)
-    - SEC File Number: SEC registration number
+    Manifesto:
+        Understanding market structure requires modeling WHO can trade WHERE and HOW
+        trades are processed. BrokerDealer is the gateway between investors and
+        markets:
+        
+        - **Retail investors** access markets THROUGH broker-dealers
+        - **Institutional traders** route orders VIA broker-dealer memberships
+        - **Trade execution** flows through exchange memberships (MPID)
+        - **Trade settlement** flows through clearing relationships
+        
+        EntitySpine models this as a graph: Entity (legal identity) → BrokerDealer
+        (regulatory registration) → ExchangeMembership (trading rights) → Exchange
+        (venue). This enables queries like "which firms can trade options on CBOE?"
+        or "trace the clearing chain for this trade."
+    
+    Architecture:
+        ```
+        ┌──────────────────────────────────────────────────────────┐
+        │            Broker-Dealer in Market Structure             │
+        └──────────────────────────────────────────────────────────┘
+        
+        Customer Order Flow:
+        
+        ┌────────────┐     ┌─────────────────┐     ┌──────────────┐
+        │  Customer  │────►│  BrokerDealer   │────►│   Exchange   │
+        │  (Retail)  │     │  (CRD: 12345)   │     │   (XNYS)     │
+        └────────────┘     │                 │     └──────────────┘
+                           │  Memberships:   │
+                           │  ├─ NYSE (DMM)  │     ┌──────────────┐
+                           │  ├─ NASDAQ      │────►│   Exchange   │
+                           │  └─ CBOE        │     │   (XNAS)     │
+                           └────────┬────────┘     └──────────────┘
+                                    │
+                           Clearing │
+                                    ▼
+                           ┌─────────────────┐
+                           │  Clearinghouse  │
+                           │    (NSCC)       │
+                           └─────────────────┘
+        
+        Introducing vs Clearing Broker:
+        ┌─────────────────┐     ┌─────────────────┐     ┌────────────┐
+        │   Introducing   │────►│    Clearing     │────►│Clearinghouse│
+        │   BD (front)    │     │    BD (back)    │     │   (DTCC)   │
+        │   CRD: 54321    │     │   CRD: 12345    │     │            │
+        └─────────────────┘     └─────────────────┘     └────────────┘
+        ```
+        Dependencies: validators.py (CRD normalization)
+        Storage Tier: T0 (JSON), T1 (SQLite), T2 (DuckDB), T3 (PostgreSQL)
+    
+    Features:
+        - **CRD Identification**: FINRA Central Registration Depository number
+        - **SEC Registration**: SEC file number tracking (8-XXXXX format)
+        - **Clearing Relationships**: Self-clearing vs fully-disclosed
+        - **Exchange Memberships**: Via ExchangeMembership model
+        - **Business Model**: Retail, institutional, clearing, introducing
+        - **Temporal Validity**: valid_from/valid_to for BD lifecycle
+        - **Entity Linkage**: FK to Entity for legal identity joins
+    
+    Examples:
+        >>> # Full-service clearing broker
+        >>> goldman = BrokerDealer(
+        ...     name="Goldman Sachs & Co. LLC",
+        ...     crd_number="361",
+        ...     bd_type=BrokerDealerType.FULL_SERVICE,
+        ...     clears_for_self=True,
+        ...     clears_for_others=True,
+        ...     sec_file_number="8-129",
+        ... )
+        
+        >>> # Introducing broker (uses correspondent clearing)
+        >>> retail_bd = BrokerDealer(
+        ...     name="Retail Trading Inc.",
+        ...     crd_number="123456",
+        ...     bd_type=BrokerDealerType.INTRODUCING,
+        ...     clearing_firm_id=goldman.broker_dealer_id,
+        ...     accepts_retail=True,
+        ... )
+    
+    Performance:
+        - Memory: ~800 bytes per broker-dealer (frozen, slotted)
+        - Lookup: CRD indexed for O(1) access
+        - Reference Data: ~3,500 active US broker-dealers
+    
+    Guardrails:
+        - Do NOT confuse BrokerDealerStatus with MembershipStatus
+          ✅ BrokerDealerStatus = entity lifecycle (ACTIVE, TERMINATED)
+          ✅ MembershipStatus = exchange membership (SUSPENDED, REVOKED)
+        - Do NOT use this model for investment advisers
+          ✅ BrokerDealers execute trades; IAs provide advice (different regs)
+        - CRD validated to numeric format (leading zeros allowed)
+        - SEC file number validated to 8-XXXXX format
+    
+    Context:
+        Problem: Trade routing and compliance require understanding which firms
+                 can trade where, under what restrictions, and how trades clear.
+        Solution: BrokerDealer + ExchangeMembership + ClearingMembership models
+                  the full market structure graph for regulatory compliance.
+        
+        Comparisons:
+        | Concept           | BrokerDealer        | Investment Adviser   |
+        |-------------------|---------------------|----------------------|
+        | Regulator         | FINRA + SEC         | SEC + State          |
+        | Primary ID        | CRD Number          | IARD Number          |
+        | Activity          | Execute trades      | Investment advice    |
+        | Customer Assets   | Held at clearing    | Held at custodian    |
+    
+    Tags:
+        - market_structure
+        - domain_model
+        - broker_dealer
+        - finra_regulated
+        - clearing_infrastructure
+        - stdlib_only
+    
+    Doc-Types:
+        - MANIFESTO (section: "Market Infrastructure", priority: 9)
+        - FEATURES (section: "Broker-Dealer Model", priority: 8)
+        - API_REFERENCE (section: "Market Models", priority: 8)
+    
+    See Also:
+        - Entity: The legal identity of the broker-dealer firm
+        - ExchangeMembership: Where the BD can trade
+        - ClearingMembership: How the BD clears trades
+        - BrokerDealerRegistration: State and federal registrations
     
     Time Semantics:
-        valid_from: When BD registration became effective
-        valid_to: When BD registration terminated
-        captured_at: When we ingested this record
-    
-    Note on status:
-        BrokerDealerStatus is used ONLY for the BD entity lifecycle.
-        For membership status on exchanges, use ExchangeMembership.status (MembershipStatus).
-        For registration status in jurisdictions, use BrokerDealerRegistration.status (RegistrationStatus).
+        - valid_from: When BD registration became effective (business time)
+        - valid_to: When BD registration terminated (business time)
+        - captured_at: When we ingested this record (system time)
+        - created_at/updated_at: Record metadata only
     
     Attributes:
         broker_dealer_id: ULID primary key.
@@ -475,30 +727,18 @@ class BrokerDealer:
         dba_name: Doing business as name.
         crd_number: FINRA CRD number (primary identifier).
         sec_file_number: SEC broker-dealer file number.
-        
-        # Classification
         bd_type: Type of broker-dealer.
-        status: Entity lifecycle status (NOT membership or registration status).
-        
-        # Business info
+        status: Entity lifecycle status (NOT membership status).
         clearing_arrangement: How trades are cleared.
         clears_for_self: Whether self-clearing.
         clears_for_others: Whether clears for other firms.
-        
-        # Relationships
         entity_id: FK to Entity (the legal entity).
         clearing_firm_id: FK to clearing firm BrokerDealer.
         parent_bd_id: FK to parent broker-dealer.
-        
-        # Validity (business time)
         valid_from: When registration became effective.
         valid_to: When registration terminated.
-        
-        # Provenance
         source_system: Where this record came from.
         captured_at: When captured.
-        
-        # Claims compatibility
         claim_target_id: Optional ID for linking to IdentifierClaims.
     """
 
@@ -772,45 +1012,153 @@ class BrokerDealerDisciplinaryAction:
 @dataclass(frozen=True, slots=True)
 class Clearinghouse:
     """
-    A clearing organization or central counterparty.
+    A clearing organization or central counterparty (CCP).
     
-    Models clearing agencies, CCPs, and securities depositories.
+    Clearinghouse models the critical post-trade infrastructure that guarantees
+    trade settlement by becoming the buyer to every seller and seller to every
+    buyer. This "novation" process is fundamental to reducing counterparty risk
+    in financial markets.
+    
+    Manifesto:
+        Every trade in modern markets flows through clearing and settlement
+        infrastructure. Understanding this flow is essential for:
+        
+        - **Risk Management**: CCPs net exposures and manage collateral
+        - **Regulatory Compliance**: SIFMU designation carries systemic importance
+        - **Trade Lifecycle**: T+1/T+2 settlement cycles affect operations
+        - **Market Access**: Clearing membership determines who can clear
+        
+        EntitySpine models the clearing chain: BrokerDealer → ClearingMembership →
+        Clearinghouse → Settlement. This enables queries like "which firms are
+        clearing members of NSCC?" or "trace the settlement flow for this trade."
+    
+    Architecture:
+        ```
+        ┌──────────────────────────────────────────────────────────┐
+        │          Clearinghouse in the Settlement Chain           │
+        └──────────────────────────────────────────────────────────┘
+        
+        Trade Execution → Clearing → Settlement
+        
+        ┌──────────┐  ┌──────────┐     ┌─────────────────┐     ┌──────────────┐
+        │  Buyer   │  │  Seller  │     │    Exchange     │     │ Clearinghouse│
+        │   BD     │  │   BD     │     │    (XNYS)       │     │   (NSCC)     │
+        └────┬─────┘  └────┬─────┘     └────────┬────────┘     └──────┬───────┘
+             │             │                    │                      │
+             │    Trade Matched                 │                      │
+             └─────────────┴────────────────────►                      │
+                                                │   Trade Novation     │
+                                                └──────────────────────►
+                                                                       │
+                                                           ┌───────────┴──────────┐
+                                                           │      Netting         │
+                                                           │  (reduce exposures)  │
+                                                           └───────────┬──────────┘
+                                                                       │
+        ┌────────────────────────────────────────────────────────────────┐
+        │                      DTCC Structure                             │
+        │  ┌───────────┐    ┌───────────┐    ┌───────────┐              │
+        │  │   NSCC    │    │    DTC    │    │   FICC    │              │
+        │  │ (equities)│    │(depository)│   │  (fixed)  │              │
+        │  └───────────┘    └───────────┘    └───────────┘              │
+        └────────────────────────────────────────────────────────────────┘
+        ```
+        Dependencies: validators.py (SEC file number normalization)
+        Storage Tier: T0 (JSON), T1 (SQLite), T2 (DuckDB), T3 (PostgreSQL)
+    
+    Features:
+        - **CCP Types**: Clearinghouses, depositories, and CCPs
+        - **SEC Registration**: SEC file number for registered clearing agencies
+        - **SIFMU Status**: Systemically Important Financial Market Utility flag
+        - **Asset Classes**: What instruments are cleared (equities, options, fixed)
+        - **Settlement Cycle**: T+1, T+2, or other settlement timing
+        - **Temporal Validity**: valid_from/valid_to for clearinghouse lifecycle
+        - **Entity Linkage**: FK to Entity for legal identity joins
     
     Examples:
-    - DTCC (Depository Trust & Clearing Corporation)
-    - NSCC (National Securities Clearing Corporation)
-    - OCC (Options Clearing Corporation)
-    - CME Clearing
+        >>> # National Securities Clearing Corporation
+        >>> nscc = Clearinghouse(
+        ...     name="National Securities Clearing Corporation",
+        ...     short_name="NSCC",
+        ...     clearinghouse_type=ClearinghouseType.CENTRAL_COUNTERPARTY,
+        ...     is_sec_registered=True,
+        ...     is_systemically_important=True,
+        ...     asset_classes=(AssetClass.EQUITY,),
+        ...     settlement_cycle="T+1",
+        ... )
+        
+        >>> # Options Clearing Corporation
+        >>> occ = Clearinghouse(
+        ...     name="The Options Clearing Corporation",
+        ...     short_name="OCC",
+        ...     clearinghouse_type=ClearinghouseType.CENTRAL_COUNTERPARTY,
+        ...     asset_classes=(AssetClass.OPTIONS, AssetClass.FUTURES),
+        ... )
+    
+    Performance:
+        - Memory: ~600 bytes per clearinghouse (frozen, slotted)
+        - Reference Data: ~50 global CCPs in typical deployment
+    
+    Guardrails:
+        - Do NOT confuse ClearingStatus with MembershipStatus
+          ✅ ClearingStatus = clearinghouse lifecycle (ACTIVE, SUSPENDED)
+          ✅ MembershipStatus = clearing membership (PENDING, REVOKED)
+        - SIFMU designation has regulatory implications
+          ✅ Systemically important clearinghouses face enhanced supervision
+    
+    Context:
+        Problem: Trade settlement fails without understanding clearing infrastructure
+                 and membership relationships, leading to operational failures.
+        Solution: Clearinghouse + ClearingMembership models the full clearing graph,
+                  enabling trade lifecycle tracking and membership queries.
+        
+        Key Clearinghouses:
+        | Name | Short | Type        | Asset Classes                    |
+        |------|-------|-------------|----------------------------------|
+        | NSCC | NSCC  | CCP         | Equities, ETFs, UITs             |
+        | DTC  | DTC   | Depository  | Securities custody, settlement   |
+        | FICC | FICC  | CCP         | Government bonds, MBS            |
+        | OCC  | OCC   | CCP         | Listed options, futures          |
+        | CME  | CME   | CCP         | Futures, options, OTC            |
+    
+    Tags:
+        - market_structure
+        - domain_model
+        - clearinghouse
+        - post_trade
+        - settlement_infrastructure
+        - sifmu
+        - stdlib_only
+    
+    Doc-Types:
+        - MANIFESTO (section: "Market Infrastructure", priority: 9)
+        - FEATURES (section: "Clearing Model", priority: 8)
+        - API_REFERENCE (section: "Market Models", priority: 8)
+    
+    See Also:
+        - Entity: The legal identity of the clearinghouse
+        - ClearingMembership: Who is a clearing member
+        - BrokerDealer: Firms that clear through clearinghouses
+        - ExchangeMembership: Trading side (vs clearing side)
     
     Time Semantics:
-        valid_from: When clearinghouse began operations
-        valid_to: When clearinghouse ceased operations
-        captured_at: When we ingested this record
-    
-    Note on status:
-        ClearingStatus is for the clearinghouse entity itself.
-        For clearing MEMBERSHIP status, see ClearingMembership.status (MembershipStatus).
+        - valid_from: When clearinghouse began operations (business time)
+        - valid_to: When clearinghouse ceased operations (business time)
+        - captured_at: When we ingested this record (system time)
+        - created_at/updated_at: Record metadata only
     
     Attributes:
         clearinghouse_id: ULID primary key.
         name: Full legal name.
         short_name: Common abbreviated name.
         clearinghouse_type: Type of clearing organization.
-        
-        # Regulatory
         sec_file_number: SEC registration number.
         is_sec_registered: Whether registered with SEC.
         is_systemically_important: Whether designated as SIFMU.
-        
-        # Operations
         asset_classes: Asset classes cleared.
         settlement_currency: Primary settlement currency.
-        
-        # Relationships
         entity_id: FK to Entity (the legal entity).
         parent_clearinghouse_id: FK to parent clearinghouse.
-        
-        # Validity (business time)
         valid_from: When clearinghouse began operations.
         valid_to: When clearinghouse ceased operations.
     """
@@ -905,30 +1253,85 @@ class Clearinghouse:
 @dataclass(frozen=True, slots=True)
 class ClearingMembership:
     """
-    A clearing membership relationship.
+    A clearing membership relationship between a firm and a clearinghouse.
     
-    Links a broker-dealer or other entity to a clearinghouse.
+    ClearingMembership is the edge in the market structure graph that connects
+    broker-dealers (and other market participants) to clearing infrastructure.
+    Without clearing membership, a firm cannot settle trades.
     
-    Note on status:
-        Uses MembershipStatus (not ClearingStatus or BrokerDealerStatus)
-        because membership status is distinct from entity lifecycle status.
+    Manifesto:
+        The clearing membership graph answers critical operational questions:
+        
+        - **Trade Settlement**: Can this firm clear trades in this asset class?
+        - **Counterparty Risk**: What are the firm's clearing relationships?
+        - **Market Access**: Direct clearing vs correspondent clearing?
+        - **Regulatory Scope**: Which CCPs does this firm participate in?
+        
+        This is a temporal relationship: memberships start, may be suspended,
+        and can be terminated. Point-in-time queries require checking validity.
+    
+    Architecture:
+        ```
+        ┌──────────────────────────────────────────────────────────┐
+        │           Clearing Membership Graph Relationships        │
+        └──────────────────────────────────────────────────────────┘
+        
+        Direct Clearing Member:
+        ┌─────────────────┐                    ┌─────────────────┐
+        │   BrokerDealer  │───────────────────►│  Clearinghouse  │
+        │   (Goldman)     │ ClearingMembership │     (NSCC)      │
+        │   CRD: 361      │    FULL_CLEARING   │                 │
+        └─────────────────┘                    └─────────────────┘
+        
+        Correspondent Clearing (introducing → clearing BD → CCP):
+        ┌─────────────────┐     ┌─────────────────┐     ┌──────────────┐
+        │   Introducing   │────►│    Clearing     │────►│ Clearinghouse│
+        │       BD        │corr.│       BD        │memb.│    (NSCC)    │
+        └─────────────────┘     └─────────────────┘     └──────────────┘
+        ```
+        Dependencies: None (relationship model)
+        Storage Tier: T1 (SQLite), T2 (DuckDB), T3 (PostgreSQL)
+    
+    Features:
+        - **Membership Types**: FULL_CLEARING, CORRESPONDENT, SPONSORED
+        - **Asset Class Scope**: What can be cleared under this membership
+        - **Temporal Validity**: valid_from/valid_to for membership lifecycle
+        - **Entity + BD Links**: Can link to Entity and/or BrokerDealer
+    
+    Guardrails:
+        - Do NOT confuse MembershipStatus with ClearingStatus
+          ✅ MembershipStatus = this relationship's status
+          ✅ ClearingStatus = the clearinghouse's overall status
+        - Correspondent clearing requires clearing_firm_id on BrokerDealer
+    
+    Tags:
+        - market_structure
+        - relationship_model
+        - clearing_membership
+        - post_trade
+        - stdlib_only
+    
+    Doc-Types:
+        - FEATURES (section: "Market Relationships", priority: 7)
+        - API_REFERENCE (section: "Market Models", priority: 7)
+    
+    See Also:
+        - Clearinghouse: The CCP being a member of
+        - BrokerDealer: The firm with membership
+        - ExchangeMembership: Trading relationships (vs clearing)
     
     Time Semantics:
-        valid_from: When membership became effective
-        valid_to: When membership terminated
-        captured_at: When we learned about this membership
+        - valid_from: When membership became effective (business time)
+        - valid_to: When membership terminated (business time)
+        - captured_at: When we learned about this membership (system time)
     
     Attributes:
         membership_id: ULID primary key.
         clearinghouse_id: FK to Clearinghouse.
         member_entity_id: FK to Entity (the member).
         member_bd_id: FK to BrokerDealer (if applicable).
-        
-        # Membership details
         membership_type: Type of clearing membership.
         status: Membership status (MembershipStatus).
-        
-        # Validity (business time)
         valid_from: When membership started.
         valid_to: When membership ended.
     """
@@ -990,35 +1393,119 @@ class ClearingMembership:
 @dataclass(frozen=True, slots=True)
 class ExchangeMembership:
     """
-    An exchange membership relationship.
+    An exchange membership relationship - trading rights on a venue.
     
-    Links a broker-dealer to an exchange with specific trading rights.
+    ExchangeMembership is the edge connecting broker-dealers to exchanges,
+    representing the right to execute trades. Each membership grants specific
+    trading rights (equity, options, market maker) and is identified by an MPID.
     
-    Note on status:
-        Uses MembershipStatus (not BrokerDealerStatus) because a BD can be
-        ACTIVE but have a SUSPENDED membership on a particular exchange.
+    Manifesto:
+        Trade routing decisions depend on understanding where firms CAN trade:
+        
+        - **Order Routing**: Which venues can receive orders from this firm?
+        - **Market Making**: Which firms are registered MMs on this exchange?
+        - **Compliance**: Does the firm have active membership for this trade?
+        - **Best Execution**: What venues are available for routing this order?
+        
+        This relationship is temporal and status-sensitive: a firm can be an
+        ACTIVE broker-dealer but have a SUSPENDED membership on a particular
+        exchange. Point-in-time queries must check both entity AND membership status.
+    
+    Architecture:
+        ```
+        ┌──────────────────────────────────────────────────────────┐
+        │         Exchange Membership - Trading Rights Graph       │
+        └──────────────────────────────────────────────────────────┘
+        
+        ┌─────────────────┐                       ┌──────────────┐
+        │   BrokerDealer  │                       │   Exchange   │
+        │   (Citadel)     │                       │    (NYSE)    │
+        │   CRD: 116797   │                       │   MIC: XNYS  │
+        └────────┬────────┘                       └──────┬───────┘
+                 │                                       │
+                 │  ExchangeMembership                   │
+                 │  ┌────────────────────────────────┐   │
+                 └──┤ MPID: CDRG                     ├───┘
+                    │ type: TRADING_MEMBER           │
+                    │ is_designated_market_maker: ✓  │
+                    │ can_trade_equity: ✓            │
+                    │ can_trade_options: ✓           │
+                    │ status: ACTIVE                 │
+                    │ valid_from: 2004-01-01         │
+                    └────────────────────────────────┘
+        
+        Multi-Exchange Membership:
+        ┌─────────────────┐     ┌──────────┐     ┌──────────┐
+        │   BrokerDealer  │────►│   NYSE   │     │  NASDAQ  │
+        │                 │     └──────────┘     └──────────┘
+        │   memberships:  │────►│   CBOE   │     │  ARCA    │
+        │    - XNYS (DMM) │     └──────────┘     └──────────┘
+        │    - XNAS       │────►│   IEX    │
+        │    - XCBO       │     └──────────┘
+        └─────────────────┘
+        ```
+        Dependencies: validators.py (MPID normalization)
+        Storage Tier: T1 (SQLite), T2 (DuckDB), T3 (PostgreSQL)
+    
+    Features:
+        - **MPID Identification**: Market Participant Identifier on exchange
+        - **Membership Types**: TRADING_MEMBER, MARKET_MAKER, SPECIALIST
+        - **Trading Rights**: Equity, options, market making flags
+        - **DMM Status**: Designated Market Maker role (NYSE)
+        - **Asset Class Scope**: What can be traded under this membership
+        - **Temporal Validity**: valid_from/valid_to for membership lifecycle
+    
+    Examples:
+        >>> # Standard trading membership
+        >>> membership = ExchangeMembership(
+        ...     exchange_id=nyse.exchange_id,
+        ...     broker_dealer_id=citadel.broker_dealer_id,
+        ...     member_code="CDRG",  # MPID
+        ...     membership_type=MembershipType.TRADING_MEMBER,
+        ...     can_trade_equity=True,
+        ...     can_trade_options=True,
+        ...     is_designated_market_maker=True,
+        ... )
+    
+    Guardrails:
+        - Do NOT confuse MembershipStatus with BrokerDealerStatus
+          ✅ MembershipStatus = this relationship's status on this exchange
+          ✅ BrokerDealerStatus = the firm's overall regulatory status
+        - MPID (member_code) is exchange-specific, not globally unique
+        - Validate membership is ACTIVE before routing orders
+    
+    Tags:
+        - market_structure
+        - relationship_model
+        - exchange_membership
+        - mpid
+        - trading_rights
+        - stdlib_only
+    
+    Doc-Types:
+        - FEATURES (section: "Market Relationships", priority: 8)
+        - API_REFERENCE (section: "Market Models", priority: 7)
+    
+    See Also:
+        - Exchange: The venue this membership grants access to
+        - BrokerDealer: The firm with membership
+        - ClearingMembership: Clearing relationships (vs trading)
     
     Time Semantics:
-        valid_from: When membership became effective
-        valid_to: When membership terminated
-        captured_at: When we learned about this membership
+        - valid_from: When membership became effective (business time)
+        - valid_to: When membership terminated (business time)
+        - captured_at: When we learned about this membership (system time)
     
     Attributes:
         membership_id: ULID primary key.
         exchange_id: FK to Exchange.
         broker_dealer_id: FK to BrokerDealer.
-        
-        # Membership details
         membership_type: Type of exchange membership.
         member_code: Member code/MPID on the exchange.
         status: Membership status (MembershipStatus).
-        
-        # Trading rights
         can_trade_equity: Whether can trade equities.
         can_trade_options: Whether can trade options.
         is_market_maker: Whether registered as market maker.
-        
-        # Validity (business time)
         valid_from: When membership started.
         valid_to: When membership ended.
     """

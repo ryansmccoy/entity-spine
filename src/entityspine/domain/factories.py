@@ -9,17 +9,24 @@ with common configurations and proper validation.
 
 from entityspine.domain.candidate import ResolutionCandidate
 from entityspine.domain.claim import IdentifierClaim
+from entityspine.domain.data_quality import DataQualityResult, DataQualityRule
 from entityspine.domain.entity import Entity
+from entityspine.domain.entity_events import MergeEvent
 from entityspine.domain.enums import (
+    DataQualitySeverity,
     EntityType,
     IdentifierScheme,
     MatchReason,
+    ProvenanceKind,
     ResolutionStatus,
     ResolutionTier,
+    RunStatus,
     SecurityType,
     VendorNamespace,
 )
+from entityspine.domain.explanation import Explanation, ResolutionRun
 from entityspine.domain.listing import Listing
+from entityspine.domain.provenance import Provenance
 from entityspine.domain.resolution import ResolutionResult
 from entityspine.domain.security import Security
 
@@ -348,4 +355,309 @@ def ambiguous_result(
         warnings=warnings_list,
         confidence=0.5 if candidates else 0.0,
         **kwargs,
+    )
+
+
+# =============================================================================
+# Audit Trail Factories (v2.3.4)
+# =============================================================================
+
+
+def create_file_provenance(
+    namespace: VendorNamespace,
+    source_uri: str,
+    *,
+    file_name: str | None = None,
+    source_hash: str | None = None,
+    batch_id: str | None = None,
+    captured_by: str | None = None,
+    notes: str | None = None,
+) -> Provenance:
+    """
+    Create a file-based Provenance record.
+
+    Args:
+        namespace: Vendor/source namespace (SEC, FACTSET, etc.).
+        source_uri: File path or URL of source.
+        file_name: Original filename.
+        source_hash: SHA-256 hash for verification.
+        batch_id: Batch/job ID for bulk imports.
+        captured_by: User/system that captured.
+        notes: Additional notes.
+
+    Returns:
+        Provenance record with kind=FILE.
+
+    Examples:
+        >>> prov = create_file_provenance(
+        ...     VendorNamespace.SEC,
+        ...     "https://www.sec.gov/files/company_tickers.json",
+        ...     file_name="company_tickers.json",
+        ... )
+    """
+    return Provenance(
+        kind=ProvenanceKind.FILE,
+        namespace=namespace,
+        source_uri=source_uri,
+        file_name=file_name,
+        source_hash=source_hash,
+        batch_id=batch_id,
+        captured_by=captured_by,
+        notes=notes,
+    )
+
+
+def create_api_provenance(
+    namespace: VendorNamespace,
+    api_endpoint: str,
+    *,
+    api_params: str | None = None,
+    batch_id: str | None = None,
+    captured_by: str | None = None,
+    notes: str | None = None,
+) -> Provenance:
+    """
+    Create an API-based Provenance record.
+
+    Args:
+        namespace: Vendor/source namespace (FACTSET, BLOOMBERG, etc.).
+        api_endpoint: API endpoint called.
+        api_params: JSON string of API parameters.
+        batch_id: Batch/job ID for bulk imports.
+        captured_by: User/system that captured.
+        notes: Additional notes.
+
+    Returns:
+        Provenance record with kind=API.
+
+    Examples:
+        >>> prov = create_api_provenance(
+        ...     VendorNamespace.FACTSET,
+        ...     "/symbology/v1/identifier-resolution",
+        ...     api_params='{"ids": ["AAPL-US"]}',
+        ... )
+    """
+    return Provenance(
+        kind=ProvenanceKind.API,
+        namespace=namespace,
+        api_endpoint=api_endpoint,
+        api_params=api_params,
+        batch_id=batch_id,
+        captured_by=captured_by,
+        notes=notes,
+    )
+
+
+def create_merge_event(
+    source_entity_id: str,
+    target_entity_id: str,
+    reason: str,
+    *,
+    confidence: float = 1.0,
+    merged_by: str | None = None,
+    explanation_id: str | None = None,
+    run_id: str | None = None,
+    source_snapshot: str | None = None,
+    notes: str | None = None,
+) -> MergeEvent:
+    """
+    Create a MergeEvent record.
+
+    Args:
+        source_entity_id: Entity being merged away.
+        target_entity_id: Canonical entity that remains.
+        reason: Why the merge happened.
+        confidence: Confidence in the decision (0.0-1.0).
+        merged_by: User/system that performed merge.
+        explanation_id: Link to Explanation record.
+        run_id: Link to ResolutionRun if part of batch.
+        source_snapshot: JSON snapshot of source entity.
+        notes: Additional notes.
+
+    Returns:
+        MergeEvent record.
+
+    Examples:
+        >>> event = create_merge_event(
+        ...     "01HQ8AAA...",
+        ...     "01HQ8BBB...",
+        ...     "same_cik",
+        ...     confidence=1.0,
+        ...     merged_by="resolution_pipeline",
+        ... )
+    """
+    return MergeEvent(
+        source_entity_id=source_entity_id,
+        target_entity_id=target_entity_id,
+        reason=reason,
+        confidence=confidence,
+        merged_by=merged_by,
+        explanation_id=explanation_id,
+        run_id=run_id,
+        source_snapshot=source_snapshot,
+        notes=notes,
+    )
+
+
+def create_explanation(
+    decision_type: str,
+    summary: str,
+    *,
+    details: str = "",
+    factors: dict | None = None,
+    confidence: float = 1.0,
+    match_scores: dict | None = None,
+    rule_hits: tuple[str, ...] | list[str] = (),
+) -> Explanation:
+    """
+    Create an Explanation record.
+
+    Args:
+        decision_type: Type of decision (match, reject, merge, split, manual).
+        summary: One-line summary.
+        details: Detailed explanation text.
+        factors: Factors that influenced decision.
+        confidence: Confidence in the decision (0.0-1.0).
+        match_scores: Individual match scores.
+        rule_hits: Rules/heuristics that fired.
+
+    Returns:
+        Explanation record.
+
+    Examples:
+        >>> exp = create_explanation(
+        ...     "match",
+        ...     "Matched on CIK with exact name",
+        ...     factors={"cik_match": True, "name_score": 1.0},
+        ...     confidence=1.0,
+        ... )
+    """
+    return Explanation(
+        decision_type=decision_type,
+        summary=summary,
+        details=details,
+        factors=factors or {},
+        confidence=confidence,
+        match_scores=match_scores or {},
+        rule_hits=tuple(rule_hits) if isinstance(rule_hits, list) else rule_hits,
+    )
+
+
+def create_resolution_run(
+    input_params: dict | None = None,
+    source_record_ids: tuple[str, ...] | list[str] = (),
+    *,
+    status: RunStatus = RunStatus.RUNNING,
+) -> ResolutionRun:
+    """
+    Create a ResolutionRun record for batch tracking.
+
+    Args:
+        input_params: Configuration used for this run.
+        source_record_ids: Records to process in this run.
+        status: Initial run status.
+
+    Returns:
+        ResolutionRun record.
+
+    Examples:
+        >>> run = create_resolution_run(
+        ...     {"blocking_keys": ["cik", "name_prefix"]},
+        ...     ("rec1", "rec2", "rec3"),
+        ... )
+    """
+    return ResolutionRun(
+        input_params=input_params or {},
+        source_record_ids=tuple(source_record_ids) if isinstance(source_record_ids, list) else source_record_ids,
+        status=status,
+    )
+
+
+def create_quality_rule(
+    name: str,
+    description: str,
+    *,
+    category: str = "consistency",
+    severity: DataQualitySeverity = DataQualitySeverity.WARNING,
+    target_type: str = "entity",
+    check_expression: str = "",
+) -> DataQualityRule:
+    """
+    Create a DataQualityRule definition.
+
+    Args:
+        name: Human-readable rule name.
+        description: What the rule checks.
+        category: Rule category (completeness, consistency, accuracy, timeliness).
+        severity: Impact level (INFO, WARNING, ERROR, CRITICAL).
+        target_type: What this rule applies to.
+        check_expression: Expression/logic for the check.
+
+    Returns:
+        DataQualityRule record.
+
+    Examples:
+        >>> rule = create_quality_rule(
+        ...     "cik_unique_name",
+        ...     "Each CIK should have exactly one primary name",
+        ...     severity=DataQualitySeverity.WARNING,
+        ... )
+    """
+    return DataQualityRule(
+        name=name,
+        description=description,
+        category=category,
+        severity=severity,
+        target_type=target_type,
+        check_expression=check_expression,
+    )
+
+
+def create_quality_result(
+    rule_id: str,
+    rule_name: str,
+    passed: bool,
+    *,
+    message: str = "",
+    severity: DataQualitySeverity = DataQualitySeverity.INFO,
+    entity_id: str | None = None,
+    claim_id: str | None = None,
+    run_id: str | None = None,
+    details: dict | None = None,
+) -> DataQualityResult:
+    """
+    Create a DataQualityResult record.
+
+    Args:
+        rule_id: Rule that was checked.
+        rule_name: Name of the rule.
+        passed: Whether the check passed.
+        message: Human-readable result message.
+        severity: Severity level if failed.
+        entity_id: Entity this result applies to.
+        claim_id: Claim this result applies to.
+        run_id: ResolutionRun this check was part of.
+        details: Detailed findings.
+
+    Returns:
+        DataQualityResult record.
+
+    Examples:
+        >>> result = create_quality_result(
+        ...     "01HQ8RULE...",
+        ...     "cik_unique_name",
+        ...     passed=True,
+        ...     entity_id="01HQ8ENT...",
+        ... )
+    """
+    return DataQualityResult(
+        rule_id=rule_id,
+        rule_name=rule_name,
+        passed=passed,
+        message=message,
+        severity=severity,
+        entity_id=entity_id,
+        claim_id=claim_id,
+        run_id=run_id,
+        details=details or {},
     )

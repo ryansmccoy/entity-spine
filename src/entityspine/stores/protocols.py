@@ -60,32 +60,32 @@ class EntityRepositoryProtocol(Protocol):
     """
 
     @abstractmethod
-    def save(self, entity: "Entity") -> None:
+    def save(self, entity: Entity) -> None:
         """Save or update an entity."""
         ...
 
     @abstractmethod
-    def get_by_id(self, entity_id: str, follow_redirects: bool = True) -> "Entity | None":
+    def get_by_id(self, entity_id: str, follow_redirects: bool = True) -> Entity | None:
         """Get entity by ID, optionally following redirects."""
         ...
 
     @abstractmethod
-    def get_raw(self, entity_id: str) -> "Entity | None":
+    def get_raw(self, entity_id: str) -> Entity | None:
         """Get entity by ID WITHOUT following redirects."""
         ...
 
     @abstractmethod
-    def get_by_cik(self, cik: str) -> "list[Entity]":
+    def get_by_cik(self, cik: str) -> list[Entity]:
         """Get entities matching CIK."""
         ...
 
     @abstractmethod
-    def get_by_ticker(self, ticker: str) -> "list[Entity]":
+    def get_by_ticker(self, ticker: str) -> list[Entity]:
         """Get entities matching ticker (via listing lookup)."""
         ...
 
     @abstractmethod
-    def search(self, query: str, limit: int = 10) -> "list[tuple[Entity, float]]":
+    def search(self, query: str, limit: int = 10) -> list[tuple[Entity, float]]:
         """Search entities by name or identifier, returning (entity, score) pairs."""
         ...
 
@@ -100,17 +100,17 @@ class SecurityRepositoryProtocol(Protocol):
     """Protocol for security repository operations."""
 
     @abstractmethod
-    def save(self, security: "Security") -> None:
+    def save(self, security: Security) -> None:
         """Save or update a security."""
         ...
 
     @abstractmethod
-    def get_by_id(self, security_id: str) -> "Security | None":
+    def get_by_id(self, security_id: str) -> Security | None:
         """Get security by ID."""
         ...
 
     @abstractmethod
-    def get_by_entity(self, entity_id: str) -> "list[Security]":
+    def get_by_entity(self, entity_id: str) -> list[Security]:
         """Get all securities for an entity."""
         ...
 
@@ -125,7 +125,7 @@ class ListingRepositoryProtocol(Protocol):
     """Protocol for listing repository operations."""
 
     @abstractmethod
-    def save(self, listing: "Listing") -> None:
+    def save(self, listing: Listing) -> None:
         """Save or update a listing."""
         ...
 
@@ -135,12 +135,12 @@ class ListingRepositoryProtocol(Protocol):
         ticker: str,
         mic: str | None = None,
         as_of: date | None = None,
-    ) -> "list[Listing]":
+    ) -> list[Listing]:
         """Get listings by ticker, optionally filtered by MIC and as_of."""
         ...
 
     @abstractmethod
-    def get_by_security(self, security_id: str) -> "list[Listing]":
+    def get_by_security(self, security_id: str) -> list[Listing]:
         """Get all listings for a security."""
         ...
 
@@ -155,26 +155,26 @@ class ClaimRepositoryProtocol(Protocol):
     """Protocol for identifier claim repository operations."""
 
     @abstractmethod
-    def save(self, claim: "IdentifierClaim") -> None:
+    def save(self, claim: IdentifierClaim) -> None:
         """Save or update an identifier claim."""
         ...
 
     @abstractmethod
-    def get(self, scheme: str, value: str) -> "list[IdentifierClaim]":
+    def get(self, scheme: str, value: str) -> list[IdentifierClaim]:
         """Get claims by scheme and value."""
         ...
 
     @abstractmethod
-    def get_for_entity(self, entity_id: str) -> "list[IdentifierClaim]":
+    def get_for_entity(self, entity_id: str) -> list[IdentifierClaim]:
         """Get all claims for an entity."""
         ...
 
     @abstractmethod
     def get_by_value(
         self,
-        scheme: "IdentifierScheme",
+        scheme: IdentifierScheme,
         value: str,
-    ) -> "list[IdentifierClaim]":
+    ) -> list[IdentifierClaim]:
         """Get claims by scheme enum and value."""
         ...
 
@@ -194,17 +194,17 @@ class AssetRepositoryProtocol(Protocol):
     """Protocol for asset repository operations."""
 
     @abstractmethod
-    def save(self, asset: "Asset") -> None:
+    def save(self, asset: Asset) -> None:
         """Save or update an asset."""
         ...
 
     @abstractmethod
-    def get_by_id(self, asset_id: str) -> "Asset | None":
+    def get_by_id(self, asset_id: str) -> Asset | None:
         """Get asset by ID."""
         ...
 
     @abstractmethod
-    def get_by_owner(self, entity_id: str) -> "list[Asset]":
+    def get_by_owner(self, entity_id: str) -> list[Asset]:
         """Get all assets owned by an entity."""
         ...
 
@@ -219,12 +219,12 @@ class ContractRepositoryProtocol(Protocol):
     """Protocol for contract repository operations."""
 
     @abstractmethod
-    def save(self, contract: "Contract") -> None:
+    def save(self, contract: Contract) -> None:
         """Save or update a contract."""
         ...
 
     @abstractmethod
-    def get_by_id(self, contract_id: str) -> "Contract | None":
+    def get_by_id(self, contract_id: str) -> Contract | None:
         """Get contract by ID."""
         ...
 
@@ -239,17 +239,17 @@ class ProductRepositoryProtocol(Protocol):
     """Protocol for product repository operations."""
 
     @abstractmethod
-    def save(self, product: "Product") -> None:
+    def save(self, product: Product) -> None:
         """Save or update a product."""
         ...
 
     @abstractmethod
-    def get_by_id(self, product_id: str) -> "Product | None":
+    def get_by_id(self, product_id: str) -> Product | None:
         """Get product by ID."""
         ...
 
     @abstractmethod
-    def get_by_owner(self, entity_id: str) -> "list[Product]":
+    def get_by_owner(self, entity_id: str) -> list[Product]:
         """Get all products owned by an entity."""
         ...
 
@@ -264,17 +264,17 @@ class BrandRepositoryProtocol(Protocol):
     """Protocol for brand repository operations."""
 
     @abstractmethod
-    def save(self, brand: "Brand") -> None:
+    def save(self, brand: Brand) -> None:
         """Save or update a brand."""
         ...
 
     @abstractmethod
-    def get_by_id(self, brand_id: str) -> "Brand | None":
+    def get_by_id(self, brand_id: str) -> Brand | None:
         """Get brand by ID."""
         ...
 
     @abstractmethod
-    def get_by_owner(self, entity_id: str) -> "list[Brand]":
+    def get_by_owner(self, entity_id: str) -> list[Brand]:
         """Get all brands owned by an entity."""
         ...
 
@@ -289,17 +289,17 @@ class EventRepositoryProtocol(Protocol):
     """Protocol for event repository operations."""
 
     @abstractmethod
-    def save(self, event: "Event") -> None:
+    def save(self, event: Event) -> None:
         """Save or update an event."""
         ...
 
     @abstractmethod
-    def get_by_id(self, event_id: str) -> "Event | None":
+    def get_by_id(self, event_id: str) -> Event | None:
         """Get event by ID."""
         ...
 
     @abstractmethod
-    def get_by_type(self, event_type: "EventType") -> "list[Event]":
+    def get_by_type(self, event_type: EventType) -> list[Event]:
         """Get all events of a specific type."""
         ...
 
@@ -319,12 +319,12 @@ class GeoRepositoryProtocol(Protocol):
     """Protocol for geographic location repository operations."""
 
     @abstractmethod
-    def save(self, geo: "Geo") -> None:
+    def save(self, geo: Geo) -> None:
         """Save or update a geographic location."""
         ...
 
     @abstractmethod
-    def get_by_id(self, geo_id: str) -> "Geo | None":
+    def get_by_id(self, geo_id: str) -> Geo | None:
         """Get geographic location by ID."""
         ...
 
@@ -339,17 +339,17 @@ class AddressRepositoryProtocol(Protocol):
     """Protocol for address repository operations."""
 
     @abstractmethod
-    def save(self, address: "Address") -> None:
+    def save(self, address: Address) -> None:
         """Save or update an address."""
         ...
 
     @abstractmethod
-    def get_by_id(self, address_id: str) -> "Address | None":
+    def get_by_id(self, address_id: str) -> Address | None:
         """Get address by ID."""
         ...
 
     @abstractmethod
-    def get_by_hash(self, normalized_hash: str) -> "Address | None":
+    def get_by_hash(self, normalized_hash: str) -> Address | None:
         """Get address by normalized hash for deduplication."""
         ...
 
@@ -358,7 +358,7 @@ class AddressRepositoryProtocol(Protocol):
         self,
         entity_id: str,
         address_id: str,
-        address_type: "AddressType",
+        address_type: AddressType,
     ) -> None:
         """Link an entity to an address."""
         ...
@@ -379,22 +379,22 @@ class RoleRepositoryProtocol(Protocol):
     """Protocol for role assignment repository operations."""
 
     @abstractmethod
-    def save(self, role: "RoleAssignment") -> None:
+    def save(self, role: RoleAssignment) -> None:
         """Save or update a role assignment."""
         ...
 
     @abstractmethod
-    def get_by_id(self, role_assignment_id: str) -> "RoleAssignment | None":
+    def get_by_id(self, role_assignment_id: str) -> RoleAssignment | None:
         """Get role assignment by ID."""
         ...
 
     @abstractmethod
-    def get_by_org(self, org_entity_id: str) -> "list[RoleAssignment]":
+    def get_by_org(self, org_entity_id: str) -> list[RoleAssignment]:
         """Get all role assignments for an organization."""
         ...
 
     @abstractmethod
-    def get_by_person(self, person_entity_id: str) -> "list[RoleAssignment]":
+    def get_by_person(self, person_entity_id: str) -> list[RoleAssignment]:
         """Get all role assignments for a person."""
         ...
 
@@ -409,17 +409,17 @@ class RelationshipRepositoryProtocol(Protocol):
     """Protocol for relationship repository operations."""
 
     @abstractmethod
-    def save(self, rel: "Relationship") -> None:
+    def save(self, rel: Relationship) -> None:
         """Save or update a generic relationship."""
         ...
 
     @abstractmethod
-    def get_by_id(self, relationship_id: str) -> "Relationship | None":
+    def get_by_id(self, relationship_id: str) -> Relationship | None:
         """Get relationship by ID."""
         ...
 
     @abstractmethod
-    def get_by_source_id(self, source_id: str, limit: int = 100) -> "list[Relationship]":
+    def get_by_source_id(self, source_id: str, limit: int = 100) -> list[Relationship]:
         """Get all relationships from a source node."""
         ...
 
@@ -429,7 +429,7 @@ class RelationshipRepositoryProtocol(Protocol):
         ...
 
     @abstractmethod
-    def save_entity_relationship(self, rel: "EntityRelationship") -> None:
+    def save_entity_relationship(self, rel: EntityRelationship) -> None:
         """Save or update an entity-to-entity relationship."""
         ...
 
@@ -439,7 +439,7 @@ class RelationshipRepositoryProtocol(Protocol):
         from_entity_id: str | None = None,
         to_entity_id: str | None = None,
         relationship_types: list | None = None,
-    ) -> "list[EntityRelationship]":
+    ) -> list[EntityRelationship]:
         """Get entity relationships with optional filters."""
         ...
 
@@ -449,22 +449,22 @@ class CaseRepositoryProtocol(Protocol):
     """Protocol for legal case repository operations."""
 
     @abstractmethod
-    def save(self, case: "Case") -> None:
+    def save(self, case: Case) -> None:
         """Save or update a legal case."""
         ...
 
     @abstractmethod
-    def get_by_id(self, case_id: str) -> "Case | None":
+    def get_by_id(self, case_id: str) -> Case | None:
         """Get case by ID."""
         ...
 
     @abstractmethod
-    def get_by_target(self, target_entity_id: str) -> "list[Case]":
+    def get_by_target(self, target_entity_id: str) -> list[Case]:
         """Get all cases involving a target entity."""
         ...
 
     @abstractmethod
-    def get_by_authority(self, authority_entity_id: str) -> "list[Case]":
+    def get_by_authority(self, authority_entity_id: str) -> list[Case]:
         """Get all cases from an authority (court/regulator)."""
         ...
 
@@ -479,17 +479,17 @@ class ClusterRepositoryProtocol(Protocol):
     """Protocol for entity cluster repository operations (deduplication)."""
 
     @abstractmethod
-    def save(self, cluster: "EntityCluster") -> None:
+    def save(self, cluster: EntityCluster) -> None:
         """Save or update an entity cluster."""
         ...
 
     @abstractmethod
-    def get_by_id(self, cluster_id: str) -> "EntityCluster | None":
+    def get_by_id(self, cluster_id: str) -> EntityCluster | None:
         """Get cluster by ID."""
         ...
 
     @abstractmethod
-    def get_by_status(self, status: str) -> "list[EntityCluster]":
+    def get_by_status(self, status: str) -> list[EntityCluster]:
         """Get clusters by status (pending, approved, rejected, merged)."""
         ...
 
@@ -499,17 +499,17 @@ class ClusterRepositoryProtocol(Protocol):
         ...
 
     @abstractmethod
-    def save_member(self, member: "EntityClusterMember") -> None:
+    def save_member(self, member: EntityClusterMember) -> None:
         """Save or update a cluster membership."""
         ...
 
     @abstractmethod
-    def get_members(self, cluster_id: str) -> "list[EntityClusterMember]":
+    def get_members(self, cluster_id: str) -> list[EntityClusterMember]:
         """Get all members of a cluster."""
         ...
 
     @abstractmethod
-    def get_clusters_for_entity(self, entity_id: str) -> "list[EntityClusterMember]":
+    def get_clusters_for_entity(self, entity_id: str) -> list[EntityClusterMember]:
         """Get all cluster memberships for an entity."""
         ...
 

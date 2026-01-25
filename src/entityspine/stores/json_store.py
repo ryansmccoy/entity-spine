@@ -47,26 +47,156 @@ class JsonEntityStore:
     """
     Tier 0 JSON-based entity store.
 
-    Stores entities in memory with optional JSON file persistence.
-    Implements EntityStoreProtocol and StorageLifecycleProtocol.
-
-    v2.2.3: Returns DOMAIN dataclasses (not Pydantic models).
-
-    Limitations (TIER CAPABILITY HONESTY):
-    - as_of parameter IGNORED (no temporal data)
-    - Exact match search only
-    - Max recommended entities: 50,000
-
-    Attributes:
-        tier: Storage tier (always 0).
-        tier_name: Human-readable tier name.
-        supports_temporal: Whether temporal queries work (always False).
-
-    Example:
+    JsonEntityStore is the simplest storage backend for EntitySpine: in-memory
+    storage with optional JSON file persistence. It's designed for development,
+    testing, and small datasets (<50K entities).
+    
+    Manifesto:
+        EntitySpine's tiered storage architecture (Principle #5) provides different
+        backends for different scale/complexity needs:
+        - T0 (JSON): Simple, fast startup, ~50K entities max
+        - T1 (SQLite): Indexed queries, ~500K entities
+        - T2 (DuckDB): Analytical queries, millions of entities
+        - T3 (PostgreSQL): Production scale, distributed
+        
+        JsonEntityStore is T0: zero external dependencies (stdlib json module),
+        millisecond startup, but limited query capabilities. It's the default
+        for development and testing because it requires no database setup.
+        
+        **TIER CAPABILITY HONESTY**: JsonEntityStore does NOT support temporal
+        queries. When as_of is provided, it returns the current value with a
+        warning. This is explicit rather than silently ignoring the parameter.
+    
+    Architecture:
+        ```
+        ┌──────────────────────────────────────────────────────────┐
+        │               JsonEntityStore (Tier 0)                    │
+        └──────────────────────────────────────────────────────────┘
+        
+        Memory Storage:
+        ┌─────────────────────────────────────────────────────────┐
+        │  _entities: dict[entity_id, Entity]                      │
+        │  _securities: dict[security_id, Security]                │
+        │  _listings: dict[listing_id, Listing]                    │
+        │  _claims: dict[claim_id, IdentifierClaim]                │
+        └─────────────────────────────────────────────────────────┘
+        
+        Indexes (for fast lookup):
+        ┌─────────────────────────────────────────────────────────┐
+        │  _cik_index: dict[cik, set[entity_id]]                   │
+        │  _ticker_index: dict[ticker, set[listing_id]]            │
+        │  _name_index: dict[lowercase_name, set[entity_id]]       │
+        │  _security_by_entity: dict[entity_id, set[security_id]]  │
+        │  _listing_by_security: dict[security_id, set[listing_id]]│
+        └─────────────────────────────────────────────────────────┘
+        
+        Persistence (optional):
+        ┌────────────────┐        ┌────────────────┐
+        │ JsonEntityStore │◄─────►│  entities.json │
+        │   (memory)     │  save/ │    (disk)      │
+        └────────────────┘  load  └────────────────┘
+        
+        Data Loading (SEC company_tickers.json):
+        
+        SEC JSON:
+        {"0": {"cik_str": "320193", "ticker": "AAPL", "title": "Apple Inc."}}
+              │
+              ▼
+        ┌─────────────────┐
+        │ Entity          │◄── IdentifierClaim (CIK)
+        │ Apple Inc.      │
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Security        │
+        │ AAPL Common     │
+        └────────┬────────┘
+                 │
+                 ▼
+        ┌─────────────────┐
+        │ Listing         │◄── IdentifierClaim (TICKER)
+        │ XNAS:AAPL       │
+        └─────────────────┘
+        ```
+        Dependencies: None - stdlib only (json, urllib)
+        Storage Tier: T0 (JSON)
+    
+    Features:
+        - Zero external dependencies (stdlib json/urllib)
+        - In-memory storage for fast access
+        - Optional JSON file persistence
+        - SEC company_tickers.json loader (downloads automatically)
+        - Full Entity → Security → Listing hierarchy
+        - IdentifierClaim support for CIK, ticker, etc.
+        - Indexed lookups by CIK, ticker, name
+        - Returns DOMAIN dataclasses (not Pydantic/ORM models)
+    
+    Limitations (Tier 0 Honesty):
+        - as_of parameter IGNORED (no temporal data)
+        - Exact match search only (no fuzzy)
+        - Max recommended: 50,000 entities
+        - No concurrent write safety
+    
+    Examples:
         >>> store = JsonEntityStore()
         >>> store.initialize()
-        >>> store.load_sec_json(data)
+        >>> 
+        >>> # Load SEC data (downloads from sec.gov)
+        >>> count = store.load_sec_data()
+        >>> print(f"Loaded {count} companies")
+        Loaded 14000 companies
+        
+        >>> # Alternative: load from local file
+        >>> store = JsonEntityStore(json_path=Path("./cache/entities.json"))
+        >>> store.initialize()  # Loads from file if exists
+        
+        >>> # Lookup by CIK
         >>> entities = store.get_entities_by_cik("320193")
+        >>> print(entities[0].primary_name)
+        Apple Inc.
+        
+        >>> # Lookup by ticker
+        >>> listings = store.get_listings_by_ticker("AAPL")
+        >>> print(listings[0].mic)
+        XNAS
+        
+        >>> # Save to file (on close)
+        >>> store.close()  # Persists to json_path if set
+    
+    Performance:
+        - Initialization: O(1) empty, O(n) from file
+        - CIK lookup: O(1) via index
+        - Ticker lookup: O(1) via index
+        - Name lookup: O(1) via index (exact match)
+        - Load SEC JSON: O(n), ~2 seconds for 14K companies
+        - Memory: ~50MB for 14K companies with full hierarchy
+    
+    Guardrails:
+        - Do NOT use JsonEntityStore for >50K entities
+          ✅ Instead: Use SqliteStore (T1) for larger datasets
+        - Do NOT expect as_of queries to work
+          ✅ Instead: Use SqliteStore+ for temporal queries
+        - Do NOT use for concurrent writes
+          ✅ Instead: JsonEntityStore is single-writer safe only
+    
+    Context:
+        Problem: Developers need a simple, zero-setup storage backend for
+                 testing and small-scale entity resolution.
+        Solution: JsonEntityStore provides in-memory storage with JSON
+                  persistence, requiring only stdlib modules.
+    
+    Tags:
+        - storage_backend
+        - tier_0
+        - json_persistence
+        - stdlib_only
+        - development_friendly
+    
+    Doc-Types:
+        - MANIFESTO (section: "Tiered Storage", priority: 9)
+        - FEATURES (section: "Storage Backends", priority: 9)
+        - API_REFERENCE (section: "Stores", priority: 8)
     """
 
     tier: int = 0

@@ -42,7 +42,13 @@ from entityspine.domain.clustering import (
     ClusterStatus,
     DuplicateCandidate,
 )
+
+# v2.3.4: Data quality models
+from entityspine.domain.data_quality import DataQualityResult, DataQualityRule
 from entityspine.domain.entity import Entity
+
+# v2.3.4: Entity lifecycle events
+from entityspine.domain.entity_events import MergeEvent, SplitEvent
 from entityspine.domain.enums import (
     # Observation enums (v2.2.5)
     AccountingBasis,
@@ -56,6 +62,10 @@ from entityspine.domain.enums import (
     ClusterRole,
     ContractStatus,
     ContractType,
+    # v2.3.4: Data quality severity enum
+    DataQualitySeverity,
+    # v2.3.4: Decision type for explanations
+    DecisionType,
     EntityStatus,
     EntityType,
     EstimateScope,
@@ -83,6 +93,8 @@ from entityspine.domain.enums import (
     ResolutionWarning,
     # Knowledge Graph enums
     RoleType,
+    # v2.3.4: Resolution run status enum
+    RunStatus,
     # v2.3.0 Compliance/Sanctions enum
     SanctionStatus,
     ScopeType,
@@ -120,6 +132,13 @@ from entityspine.domain.errors import (
     is_retryable_category,
 )
 
+# v2.3.4: Explanation and resolution run models
+from entityspine.domain.explanation import (
+    Explanation,
+    ResolutionRun,
+    ResolutionRunDiff,
+)
+
 # v2.3.2 Extraction/NLP domain models (moved from capture-spine)
 from entityspine.domain.extraction import (
     ContentLink,
@@ -140,10 +159,18 @@ from entityspine.domain.extraction import (
 )
 from entityspine.domain.factories import (
     ambiguous_result,
+    # v2.3.4: Audit trail factory functions
+    create_api_provenance,
     create_candidate,
     create_claim,
     create_entity,
+    create_explanation,
+    create_file_provenance,
     create_listing,
+    create_merge_event,
+    create_quality_result,
+    create_quality_rule,
+    create_resolution_run,
     create_security,
     found_result,
     not_found_result,
@@ -268,6 +295,9 @@ from entityspine.domain.protocols import (
     SecurityStoreProtocol,
     StorageLifecycleProtocol,
 )
+
+# v2.3.4: Provenance and source record models
+from entityspine.domain.provenance import Provenance, SourceRecord
 from entityspine.domain.resolution import ResolutionResult
 from entityspine.domain.security import Security
 
@@ -363,6 +393,12 @@ __all__ = [
     "Contract",
     "ContractStatus",
     "ContractType",
+    # v2.3.4: Data quality models
+    "DataQualityResult",
+    "DataQualityRule",
+    "DataQualitySeverity",
+    # v2.3.4: Decision type enum
+    "DecisionType",
     # Domain models
     "Entity",
     "EntityAddress",
@@ -378,6 +414,8 @@ __all__ = [
     "Event",
     "EventStatus",
     "EventType",
+    # v2.3.4: Explanation and resolution run models
+    "Explanation",
     "FilingParticipant",
     "FiscalPeriod",
     "FullStoreProtocol",
@@ -391,6 +429,8 @@ __all__ = [
     "ListingStatus",
     "ListingStoreProtocol",
     "MatchReason",
+    # v2.3.4: Entity lifecycle events
+    "MergeEvent",
     "MetricCategory",
     "MetricCode",
     "MetricSpec",
@@ -410,12 +450,17 @@ __all__ = [
     "Product",
     "ProductStatus",
     "ProductType",
+    # v2.3.4: Provenance models
+    "Provenance",
     "ProvenanceKind",
     "ProvenanceRef",
     "Relationship",
     "RelationshipType",
     "ResolutionCandidate",
     "ResolutionResult",
+    # v2.3.4: Resolution run models
+    "ResolutionRun",
+    "ResolutionRunDiff",
     "ResolutionStatus",
     "ResolutionTier",
     "ResolutionWarning",
@@ -432,6 +477,10 @@ __all__ = [
     "SecurityStoreProtocol",
     "SecurityType",
     "SourceKey",
+    # v2.3.4: Source record models
+    "SourceRecord",
+    # v2.3.4: Entity lifecycle events
+    "SplitEvent",
     # Protocols (stdlib typing.Protocol)
     "StorageLifecycleProtocol",
     "TransactionCode",
@@ -439,10 +488,18 @@ __all__ = [
     "VendorNamespace",
     "ambiguous_result",
     "compute_address_hash",
+    # v2.3.4: Audit trail factory functions
+    "create_api_provenance",
     "create_candidate",
     "create_claim",
     "create_entity",
+    "create_explanation",
+    "create_file_provenance",
     "create_listing",
+    "create_merge_event",
+    "create_quality_result",
+    "create_quality_rule",
+    "create_resolution_run",
     "create_security",
     # Factories
     "found_result",

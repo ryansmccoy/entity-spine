@@ -28,7 +28,7 @@ class ClusterRepository:
     Used for entity deduplication workflows.
     """
 
-    def __init__(self, connection: "SqliteConnectionManager"):
+    def __init__(self, connection: SqliteConnectionManager):
         """
         Initialize repository with connection manager.
         
