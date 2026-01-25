@@ -320,7 +320,6 @@ def validate_ticker(value: str, *, original: str | None = None) -> tuple[bool, s
             f"Ticker must be 1-12 uppercase alphanumeric chars (dots allowed), got: {value!r}",
         )
     return True, ""
-    return True, ""
 
 
 # =============================================================================

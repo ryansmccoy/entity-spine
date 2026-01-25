@@ -415,11 +415,11 @@ class FeedSpineEntitySpineSync:
         results: dict[str, dict[str, int]] = {}
 
         # Sync MIC
-        if self._mic_registry is not None or True:  # Always try
-            new, updated = await sync_mic_to_registry(
-                self._storage, self._mic_registry
-            )
-            results["mic"] = {"new": new, "updated": updated}
+        # Always try MIC sync regardless of registry state
+        new, updated = await sync_mic_to_registry(
+            self._storage, self._mic_registry
+        )
+        results["mic"] = {"new": new, "updated": updated}
 
         # Sync SEC to entity store
         if self._entity_store is not None:
@@ -427,11 +427,11 @@ class FeedSpineEntitySpineSync:
             results["sec"] = stats
 
         # Sync LEI
-        if self._lei_registry is not None or True:
-            new, updated = await sync_lei_to_registry(
-                self._storage, self._lei_registry
-            )
-            results["lei"] = {"new": new, "updated": updated}
+        # Always try LEI sync regardless of registry state
+        new, updated = await sync_lei_to_registry(
+            self._storage, self._lei_registry
+        )
+        results["lei"] = {"new": new, "updated": updated}
 
         # Record sync
         self._last_sync = utc_now()
