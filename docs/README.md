@@ -1,38 +1,64 @@
 # EntitySpine Documentation
 
-> **Version**: 0.4.0  
-> **Last Updated**: January 27, 2026
+> **Version**: 2.3.0  
+> **Last Updated**: January 28, 2026
 
-## 📚 Documentation Index
+## 📚 Documentation Structure
 
+```
+docs/
+├── architecture/     # Stable design principles
+├── features/         # Feature documentation
+├── rfcs/            # Proposals and design docs
+├── adrs/            # Architecture Decision Records
+├── changelog/       # Version history
+├── sessions/        # LLM work session summaries
+└── archive/         # Historical documents
+```
+
+## 🗂️ Quick Navigation
+
+### Architecture (Stable)
 | Document | Description |
 |----------|-------------|
-| [MANIFESTO.md](MANIFESTO.md) | Core design philosophy — Entity ≠ Security ≠ Listing |
-| [UNIFIED_DATA_MODEL.md](UNIFIED_DATA_MODEL.md) | Complete schema reference |
-| [SERVICES_REFERENCE.md](SERVICES_REFERENCE.md) | **NEW** - Audit, Conflicts, Data Quality services |
-| [FILING_FACTS_SCHEMA.md](FILING_FACTS_SCHEMA.md) | Integration contract for py-sec-edgar |
-| [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) | Domain model layer architecture |
-| [MIGRATION.md](MIGRATION.md) | v0.3.0 migration guide |
-| [08_MODELS_AND_VALIDATION.md](08_MODELS_AND_VALIDATION.md) | Domain model details and validation |
+| [CONVENTIONS.md](architecture/CONVENTIONS.md) | Coding standards and patterns |
+| [MANIFESTO.md](architecture/MANIFESTO.md) | Core philosophy: Entity ≠ Security ≠ Listing |
+| [MODEL_ARCHITECTURE.md](architecture/MODEL_ARCHITECTURE.md) | Domain model layer design |
+| [UNIFIED_DATA_MODEL.md](architecture/UNIFIED_DATA_MODEL.md) | Complete schema reference |
 
-## 🆕 Recent Updates (January 2026)
+### Features
+| Document | Description |
+|----------|-------------|
+| [observation-model.md](features/observation-model.md) | Financial observations (v2.2.5) |
+| [ingestion.md](features/ingestion.md) | Data ingestion architecture |
+| [factset-integration.md](features/factset-integration.md) | FactSet data integration |
+| [social-feed.md](features/social-feed.md) | Social feed vision |
 
-### Complete Services Inventory
+### Architecture Decision Records (ADRs)
+| ADR | Title |
+|-----|-------|
+| [001](adrs/001-stdlib-only-domain.md) | Stdlib-only domain layer |
+| [002](adrs/002-ulid-over-uuid.md) | ULID over UUID4 |
+| [003](adrs/003-identifier-claims.md) | Identifier claims pattern |
+| [004](adrs/004-frozen-dataclasses.md) | Frozen dataclasses |
+| [005](adrs/005-enum-str-inheritance.md) | Enum str inheritance |
+| [006](adrs/006-time-semantics.md) | Time semantics |
+| [007](adrs/007-enum-package-split.md) | Enum package split |
 
-| Service | Module | Lines | Purpose |
-|---------|--------|-------|---------|
-| **Graph** | `services/graph_service.py` | 812 | Relationship traversal, network analysis |
-| **Timeline** | `services/timeline.py` | 549 | Point-in-time queries, entity snapshots |
-| **Exhibit 21** | `parser/exhibit21.py` | 918 | Corporate hierarchy parsing |
-| **Audit** | `services/audit.py` | — | Change tracking with reversion |
-| **Conflicts** | `services/conflicts.py` | — | Duplicate detection & resolution |
-| **Data Quality** | `services/data_quality.py` | — | Validation & cleansing |
-| **Fuzzy** | `services/fuzzy.py` | — | Name matching & normalization |
-| **Clustering** | `services/clustering.py` | — | Entity grouping |
-| **Resolver** | `services/resolver.py` | — | Multi-identifier resolution |
-| **Symbology** | `services/symbology_refresh.py` | — | Identifier refresh |
+### RFCs & Proposals
+| Document | Status |
+|----------|--------|
+| [001-architecture-improvements.md](rfcs/001-architecture-improvements.md) | In Progress |
+| [API Proposals](rfcs/) | Various API design options |
 
-See [SERVICES_REFERENCE.md](SERVICES_REFERENCE.md) for full API documentation.
+### Changelog
+| Version | Date | Highlights |
+|---------|------|------------|
+| [2.3.0](changelog/CHANGELOG.md) | 2026-01-28 | Enum split, observations v2.2.5 |
+| [2.2.4](changelog/CHANGELOG.md) | 2026-01 | KG high-confidence nodes |
+| [2.2.3](changelog/CHANGELOG.md) | 2025-12 | Identifier claims |
+
+---
 
 ## 🏗️ Architecture Overview
 
