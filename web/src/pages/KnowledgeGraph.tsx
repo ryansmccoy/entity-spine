@@ -52,7 +52,7 @@ const KnowledgeGraph: React.FC = () => {
 
       {graphData.nodes.length > 0 && (
         <div className="card">
-          <div style={{ height: '600px', background: var(--surface) }}>
+          <div style={{ height: '600px', background: 'var(--surface)' }}>
             <ForceGraph2D
               ref={graphRef}
               graphData={graphData}

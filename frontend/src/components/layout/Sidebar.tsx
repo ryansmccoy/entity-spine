@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   TrendingUp,
   FileText,
+  BookOpen,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -38,6 +39,7 @@ const systemNav = [
   { name: 'Admin', href: '/admin', icon: ShieldCheck },
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Documentation', href: '#docs', icon: BookOpen, external: true, docsPort: 7012 },
 ]
 
 export function Sidebar() {
@@ -145,7 +147,35 @@ export function Sidebar() {
             </span>
           </div>
         )}
-        {systemNav.map((item) => (
+        {systemNav.map((item) => {
+          // Handle external documentation link
+          if (item.external && item.docsPort) {
+            const docsUrl = `${window.location.protocol}//${window.location.hostname}:${item.docsPort}`;
+            return (
+              <a
+                key={item.name}
+                href={docsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={clsx(
+                  'group flex items-center rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200',
+                  'text-[#9D9DA6] hover:bg-[#1B1B29] hover:text-white',
+                  sidebarCollapsed && !isMobile && 'justify-center px-2'
+                )}
+              >
+                <item.icon 
+                  className={clsx(
+                    'h-[18px] w-[18px] flex-shrink-0 transition-colors',
+                    !sidebarCollapsed && !isMobile && 'mr-3',
+                    'text-[#565674] group-hover:text-primary-400'
+                  )} 
+                />
+                {(!sidebarCollapsed || isMobile) && item.name}
+              </a>
+            );
+          }
+          
+          return (
           <NavLink
             key={item.name}
             to={item.href}
@@ -173,7 +203,8 @@ export function Sidebar() {
               </>
             )}
           </NavLink>
-        ))}
+        );
+        })}
       </nav>
 
       {/* Status Card */}
