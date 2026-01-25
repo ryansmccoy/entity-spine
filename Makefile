@@ -36,8 +36,8 @@ setup: install
 	@echo "Setup complete!"
 
 install:
-	@echo "Installing dependencies..."
-	pip install -e ".[dev,api]"
+	@echo "Installing dependencies with uv..."
+	uv sync --dev
 
 # =============================================================================
 # Development
@@ -53,19 +53,19 @@ frontend:
 
 test:
 	@echo "Running tests..."
-	pytest tests/ -v
+	uv run pytest tests/ -v
 
 test-unit:
 	@echo "Running unit tests..."
-	pytest tests/ -v -m unit
+	uv run pytest tests/ -v -m unit
 
 test-integration:
 	@echo "Running integration tests..."
-	pytest tests/ -v -m integration
+	uv run pytest tests/ -v -m integration
 
 coverage:
 	@echo "Running tests with coverage..."
-	pytest tests/ --cov=entityspine --cov-report=html --cov-report=term-missing
+	uv run pytest tests/ --cov=entityspine --cov-report=html --cov-report=term-missing
 	@echo "Coverage report: htmlcov/index.html"
 
 # =============================================================================
@@ -74,16 +74,16 @@ coverage:
 
 lint:
 	@echo "Running linter..."
-	ruff check src/ tests/
+	uv run ruff check src/ tests/
 
 format:
 	@echo "Formatting code..."
-	ruff format src/ tests/
-	ruff check --fix src/ tests/
+	uv run ruff format src/ tests/
+	uv run ruff check --fix src/ tests/
 
 typecheck:
 	@echo "Running type checker..."
-	mypy src/entityspine
+	uv run mypy src/entityspine
 
 check: lint typecheck test
 	@echo "All checks passed!"

@@ -118,3 +118,15 @@ poetry.lock
 # Local dev files
 *.local
 .pypirc
+
+# Documentation archives (internal notes, not for release)
+docs/archive/
+
+# Temporary scripts
+check_db.py
+
+# Generated site
+site/
+
+# Local data
+entityspine_data/
