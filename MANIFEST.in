@@ -1,0 +1,75 @@
+# MANIFEST.in
+# Additional files to include in the distribution package
+
+# Documentation
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CONTRIBUTING.md
+include RELEASE_AUDIT_REPORT.md
+
+# Configuration files
+include pyproject.toml
+include pytest.ini
+include .pre-commit-config.yaml
+include mkdocs.yml
+include justfile
+include Makefile
+
+# Project metadata
+include project_meta.yaml
+
+# Documentation directory
+recursive-include docs *.md *.rst *.txt *.png *.jpg *.svg
+
+# Examples
+recursive-include examples *.py *.md *.txt
+
+# Type stubs
+recursive-include src *.py *.pyi
+
+# Exclude development files
+exclude .gitignore
+exclude .env.example
+exclude docker-compose.yml
+exclude Dockerfile
+exclude requirements.txt
+exclude *.code-workspace
+
+# Exclude test files from distribution
+recursive-exclude tests *
+recursive-exclude .pytest_cache *
+recursive-exclude .mypy_cache *
+recursive-exclude .ruff_cache *
+
+# Exclude build artifacts
+recursive-exclude dist *
+recursive-exclude build *
+recursive-exclude *.egg-info *
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *$py.class
+global-exclude *.so
+global-exclude .DS_Store
+
+# Exclude database files
+exclude *.db
+exclude *.db-journal
+exclude *.sqlite
+exclude *.sqlite3
+
+# Exclude log files
+exclude *.log
+
+# Exclude cache and temporary files
+recursive-exclude .venv *
+recursive-exclude venv *
+recursive-exclude entityspine_data *
+recursive-exclude site *
+recursive-exclude backend *
+recursive-exclude frontend *
+recursive-exclude prompts *
+recursive-exclude scripts *
+
+# Include API deployment files (optional)
+recursive-include api *.py Dockerfile docker-compose.yml
