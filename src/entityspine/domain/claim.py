@@ -133,7 +133,7 @@ class IdentifierClaim:
             )
 
     @property
-    def target_id(self) -> str:
+    def target_id(self) -> str | None:
         """Get the target ID (whichever one is set)."""
         return self.entity_id or self.security_id or self.listing_id
 
