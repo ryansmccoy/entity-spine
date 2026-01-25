@@ -17,7 +17,13 @@ v2.2.3 ARCHITECTURE:
 - Uses DOMAIN dataclasses internally (entityspine.domain.*)
 - Returns domain dataclasses from all public methods
 - Pydantic/SQLModel NOT used here (zero-deps for Tier 1)
+
+v2.2.4 AUTO-LOADING:
+- auto_load_sec parameter enables lazy loading of SEC data
+- Data downloaded and cached on first query
 """
+
+from __future__ import annotations
 
 import json
 import logging
@@ -26,7 +32,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from entityspine.core.identifier import looks_like_cik, looks_like_ticker
 from entityspine.core.timestamps import from_iso8601, to_iso8601, utc_now
@@ -47,6 +53,9 @@ from entityspine.domain import (
     SecurityType,
     VendorNamespace,
 )
+
+if TYPE_CHECKING:
+    from entityspine.loaders.sec_loader import SecDataLoader
 
 logger = logging.getLogger(__name__)
 
@@ -485,17 +494,43 @@ class SqliteStore:
     tier_name: str = "SQLite (stdlib)"
     supports_temporal: bool = False
 
-    def __init__(self, db_path: str | Path = ":memory:"):
+    def __init__(
+        self,
+        db_path: str | Path = ":memory:",
+        *,
+        auto_load_sec: bool = False,
+        cache_dir: str | Path | None = None,
+    ):
         """
         Initialize SQLite store.
 
         Args:
             db_path: Path to SQLite database file.
                     Use ":memory:" for in-memory database.
+            auto_load_sec: If True, automatically load SEC data on first query.
+                          Data is cached locally to avoid repeated downloads.
+            cache_dir: Directory for cached SEC data. Defaults to ~/.entityspine/cache.
+
+        Example:
+            >>> # Basic usage
+            >>> store = SqliteStore("entities.db")
+            >>> store.initialize()
+            >>> store.load_sec_data()  # Manual load
+            >>>
+            >>> # With auto-loading (recommended)
+            >>> store = SqliteStore("entities.db", auto_load_sec=True)
+            >>> store.initialize()
+            >>> entities = store.search("APPLE")  # Auto-loads SEC data
         """
         self.db_path = str(db_path)
         self._conn: sqlite3.Connection | None = None
         self._initialized = False
+        
+        # Auto-load configuration
+        self._auto_load_sec = auto_load_sec
+        self._cache_dir = cache_dir
+        self._sec_loader: "SecDataLoader | None" = None
+        self._auto_loaded = False
 
     @contextmanager
     def _get_connection(self) -> Generator[sqlite3.Connection, None, None]:
@@ -525,6 +560,20 @@ class SqliteStore:
         """Execute SQL and fetch all rows."""
         cursor = self._execute(sql, params)
         return cursor.fetchall()
+
+    def _ensure_auto_loaded(self) -> None:
+        """Ensure SEC data is loaded if auto_load_sec is enabled."""
+        if self._auto_load_sec and not self._auto_loaded:
+            # Lazy import to avoid circular dependency
+            from entityspine.loaders.sec_loader import SecDataLoader
+            
+            if self._sec_loader is None:
+                self._sec_loader = SecDataLoader(
+                    self,
+                    cache_dir=self._cache_dir,
+                )
+            self._sec_loader.ensure_loaded()
+            self._auto_loaded = True
 
     # =========================================================================
     # Row to Domain Conversion (stdlib only)
@@ -869,6 +918,25 @@ class SqliteStore:
     # EntityStoreProtocol - Entity Operations
     # =========================================================================
 
+    def count_entities(self) -> int:
+        """
+        Return the count of entities in the store.
+        
+        Returns:
+            Number of entities in the store.
+        
+        Example:
+            >>> store = SqliteStore(":memory:")
+            >>> store.initialize()
+            >>> store.count_entities()
+            0
+            >>> store.load_sec_data()
+            14000
+            >>> store.count_entities()
+            14000
+        """
+        row = self._fetchone("SELECT COUNT(*) as cnt FROM entities")
+        return row["cnt"] if row else 0
     def get_entity(self, entity_id: str) -> Entity | None:
         """
         Get entity by ID, following redirects.
@@ -879,6 +947,9 @@ class SqliteStore:
         Returns:
             Entity (canonical, after following redirects) or None.
         """
+        # Auto-load SEC data if configured  
+        self._ensure_auto_loaded()
+        
         row = self._fetchone(
             "SELECT * FROM entities WHERE entity_id = ?",
             (entity_id,),
@@ -915,6 +986,9 @@ class SqliteStore:
         Returns:
             List of matching entities.
         """
+        # Auto-load SEC data if configured
+        self._ensure_auto_loaded()
+        
         cik_normalized = cik.strip().zfill(10)
 
         rows = self._fetchall(
@@ -946,6 +1020,9 @@ class SqliteStore:
         Returns:
             List of matching entities.
         """
+        # Auto-load SEC data if configured
+        self._ensure_auto_loaded()
+        
         ticker_normalized = ticker.upper().strip().replace("-", ".")
 
         rows = self._fetchall(
@@ -1272,6 +1349,9 @@ class SqliteStore:
             List of (entity, similarity_score) tuples.
             Score is 1.0 for exact match, lower for LIKE matches.
         """
+        # Auto-load SEC data if configured
+        self._ensure_auto_loaded()
+        
         query_lower = query.lower().strip()
         results: list[tuple[Entity, float]] = []
         seen_ids: set[str] = set()
