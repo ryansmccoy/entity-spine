@@ -136,3 +136,15 @@ site/
 
 # Local data
 entityspine_data/
+
+# Vendor-specific loaders and scripts (proprietary data sources)
+src/entityspine/loaders/
+scripts/analyze_factset*.py
+scripts/analyze_compustat.py
+scripts/convert_factset*.py
+scripts/find_nvidia_factset.py
+scripts/link_factset*.py
+scripts/full_multi_source_load.py
+scripts/*bloomberg*.py
+scripts/*refinitiv*.py
+scripts/*thomson*.py
