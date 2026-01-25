@@ -112,6 +112,26 @@ from entityspine.domain.enums.geo import AddressType, GeoType
 from entityspine.domain.enums.transactions import TransactionCode
 
 # =============================================================================
+# Market infrastructure enums (v2.3.0)
+# =============================================================================
+from entityspine.domain.enums.markets import (
+    AssetClass,
+    BrokerDealerStatus,
+    BrokerDealerType,
+    ClearinghouseType,
+    ClearingStatus,
+    ExchangeStatus,
+    ExchangeType,
+    MarketParticipantType,
+    MembershipStatus,  # v2.3.1 - split from BrokerDealerStatus
+    MembershipType,
+    OrderType,
+    RegistrationStatus,  # v2.3.1 - split from BrokerDealerStatus
+    RegistrationType,
+    TradingSessionType,
+)
+
+# =============================================================================
 # __all__ for explicit exports
 # =============================================================================
 __all__ = [
@@ -167,4 +187,19 @@ __all__ = [
     "AddressType",
     # transactions
     "TransactionCode",
+    # markets (v2.3.0)
+    "ExchangeType",
+    "ExchangeStatus",
+    "AssetClass",
+    "BrokerDealerType",
+    "BrokerDealerStatus",
+    "ClearinghouseType",
+    "ClearingStatus",
+    "MarketParticipantType",
+    "MembershipStatus",  # v2.3.1
+    "RegistrationStatus",  # v2.3.1
+    "RegistrationType",
+    "TradingSessionType",
+    "OrderType",
+    "MembershipType",
 ]

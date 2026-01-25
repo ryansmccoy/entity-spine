@@ -20,6 +20,75 @@ v2.2.3 Semantics:
 """
 
 from entityspine.domain.candidate import ResolutionCandidate
+
+# v2.3.1 Chat/productivity domain models
+from entityspine.domain.chat import (
+    CHAT_ROLE_ASSISTANT,
+    CHAT_ROLE_SYSTEM,
+    CHAT_ROLE_USER,
+    ChatMessage,
+    ChatSession,
+    ChatWorkspace,
+    create_chat_message,
+    create_chat_session,
+    create_chat_workspace,
+)
+
+# v2.3.2 Extraction/NLP domain models (moved from capture-spine)
+from entityspine.domain.extraction import (
+    ContentLink,
+    ExtractedEntity,
+    ExtractionStats,
+    ExtractionType,
+    LinkDirection,
+    LinkEvidence,
+    LinkType,
+    SignificanceComponent,
+    SignificanceScore,
+    StoryCluster,
+    StoryEntity,
+    StoryMetrics,
+    StoryStatus,
+    StoryTimeline,
+    TextSpan,
+)
+
+# v2.3.3 Workflow/Execution domain models (moved from spine-core)
+from entityspine.domain.workflow import (
+    # Enums
+    WorkflowStatus,
+    TaskStatus,
+    StageStatus,
+    QualityStatus,
+    QualityCategory,
+    # Execution tracking
+    ExecutionContext,
+    new_execution_context,
+    new_batch_id,
+    # Result pattern
+    Ok,
+    Err,
+    Result,
+    try_result,
+    # Task/Stage models
+    TaskResult,
+    StageRecord,
+    QualityResult,
+    # Workflow definitions
+    WorkflowStep,
+    WorkflowDefinition,
+    WorkflowRun,
+)
+
+# v2.3.3 Error domain models (moved from spine-core)
+from entityspine.domain.errors import (
+    ErrorCategory,
+    ErrorSeverity,
+    ErrorContext,
+    ErrorRecord,
+    create_error_context,
+    is_retryable_category,
+)
 from entityspine.domain.claim import IdentifierClaim
 from entityspine.domain.entity import Entity
 from entityspine.domain.enums import (
@@ -172,6 +241,61 @@ from entityspine.domain.observation import (
     ValueWithUnits,
     Observation,
     ObservationSet,
+)
+
+# v2.3.0 Market infrastructure models
+from entityspine.domain.markets import (
+    # Domain models
+    Exchange,
+    ExchangeSegment,  # v2.3.1
+    TradingSession,
+    BrokerDealer,
+    BrokerDealerRegistration,
+    BrokerDealerDisciplinaryAction,
+    Clearinghouse,
+    ClearingMembership,
+    ExchangeMembership,
+    MarketParticipant,
+    SelfRegulatoryOrg,
+    # Factory functions
+    create_exchange,
+    create_broker_dealer,
+    create_clearinghouse,
+    create_exchange_segment,  # v2.3.1
+    # Reference data (re-exported for backward compatibility)
+    US_EQUITY_EXCHANGES,
+    US_OPTIONS_EXCHANGES,
+    US_FUTURES_EXCHANGES,
+    US_OTC_MARKETS,
+    EUROPEAN_EXCHANGES,
+    APAC_EXCHANGES,
+    AMERICAS_EXCHANGES,
+    MENA_EXCHANGES,
+    US_CLEARINGHOUSES,
+    GLOBAL_CLEARINGHOUSES,
+    BLOOMBERG_FEED_SOURCES,
+    THOMSON_EXCHANGE_CODES,
+    FACTSET_EXCHANGE_CODES,
+    ALL_KNOWN_MICS,
+    lookup_exchange_by_mic,  # v2.3.1 helper
+)
+
+# Market infrastructure enums
+from entityspine.domain.enums.markets import (
+    AssetClass,
+    BrokerDealerStatus,
+    BrokerDealerType,
+    ClearinghouseType,
+    ClearingStatus,
+    ExchangeStatus,
+    ExchangeType,
+    MarketParticipantType,
+    MembershipStatus,  # v2.3.1
+    MembershipType,
+    OrderType,
+    RegistrationStatus,  # v2.3.1
+    RegistrationType,
+    TradingSessionType,
 )
 
 from entityspine.domain.validators import (
@@ -361,4 +485,103 @@ __all__ = [
     "DuplicateCandidate",
     "ClusterInfo",
     "BlockingConfig",
+    # Market infrastructure models (v2.3.0)
+    "Exchange",
+    "ExchangeSegment",  # v2.3.1
+    "TradingSession",
+    "BrokerDealer",
+    "BrokerDealerRegistration",
+    "BrokerDealerDisciplinaryAction",
+    "Clearinghouse",
+    "ClearingMembership",
+    "ExchangeMembership",
+    "MarketParticipant",
+    "SelfRegulatoryOrg",
+    "create_exchange",
+    "create_broker_dealer",
+    "create_clearinghouse",
+    "create_exchange_segment",  # v2.3.1
+    # Market infrastructure enums
+    "ExchangeType",
+    "ExchangeStatus",
+    "AssetClass",
+    "BrokerDealerType",
+    "BrokerDealerStatus",
+    "ClearinghouseType",
+    "ClearingStatus",
+    "MarketParticipantType",
+    "MembershipStatus",  # v2.3.1
+    "MembershipType",
+    "OrderType",
+    "RegistrationStatus",  # v2.3.1
+    "RegistrationType",
+    "TradingSessionType",
+    # Market infrastructure reference data
+    "US_EQUITY_EXCHANGES",
+    "US_OPTIONS_EXCHANGES",
+    "US_FUTURES_EXCHANGES",
+    "US_OTC_MARKETS",
+    "EUROPEAN_EXCHANGES",
+    "APAC_EXCHANGES",
+    "AMERICAS_EXCHANGES",
+    "MENA_EXCHANGES",
+    "US_CLEARINGHOUSES",
+    "GLOBAL_CLEARINGHOUSES",
+    "BLOOMBERG_FEED_SOURCES",
+    "THOMSON_EXCHANGE_CODES",
+    "FACTSET_EXCHANGE_CODES",
+    "ALL_KNOWN_MICS",
+    "lookup_exchange_by_mic",  # v2.3.1
+    # v2.3.1 Chat/productivity models
+    "CHAT_ROLE_USER",
+    "CHAT_ROLE_ASSISTANT",
+    "CHAT_ROLE_SYSTEM",
+    "ChatMessage",
+    "ChatSession",
+    "ChatWorkspace",
+    "create_chat_message",
+    "create_chat_session",
+    "create_chat_workspace",
+    # v2.3.2 Extraction/NLP models (moved from capture-spine)
+    "ExtractionType",
+    "StoryStatus",
+    "LinkType",
+    "LinkDirection",
+    "TextSpan",
+    "ExtractedEntity",
+    "ExtractionStats",
+    "StoryEntity",
+    "StoryTimeline",
+    "StoryMetrics",
+    "StoryCluster",
+    "LinkEvidence",
+    "ContentLink",
+    "SignificanceComponent",
+    "SignificanceScore",
+    # v2.3.3 Workflow/Execution models (moved from spine-core)
+    "WorkflowStatus",
+    "TaskStatus",
+    "StageStatus",
+    "QualityStatus",
+    "QualityCategory",
+    "ExecutionContext",
+    "new_execution_context",
+    "new_batch_id",
+    "Ok",
+    "Err",
+    "Result",
+    "try_result",
+    "TaskResult",
+    "StageRecord",
+    "QualityResult",
+    "WorkflowStep",
+    "WorkflowDefinition",
+    "WorkflowRun",
+    # v2.3.3 Error models (moved from spine-core)
+    "ErrorCategory",
+    "ErrorSeverity",
+    "ErrorContext",
+    "ErrorRecord",
+    "create_error_context",
+    "is_retryable_category",
 ]

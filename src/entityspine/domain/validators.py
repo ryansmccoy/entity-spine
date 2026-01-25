@@ -146,8 +146,12 @@ _CUSIP_PATTERN = re.compile(r"^[A-Z0-9]{9}$")
 _SEDOL_PATTERN = re.compile(r"^[A-Z0-9]{7}$")
 _FIGI_PATTERN = re.compile(r"^BBG[A-Z0-9]{9}$")
 _EIN_PATTERN = re.compile(r"^\d{9}$")
-_MIC_PATTERN = re.compile(r"^[A-Z]{4}$")
+_MIC_PATTERN = re.compile(r"^[A-Z0-9]{4}$")  # ISO 10383: 4 alphanumeric
 _TICKER_PATTERN = re.compile(r"^[A-Z0-9.]{1,12}$")
+# Market infrastructure patterns (v2.3.1)
+_CRD_PATTERN = re.compile(r"^\d+$")  # CRD numbers are numeric (variable length)
+_MPID_PATTERN = re.compile(r"^[A-Z0-9]{4}$")  # FINRA MPID: 4 alphanumeric
+_SEC_FILE_PATTERN = re.compile(r"^\d+-\d+$")  # e.g., "8-12345" or "0-12345"
 
 
 # =============================================================================
@@ -155,81 +159,283 @@ _TICKER_PATTERN = re.compile(r"^[A-Z0-9.]{1,12}$")
 # =============================================================================
 
 
-def validate_cik(value: str) -> tuple[bool, str]:
-    """Validate CIK format. Returns (is_valid, error_message)."""
+def validate_cik(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate CIK format. Returns (is_valid, error_message).
+    
+    Args:
+        value: Normalized CIK value to validate (10 digits).
+        original: Original value before normalization (for better error messages).
+    """
     if not _CIK_PATTERN.match(value):
+        if original and original != value:
+            return False, f"CIK must be exactly 10 digits. Original: {original!r}, normalized: {value!r}"
         return False, f"CIK must be exactly 10 digits, got: {value!r}"
     return True, ""
 
 
-def validate_lei(value: str) -> tuple[bool, str]:
-    """Validate LEI format (ISO 17442)."""
+def validate_lei(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate LEI format (ISO 17442).
+    
+    Args:
+        value: Normalized LEI value to validate (20 chars, uppercase alphanumeric).
+        original: Original value before normalization (for better error messages).
+    """
     if len(value) != 20:
+        if original and original != value:
+            return False, f"LEI must be exactly 20 characters, got {len(value)}. Original: {original!r}, normalized: {value!r}"
         return False, f"LEI must be exactly 20 characters, got {len(value)}: {value!r}"
     if not _LEI_PATTERN.match(value):
+        if original and original != value:
+            return False, f"LEI must be uppercase alphanumeric. Original: {original!r}, normalized: {value!r}"
         return False, f"LEI must be uppercase alphanumeric, got: {value!r}"
     return True, ""
 
 
-def validate_isin(value: str) -> tuple[bool, str]:
-    """Validate ISIN format (ISO 6166)."""
+def validate_isin(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate ISIN format (ISO 6166).
+    
+    Args:
+        value: Normalized ISIN value to validate (12 chars).
+        original: Original value before normalization (for better error messages).
+    """
     if len(value) != 12:
+        if original and original != value:
+            return False, f"ISIN must be exactly 12 characters, got {len(value)}. Original: {original!r}, normalized: {value!r}"
         return False, f"ISIN must be exactly 12 characters, got {len(value)}: {value!r}"
     if not _ISIN_PATTERN.match(value):
+        if original and original != value:
+            return False, f"ISIN format invalid (expected XX + 9 alnum + digit). Original: {original!r}, normalized: {value!r}"
         return False, f"ISIN format invalid (expected XX + 9 alnum + digit): {value!r}"
     return True, ""
 
 
-def validate_cusip(value: str) -> tuple[bool, str]:
-    """Validate CUSIP format."""
+def validate_cusip(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate CUSIP format.
+    
+    Args:
+        value: Normalized CUSIP value to validate (9 chars, uppercase alphanumeric).
+        original: Original value before normalization (for better error messages).
+    """
     if len(value) != 9:
+        if original and original != value:
+            return False, f"CUSIP must be exactly 9 characters, got {len(value)}. Original: {original!r}, normalized: {value!r}"
         return False, f"CUSIP must be exactly 9 characters, got {len(value)}: {value!r}"
     if not _CUSIP_PATTERN.match(value):
+        if original and original != value:
+            return False, f"CUSIP must be uppercase alphanumeric. Original: {original!r}, normalized: {value!r}"
         return False, f"CUSIP must be uppercase alphanumeric, got: {value!r}"
     return True, ""
 
 
-def validate_sedol(value: str) -> tuple[bool, str]:
-    """Validate SEDOL format."""
+def validate_sedol(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate SEDOL format.
+    
+    Args:
+        value: Normalized SEDOL value to validate (7 chars, uppercase alphanumeric).
+        original: Original value before normalization (for better error messages).
+    """
     if len(value) != 7:
+        if original and original != value:
+            return False, f"SEDOL must be exactly 7 characters, got {len(value)}. Original: {original!r}, normalized: {value!r}"
         return False, f"SEDOL must be exactly 7 characters, got {len(value)}: {value!r}"
     if not _SEDOL_PATTERN.match(value):
+        if original and original != value:
+            return False, f"SEDOL must be uppercase alphanumeric. Original: {original!r}, normalized: {value!r}"
         return False, f"SEDOL must be uppercase alphanumeric, got: {value!r}"
     return True, ""
 
 
-def validate_figi(value: str) -> tuple[bool, str]:
-    """Validate FIGI format."""
+def validate_figi(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate FIGI format.
+    
+    Args:
+        value: Normalized FIGI value to validate (12 chars, starts with BBG).
+        original: Original value before normalization (for better error messages).
+    """
     if len(value) != 12:
+        if original and original != value:
+            return False, f"FIGI must be exactly 12 characters, got {len(value)}. Original: {original!r}, normalized: {value!r}"
         return False, f"FIGI must be exactly 12 characters, got {len(value)}: {value!r}"
     if not _FIGI_PATTERN.match(value):
+        if original and original != value:
+            return False, f"FIGI must start with 'BBG' followed by 9 alnum chars. Original: {original!r}, normalized: {value!r}"
         return False, f"FIGI must start with 'BBG' followed by 9 alnum chars, got: {value!r}"
     return True, ""
 
 
-def validate_ein(value: str) -> tuple[bool, str]:
-    """Validate EIN format."""
+def validate_ein(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate EIN format.
+    
+    Args:
+        value: Normalized EIN value to validate (9 digits, no hyphen).
+        original: Original value before normalization (for better error messages).
+    """
     if not _EIN_PATTERN.match(value):
+        if original and original != value:
+            return False, f"EIN must be exactly 9 digits. Original: {original!r}, normalized: {value!r}"
         return False, f"EIN must be exactly 9 digits, got: {value!r}"
     return True, ""
 
 
-def validate_mic(value: str) -> tuple[bool, str]:
-    """Validate MIC format (ISO 10383)."""
+def validate_mic(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate MIC format (ISO 10383).
+    
+    Args:
+        value: Normalized MIC value to validate (4 chars, uppercase alphanumeric).
+        original: Original value before normalization (for better error messages).
+    """
     if not _MIC_PATTERN.match(value):
-        return False, f"MIC must be exactly 4 uppercase letters, got: {value!r}"
+        if original and original != value:
+            return False, f"MIC must be exactly 4 alphanumeric characters. Original: {original!r}, normalized: {value!r}"
+        return False, f"MIC must be exactly 4 alphanumeric characters, got: {value!r}"
     return True, ""
 
 
-def validate_ticker(value: str) -> tuple[bool, str]:
-    """Validate ticker format."""
+def validate_ticker(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate ticker format.
+    
+    Args:
+        value: Normalized ticker value to validate.
+        original: Original value before normalization (for better error messages).
+    """
     if not value:
         return False, "Ticker cannot be empty"
     if not _TICKER_PATTERN.match(value):
+        if original and original != value:
+            return (
+                False,
+                f"Ticker must be 1-12 uppercase alphanumeric chars (dots allowed). Original: {original!r}, normalized: {value!r}",
+            )
         return (
             False,
             f"Ticker must be 1-12 uppercase alphanumeric chars (dots allowed), got: {value!r}",
         )
+    return True, ""
+    return True, ""
+
+
+# =============================================================================
+# Market Infrastructure Validators (v2.3.1)
+# =============================================================================
+
+
+def normalize_crd(value: str | None) -> str | None:
+    """
+    Normalize CRD number (FINRA Central Registration Depository).
+    
+    - Strip whitespace
+    - Remove leading zeros (CRD numbers don't require zero-padding)
+    
+    Example:
+        >>> normalize_crd("00361")
+        '361'
+    """
+    if value is None:
+        return None
+    cleaned = value.strip().lstrip("0") or "0"
+    return cleaned
+
+
+def validate_crd(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate CRD number format.
+    
+    CRD numbers are numeric strings of variable length.
+    
+    Args:
+        value: Normalized CRD value to validate.
+        original: Original value before normalization (for better error messages).
+    """
+    if not value:
+        return False, "CRD number cannot be empty"
+    if not _CRD_PATTERN.match(value):
+        if original and original != value:
+            return False, f"CRD must be numeric digits only. Original: {original!r}, normalized: {value!r}"
+        return False, f"CRD must be numeric digits only, got: {value!r}"
+    return True, ""
+
+
+def normalize_mpid(value: str | None) -> str | None:
+    """
+    Normalize Market Participant Identifier (MPID).
+    
+    - Strip whitespace
+    - Uppercase
+    
+    Example:
+        >>> normalize_mpid(" gsco ")
+        'GSCO'
+    """
+    if value is None:
+        return None
+    return value.strip().upper()
+
+
+def validate_mpid(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate MPID format (FINRA Market Participant Identifier).
+    
+    MPIDs are 4-character alphanumeric codes assigned by FINRA.
+    
+    Args:
+        value: Normalized MPID value to validate.
+        original: Original value before normalization (for better error messages).
+    """
+    if not value:
+        return False, "MPID cannot be empty"
+    if not _MPID_PATTERN.match(value):
+        if original and original != value:
+            return False, f"MPID must be exactly 4 alphanumeric characters. Original: {original!r}, normalized: {value!r}"
+        return False, f"MPID must be exactly 4 alphanumeric characters, got: {value!r}"
+    return True, ""
+
+
+def normalize_sec_file_number(value: str | None) -> str | None:
+    """
+    Normalize SEC file number.
+    
+    - Strip whitespace
+    - Remove leading zeros from the sequence portion
+    
+    Example:
+        >>> normalize_sec_file_number(" 8-00129 ")
+        '8-129'
+    """
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if "-" in cleaned:
+        prefix, suffix = cleaned.split("-", 1)
+        suffix = suffix.lstrip("0") or "0"
+        return f"{prefix}-{suffix}"
+    return cleaned
+
+
+def validate_sec_file_number(value: str, *, original: str | None = None) -> tuple[bool, str]:
+    """
+    Validate SEC file number format.
+    
+    Format is typically "prefix-number" (e.g., "8-12345" for BD, "0-12345" for IA).
+    
+    Args:
+        value: Normalized SEC file number to validate.
+        original: Original value before normalization (for better error messages).
+    """
+    if not value:
+        return False, "SEC file number cannot be empty"
+    if not _SEC_FILE_PATTERN.match(value):
+        if original and original != value:
+            return False, f"SEC file number must be in format 'X-NNNNN'. Original: {original!r}, normalized: {value!r}"
+        return False, f"SEC file number must be in format 'X-NNNNN', got: {value!r}"
     return True, ""
 
 
@@ -238,8 +444,9 @@ def validate_ticker(value: str) -> tuple[bool, str]:
 # =============================================================================
 
 # Type alias for validator functions
+# Validators accept (value, *, original=None) for better error messages
 Normalizer = Callable[[str | None], str | None]
-Validator = Callable[[str], tuple[bool, str]]
+Validator = Callable[[str], tuple[bool, str]]  # For backward compatibility
 
 SCHEME_VALIDATORS: dict[str, tuple[Normalizer, Validator]] = {
     "cik": (normalize_cik, validate_cik),
@@ -250,6 +457,11 @@ SCHEME_VALIDATORS: dict[str, tuple[Normalizer, Validator]] = {
     "sedol": (normalize_sedol, validate_sedol),
     "figi": (normalize_figi, validate_figi),
     "ticker": (lambda v: normalize_ticker(v) if v else None, validate_ticker),
+    # Market infrastructure identifiers (v2.3.1)
+    "mic": (normalize_mic, validate_mic),
+    "crd": (normalize_crd, validate_crd),
+    "mpid": (normalize_mpid, validate_mpid),
+    "sec_file": (normalize_sec_file_number, validate_sec_file_number),
 }
 
 
@@ -258,27 +470,52 @@ SCHEME_VALIDATORS: dict[str, tuple[Normalizer, Validator]] = {
 # =============================================================================
 
 
-def normalize_and_validate(scheme: str, value: str) -> tuple[str, list]:
+def normalize_and_validate(
+    scheme: str,
+    value: str | None,
+) -> tuple[str | None, list[str]]:
     """
-    Normalize and validate an identifier value for a given scheme.
-
+    Normalize and validate an identifier value by scheme.
+    
+    This helper uses the new validator signatures that include original values
+    in error messages for better debugging.
+    
+    Args:
+        scheme: Identifier scheme (e.g., "cik", "lei", "mic").
+        value: Raw identifier value.
+        
     Returns:
-        (normalized_value, list_of_errors)
+        Tuple of (normalized_value, list_of_errors).
+        
+    Example:
+        >>> normalize_and_validate("cik", "  320193  ")
+        ('0000320193', [])
+        >>> normalize_and_validate("cik", "abc")
+        ('0000000abc', ["CIK must be exactly 10 digits. Original: 'abc', normalized: '0000000abc'"])
     """
-    errors = []
+    errors: list[str] = []
+    
+    if value is None:
+        return None, errors
+    
     scheme_lower = scheme.lower()
-
-    if scheme_lower in SCHEME_VALIDATORS:
-        normalizer, validator = SCHEME_VALIDATORS[scheme_lower]
-        normalized = normalizer(value)
-        if normalized:
-            is_valid, error = validator(normalized)
-            if not is_valid:
-                errors.append(error)
-            return normalized, errors
-
-    # No specific validator, just return stripped uppercase
-    return value.strip().upper(), errors
+    
+    if scheme_lower not in SCHEME_VALIDATORS:
+        # No specific validator, just return stripped uppercase
+        return value.strip().upper(), errors
+    
+    normalizer, validator = SCHEME_VALIDATORS[scheme_lower]
+    normalized = normalizer(value)
+    
+    if normalized is None:
+        return None, errors
+    
+    # Call validator with original for better error messages
+    is_valid, error = validator(normalized, original=value)
+    if not is_valid:
+        errors.append(error)
+    
+    return normalized, errors
 
 
 def get_scope_for_scheme(scheme: str) -> IdentifierScope:
