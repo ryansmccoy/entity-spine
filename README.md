@@ -56,6 +56,26 @@ It provides:
 
 ---
 
+## 📚 Documentation
+
+Full documentation is available via MkDocs:
+
+```bash
+# Run documentation server in Docker
+docker compose --profile docs up -d --build
+
+# Or development mode with live reload
+docker compose --profile docs-dev up -d
+```
+
+Access at: **http://localhost:8012**
+
+Also available:
+- [ReadTheDocs](https://entityspine.readthedocs.io/)
+- Browse [docs/](docs/) folder directly
+
+---
+
 ## ⚡ Quick Start
 
 ### Installation
