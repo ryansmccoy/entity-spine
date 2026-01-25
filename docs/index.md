@@ -131,11 +131,12 @@ EntitySpine supports multiple storage backends:
 
 ## Next Steps
 
-- [Installation Guide](getting-started/installation.md) - Set up EntitySpine
-- [Quick Start](getting-started/quickstart.md) - Build your first entity registry
-- [Core Concepts](getting-started/concepts.md) - Understand the domain model
-- [FactSet Integration](integration/factset.md) - Load FactSet data
+- [Installation & Quick Start](README.md) - Get started with EntitySpine
+- [v0.3.3 Release Notes](DOCUMENTATION_REVIEW.md) - What's new in this release
+- [Feature Matrix](FEATURE_MATRIX.md) - Complete feature support overview
+- [Tier Architecture](architecture/ARCHITECTURE_AND_TIERS.md) - Understand storage tiers
 - [API Reference](api/domain/index.md) - Full API documentation
+- [Development Guidelines](GUARDRAILS.md) - Contributing to EntitySpine
 
 ## License
 

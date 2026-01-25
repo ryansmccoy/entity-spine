@@ -129,6 +129,19 @@ markdown_extensions:
 nav:
   - Home: index.md
   
+  - Getting Started:
+    - Installation: README.md
+    - Quick Start: README.md
+    - Tier Architecture: architecture/ARCHITECTURE_AND_TIERS.md
+  
+  - Release v0.3.3:
+    - Release Overview: DOCUMENTATION_REVIEW.md
+    - What's New: FEATURE_MATRIX.md
+    - Pre-Release Checklist: PRE_RELEASE_CHECKLIST.md
+    - Release Audit: RELEASE_AUDIT_REPORT.md
+    - Project Structure: PROJECT_STRUCTURE_AUDIT.md
+    - Changelog: changelog/CHANGELOG.md
+  
   - API Reference:
     - Domain Models:
       - Overview: api/domain/index.md
@@ -137,12 +150,12 @@ nav:
       - Event: api/domain/event.md
       - Enums: api/domain/enums.md
     - Services: api/services-reference.md
-    - FactSet Loaders: api/data/factset.md
   
   - Guides:
     - Financial Data Pitfalls: guides/FINANCIAL_DATA_PITFALLS.md
     - Multi-Vendor EPS: guides/MULTI_VENDOR_EPS_GUIDE.md
     - Market Data Architecture: guides/MARKET_DATA_ARCHITECTURE.md
+    - Development Guidelines: GUARDRAILS.md
   
   - Design:
     - Overview: design/README.md
@@ -154,8 +167,10 @@ nav:
       - SQLite Best Practices: design/current/07_SQLITE_OPS_BEST_PRACTICES.md
       - Quick Reference: design/current/16_QUICK_REFERENCE.md
     - Architecture:
+      - Architecture & Tiers: architecture/ARCHITECTURE_AND_TIERS.md
       - Code Conventions: architecture/CONVENTIONS.md
       - Model Architecture: architecture/MODEL_ARCHITECTURE.md
+      - Unified Data Model: architecture/UNIFIED_DATA_MODEL.md
   
   - ADRs:
     - Overview: adrs/README.md
@@ -174,15 +189,9 @@ nav:
     - Data Ingestion: features/ingestion.md
   
   - Integration:
-    - FactSet: integration/factset.md
     - Filing Facts Schema: integration/filing-facts-schema.md
     - LLM Prompts: integration/llm-prompt.md
     - Test Scenarios: integration/test-scenarios.md
-  
-  - Changelog:
-    - Current: changelog/CHANGELOG.md
-    - v2.3.0 Summary: changelog/v2.3.0-summary.md
-    - Migration v0.3.0: changelog/migration-v0.3.0.md
   
   - Development:
     - History: DEVELOPMENT_HISTORY.md
