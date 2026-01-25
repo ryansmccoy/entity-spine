@@ -7,11 +7,13 @@ This document provides a chronological summary of commits, features, and files a
 ## Table of Contents
 
 1. [Session Overview](#session-overview)
-2. [Commit Timeline](#commit-timeline)
-3. [Feature Summary by Area](#feature-summary-by-area)
-4. [Files Changed by Category](#files-changed-by-category)
-5. [Documentation Index](#documentation-index)
-6. [Quick Reference](#quick-reference)
+2. [Conversations & Key Decisions](#conversations--key-decisions)
+3. [Commit Timeline](#commit-timeline)
+4. [Feature Summary by Area](#feature-summary-by-area)
+5. [Files Changed by Category](#files-changed-by-category)
+6. [Documentation Index](#documentation-index)
+7. [Quick Reference](#quick-reference)
+8. [Example Code Patterns](#example-code-patterns)
 
 ---
 
@@ -35,6 +37,247 @@ This document provides a chronological summary of commits, features, and files a
 6. **React Visualization Apps** - 3D graph visualization dashboards
 7. **FactSet Integration** - Entity loading and identifier crosswalk
 8. **Documentation Overhaul** - ADRs, features docs, and reorganization
+
+---
+
+## Conversations & Key Decisions
+
+This section captures the discussions and reasoning behind major design decisions during the session.
+
+### "Why Not Pydantic in the Domain Layer?"
+
+**The Problem:** Initial implementation used Pydantic for validation, but this created coupling:
+
+```python
+# ❌ Initial approach - creates external dependency
+from pydantic import BaseModel
+
+class Entity(BaseModel):
+    entity_id: str
+    primary_name: str
+```
+
+**The Discussion:**
+> User: "The domain layer should be stdlib-only. Pydantic belongs in the API layer."
+> 
+> Response: Refactored to frozen dataclasses with manual validation. This keeps the domain pure and serializable.
+
+**The Solution:**
+```python
+# ✅ EntitySpine convention - stdlib only
+from dataclasses import dataclass
+from entityspine.domain.identifiers import generate_ulid
+
+@dataclass(frozen=True, slots=True)
+class Entity:
+    entity_id: str
+    primary_name: str
+    
+    @classmethod
+    def create(cls, primary_name: str) -> "Entity":
+        return cls(entity_id=generate_ulid(), primary_name=primary_name)
+```
+
+---
+
+### "How Do We Handle Multi-Vendor Data Conflicts?"
+
+**The Problem:** Same entity exists in multiple sources with different data:
+- FactSet says Apple HQ is "One Apple Park Way"
+- Bloomberg says "1 Apple Park Way" 
+- SEC filing says "Apple Park, Cupertino"
+
+**The Discussion:**
+> User: "FactSet should be authoritative for entity names, Bloomberg for pricing, SEC for legal filings."
+>
+> Response: Implemented source priority system with claim-based identifier linking.
+
+**The Solution:**
+```python
+# Source priority (lower = higher priority)
+SOURCE_PRIORITY = {
+    "bloomberg": 1,   # Highest priority for financial data
+    "factset": 2,     # Primary for entity metadata
+    "thomson": 3,     # Permid crosswalk
+    "sec": 4,         # Legal filings
+    "user": 5,        # User-contributed
+}
+
+# Claims preserve all sources while resolution picks winner
+class IdentifierClaim:
+    scheme: IdentifierScheme   # e.g., CUSIP, ISIN, LEI
+    value: str                 # The identifier value
+    source_system: str         # Who provided this claim
+    confidence: float          # 0.0 to 1.0
+```
+
+---
+
+### "The 857-Line enums.py Was Unmanageable"
+
+**The Problem:** All 42 enums in one file made navigation painful:
+
+```python
+# enums.py had:
+# - EntityType, EntityStatus (core)
+# - IdentifierScheme, ClaimStatus (identifiers)  
+# - EventType (40+ values!), EventStatus (events)
+# - MetricCode, PeriodType (observations)
+# - ... 30+ more enums
+```
+
+**The Discussion:**
+> User: "Split enums by domain concept but maintain backward compatibility."
+>
+> Response: Created `enums/` package with `__init__.py` re-exporting everything.
+
+**The Solution:**
+```
+enums/
+├── __init__.py      # from .core import *; from .events import *; ...
+├── core.py          # EntityType, SecurityType
+├── events.py        # EventType (40+ values)
+├── observations.py  # MetricCode, PeriodType
+└── ... 7 more modules
+```
+
+Usage unchanged:
+```python
+# Still works! __init__.py re-exports all
+from entityspine.domain.enums import EntityType, EventType, MetricCode
+```
+
+---
+
+### "What About Financial Observation Provenance?"
+
+**The Problem:** Financial data needs full lineage - who said what, when, from which document?
+
+**The Discussion:**
+> User: "I need to trace every number back to its source document, table, and row."
+>
+> Response: Designed Observation model with nested provenance and dedup keys.
+
+**Example Use Case:**
+```python
+from entityspine.domain.observation import (
+    Observation, MetricSpec, FiscalPeriod, 
+    ProvenanceRef, SourceKey, ValueWithUnits
+)
+from entityspine.domain.enums import MetricCode, PeriodType, ProvenanceKind
+from decimal import Decimal
+
+# Recording EPS from a 10-K filing
+obs = Observation.create(
+    entity_id="01HQ9XYZABC123",
+    metric=MetricSpec(code=MetricCode.EPS_BASIC),
+    period=FiscalPeriod(fiscal_year=2024, period_type=PeriodType.ANNUAL),
+    value=ValueWithUnits(raw_value=Decimal("6.42"), currency="USD"),
+    provenance=ProvenanceRef(
+        kind=ProvenanceKind.FILING,
+        namespace=VendorNamespace.SEC,
+        document_id="0000320193-24-000081"  # Apple's 10-K
+    ),
+    source_key=SourceKey(
+        dataset="sec_filings",
+        table="xbrl_facts", 
+        column="us-gaap:EarningsPerShareBasic"
+    )
+)
+
+# Built-in dedup key prevents duplicates
+print(obs.dedup_key)  
+# "01HQ9XYZABC123|EPS_BASIC|2024|ANNUAL|FILING|SEC|0000320193-24-000081"
+```
+
+---
+
+### "How Do Calendar Events Differ From Historical Events?"
+
+**The Problem:** FactSet Events Calendar has future events (earnings calls, dividends) while historical events have outcomes.
+
+**The Discussion:**
+> User: "I need to track scheduled earnings dates AND completed M&A with amounts."
+>
+> Response: Enhanced Event model with scheduling fields and computed properties.
+
+**Example - Upcoming Earnings:**
+```python
+from entityspine.domain.graph import Event
+from entityspine.domain.enums import EventType
+from datetime import date
+
+event = Event(
+    event_type=EventType.EARNINGS_RELEASE,
+    title="Apple Q1 2025 Earnings",
+    entity_id="01HQ9APPLE",
+    scheduled_on=date(2025, 1, 30),
+    fiscal_year=2025,
+    fiscal_quarter=1,
+    report_time="AMC"  # After Market Close
+)
+
+print(event.is_calendar_event)  # True
+print(event.is_financial_event)  # False (no amount yet)
+print(event.fiscal_period_str)   # "Q1 2025"
+```
+
+**Example - Completed Dividend:**
+```python
+event = Event(
+    event_type=EventType.DIVIDEND_CASH,
+    title="Microsoft Quarterly Dividend",
+    entity_id="01HQ9MSFT",
+    effective_date=date(2024, 12, 12),  # Ex-date
+    amount=Decimal("0.83"),
+    currency="USD"
+)
+
+print(event.is_financial_event)  # True (has amount)
+```
+
+---
+
+### "Why Elasticsearch + Neo4j? Isn't PostgreSQL Enough?"
+
+**The Problem:** Different queries need different database strengths:
+- "Find companies matching 'Microsft'" → Fuzzy text search
+- "What's 3 hops from AAPL?" → Graph traversal
+- "All Apple financials for 2024" → Relational queries
+
+**The Discussion:**
+> User: "At enterprise scale, I need specialized databases for each workload."
+>
+> Response: Implemented tiered architecture with sync service.
+
+**The Architecture:**
+```
+PostgreSQL (Source of Truth)
+    │
+    ├──► Elasticsearch (Text Search)
+    │    - Fuzzy matching: "Microsft" → "Microsoft"
+    │    - Autocomplete with edge-ngrams
+    │    - BM25 relevance scoring
+    │
+    └──► Neo4j (Graph Traversal)
+         - O(1) per-hop traversal
+         - "Find all subsidiaries of Berkshire"
+         - "Shortest path from AAPL to GOOGL"
+```
+
+**Usage Example:**
+```python
+from entityspine.stores.elasticsearch_store import ElasticsearchStore
+from entityspine.stores.neo4j_store import Neo4jStore
+
+# Fuzzy name search
+es_store = ElasticsearchStore(hosts=["localhost:9200"])
+results = es_store.search_entities("Microsft")  # Finds Microsoft
+
+# Graph traversal
+neo_store = Neo4jStore(uri="bolt://localhost:7687")
+network = neo_store.get_entity_network("01HQ9AAPL", max_depth=3)
+```
 
 ---
 
@@ -699,6 +942,178 @@ python load_factset.py /path/to/factset.csv
 
 ```bash
 pytest tests/unit/domain/test_observation.py -v
+```
+
+---
+
+## Example Code Patterns
+
+These patterns emerged from the development discussions and are now best practices.
+
+### Pattern 1: Creating Entities with Claims
+
+```python
+from entityspine.domain.entity import Entity
+from entityspine.domain.claim import IdentifierClaim
+from entityspine.domain.enums import EntityType, IdentifierScheme
+
+# Create entity
+apple = Entity.create(
+    primary_name="Apple Inc.",
+    entity_type=EntityType.CORPORATION,
+    domicile_country="US",
+    domicile_jurisdiction="US-CA"
+)
+
+# Add identifier claims from multiple sources
+claims = [
+    IdentifierClaim.create(
+        entity_id=apple.entity_id,
+        scheme=IdentifierScheme.LEI,
+        value="HWUPKR0MPOU8FGXBT394",
+        source_system="gleif"
+    ),
+    IdentifierClaim.create(
+        entity_id=apple.entity_id,
+        scheme=IdentifierScheme.CUSIP,
+        value="037833100",
+        source_system="factset"
+    ),
+    IdentifierClaim.create(
+        entity_id=apple.entity_id,
+        scheme=IdentifierScheme.CIK,
+        value="0000320193",
+        source_system="sec"
+    ),
+]
+
+print(f"Apple ({apple.entity_id}) has {len(claims)} identifiers")
+```
+
+### Pattern 2: Recording Financial Observations
+
+```python
+from entityspine.domain.observation import Observation, MetricSpec, FiscalPeriod
+from entityspine.domain.observation import ProvenanceRef, SourceKey, ValueWithUnits
+from entityspine.domain.enums import MetricCode, PeriodType, ProvenanceKind, VendorNamespace
+from decimal import Decimal
+
+# Annual revenue from SEC filing
+revenue_obs = Observation.create(
+    entity_id=apple.entity_id,
+    metric=MetricSpec(code=MetricCode.REVENUE),
+    period=FiscalPeriod(fiscal_year=2024, period_type=PeriodType.ANNUAL),
+    value=ValueWithUnits(raw_value=Decimal("383285000000"), currency="USD"),
+    provenance=ProvenanceRef(
+        kind=ProvenanceKind.FILING,
+        namespace=VendorNamespace.SEC,
+        document_id="0000320193-24-000081"
+    )
+)
+
+# Quarterly EPS from vendor data
+eps_obs = Observation.create(
+    entity_id=apple.entity_id,
+    metric=MetricSpec(code=MetricCode.EPS_DILUTED, per_share=True),
+    period=FiscalPeriod(fiscal_year=2024, fiscal_quarter=4, period_type=PeriodType.QUARTERLY),
+    value=ValueWithUnits(raw_value=Decimal("1.64"), currency="USD"),
+    provenance=ProvenanceRef(
+        kind=ProvenanceKind.VENDOR,
+        namespace=VendorNamespace.FACTSET
+    )
+)
+
+print(f"Revenue dedup key: {revenue_obs.dedup_key}")
+print(f"EPS dedup key: {eps_obs.dedup_key}")
+```
+
+### Pattern 3: Calendar Events and M&A
+
+```python
+from entityspine.domain.graph import Event
+from entityspine.domain.enums import EventType, EventStatus
+from datetime import date
+from decimal import Decimal
+
+# Upcoming earnings call
+earnings = Event(
+    event_type=EventType.EARNINGS_RELEASE,
+    title="Apple Q1 2025 Earnings Call",
+    entity_id=apple.entity_id,
+    scheduled_on=date(2025, 1, 30),
+    fiscal_year=2025,
+    fiscal_quarter=1,
+    report_time="AMC",  # After Market Close
+    status=EventStatus.SCHEDULED
+)
+
+# Completed M&A
+acquisition = Event(
+    event_type=EventType.ACQUISITION,
+    title="Apple acquires AI startup",
+    entity_id=apple.entity_id,
+    related_entity_ids=["01HQ9TARGET"],
+    occurred_on=date(2024, 12, 1),
+    amount=Decimal("1000000000"),  # $1B
+    currency="USD",
+    status=EventStatus.COMPLETED
+)
+
+# Properties for filtering
+print(f"Earnings is calendar event: {earnings.is_calendar_event}")
+print(f"Acquisition has amount: {acquisition.is_financial_event}")
+print(f"Earnings fiscal period: {earnings.fiscal_period_str}")
+```
+
+### Pattern 4: Multi-Tier Storage
+
+```python
+from entityspine.stores import JsonEntityStore
+from entityspine.stores.sqlite_store import SqliteStore
+from pathlib import Path
+
+# Tier 0: In-memory for testing
+memory_store = JsonEntityStore()
+memory_store.save_entity(apple)
+
+# Tier 1: SQLite for local development  
+sqlite_store = SqliteStore(db_path="entityspine.db")
+sqlite_store.initialize()
+sqlite_store.save_entity(apple)
+sqlite_store.save_claims(claims)
+
+# Query example
+found = sqlite_store.resolve_identifier(
+    scheme=IdentifierScheme.CUSIP,
+    value="037833100"
+)
+print(f"Resolved CUSIP to: {found.primary_name}")
+```
+
+### Pattern 5: CLI Usage Examples
+
+```bash
+# Resolve any identifier to entity
+entityspine resolve AAPL
+entityspine resolve 037833100       # CUSIP
+entityspine resolve US0378331005    # ISIN
+entityspine resolve HWUPKR0MPOU8FGXBT394  # LEI
+
+# Search by name (fuzzy)
+entityspine search "Microsft"        # Finds "Microsoft"
+entityspine search "Apple" --limit 5
+
+# View entity network graph
+entityspine graph network AAPL --depth 2
+
+# Load FactSet data
+entityspine load factset /path/to/ff_combined.csv --limit 10000
+
+# Initialize fresh database
+entityspine db init --tier 1
+
+# Run API server
+entityspine serve --port 8000
 ```
 
 ---
