@@ -21,16 +21,37 @@ from entityspine.domain.enums import IdentifierScope
 # =============================================================================
 
 SCHEME_SCOPES: dict[str, IdentifierScope] = {
+    # Entity-scoped
     "cik": IdentifierScope.ENTITY,
     "lei": IdentifierScope.ENTITY,
     "ein": IdentifierScope.ENTITY,
     "duns": IdentifierScope.ENTITY,
+    "factset_entity_id": IdentifierScope.ENTITY,
+    "factset_person_id": IdentifierScope.ENTITY,
+
+    # Security-scoped
     "isin": IdentifierScope.SECURITY,
     "cusip": IdentifierScope.SECURITY,
     "sedol": IdentifierScope.SECURITY,
     "figi": IdentifierScope.SECURITY,
+    "factset_security_id": IdentifierScope.SECURITY,
+
+    # Listing-scoped
     "ticker": IdentifierScope.LISTING,
     "ric": IdentifierScope.LISTING,
+
+    # Sanctions & Compliance (entity-scoped)
+    "ofac_sdn": IdentifierScope.ENTITY,
+    "ofac_cons": IdentifierScope.ENTITY,
+    "bis_entity_list": IdentifierScope.ENTITY,
+    "un_sanctions": IdentifierScope.ENTITY,
+    "eu_sanctions": IdentifierScope.ENTITY,
+    "uk_sanctions": IdentifierScope.ENTITY,
+    "pep": IdentifierScope.ENTITY,
+    "adverse_media": IdentifierScope.ENTITY,
+    "watchlist": IdentifierScope.ENTITY,
+
+    # Flexible
     "internal": IdentifierScope.ANY,
     "other": IdentifierScope.ANY,
 }

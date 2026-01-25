@@ -266,10 +266,16 @@ class JsonEntityStore:
         return self.load_sec_json(data)
 
     def _create_security_and_listing(
-        self, entity_id: str, name: str, ticker: str
+        self, entity_id: str, name: str, ticker: str, mic: str | None = None
     ) -> tuple[str, str]:
         """Create Security and Listing records for an entity."""
         ticker_normalized = ticker.upper().replace("-", ".")
+
+        # Infer exchange/MIC for US securities if not provided
+        if mic is None:
+            mic, exchange = self._infer_us_exchange(ticker_normalized)
+        else:
+            exchange = self._mic_to_exchange(mic)
 
         # Create security (v2.2.3: use domain dataclass)
         security_id = generate_ulid()
@@ -278,6 +284,7 @@ class JsonEntityStore:
             entity_id=entity_id,
             security_type=SecurityType.COMMON_STOCK,
             description=f"{name} Common Stock",
+            currency="USD",
             source_system="sec",
         )
         self._save_security_internal(security)
@@ -288,7 +295,9 @@ class JsonEntityStore:
             listing_id=listing_id,
             security_id=security_id,
             ticker=ticker_normalized,
-            exchange="UNKNOWN",  # SEC data doesn't include exchange
+            exchange=exchange,
+            mic=mic,
+            currency="USD",
             is_primary=True,
             source_system="sec",
         )
@@ -322,6 +331,64 @@ class JsonEntityStore:
 
         # Create new security and listing
         self._create_security_and_listing(entity_id, name, ticker)
+
+    def _infer_us_exchange(self, ticker: str) -> tuple[str, str]:
+        """
+        Infer exchange/MIC for US securities based on ticker patterns.
+        
+        Returns (mic, exchange_name) tuple.
+        
+        Note: This is a heuristic - actual exchange should come from
+        authoritative sources like OpenFIGI for production use.
+        """
+        # Well-known NASDAQ tickers (4+ letters, tech companies)
+        nasdaq_patterns = [
+            "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "NVDA", "TSLA",
+            "INTC", "CSCO", "ADBE", "NFLX", "PYPL", "CMCSA", "PEP", "COST",
+            "AVGO", "TXN", "QCOM", "TMUS", "SBUX", "INTU", "ISRG", "MDLZ",
+            "GILD", "BKNG", "VRTX", "REGN", "ADI", "ADP", "LRCX", "MU",
+            "ASML", "KLAC", "SNPS", "CDNS", "MRVL", "FTNT", "PANW", "DDOG",
+        ]
+        
+        # Check if ticker matches known NASDAQ patterns
+        if ticker in nasdaq_patterns:
+            return "XNAS", "NASDAQ"
+        
+        # 4+ letter tickers are often NASDAQ
+        if len(ticker) >= 4 and ticker.isalpha():
+            return "XNAS", "NASDAQ"
+        
+        # 1-3 letter tickers are often NYSE
+        if len(ticker) <= 3 and ticker.isalpha():
+            return "XNYS", "NYSE"
+        
+        # Tickers with dots (like BRK.A, BRK.B) are usually NYSE
+        if "." in ticker:
+            return "XNYS", "NYSE"
+        
+        # Default to NYSE for US securities
+        return "XNYS", "NYSE"
+
+    def _mic_to_exchange(self, mic: str) -> str:
+        """Convert MIC code to human-readable exchange name."""
+        mic_map = {
+            "XNYS": "NYSE",
+            "XNAS": "NASDAQ",
+            "XASE": "NYSE American",
+            "ARCX": "NYSE Arca",
+            "XLON": "London Stock Exchange",
+            "XETR": "Deutsche Borse XETRA",
+            "XTKS": "Tokyo Stock Exchange",
+            "XHKG": "Hong Kong Stock Exchange",
+            "XSHG": "Shanghai Stock Exchange",
+            "XSHE": "Shenzhen Stock Exchange",
+            "XTSE": "Toronto Stock Exchange",
+            "XASX": "Australian Securities Exchange",
+            "XPAR": "Euronext Paris",
+            "XAMS": "Euronext Amsterdam",
+            "XSWX": "SIX Swiss Exchange",
+        }
+        return mic_map.get(mic, mic)
 
     # =========================================================================
     # EntityStoreProtocol - Entity Operations
@@ -600,9 +667,11 @@ class JsonEntityStore:
         """Save entity and update indexes."""
         self._entities[entity.entity_id] = entity
 
-        # Update CIK index
-        if entity.cik:
-            cik_normalized = entity.cik.zfill(10)
+        # v2.2.3: CIK is NOT on Entity - it's on IdentifierClaim
+        # The CIK index is populated via _save_claim_internal()
+        # If source_id looks like a CIK, index it for convenience
+        if entity.source_id and entity.source_system in ("sec", "sec_edgar"):
+            cik_normalized = entity.source_id.zfill(10)
             if cik_normalized not in self._cik_index:
                 self._cik_index[cik_normalized] = set()
             self._cik_index[cik_normalized].add(entity.entity_id)
@@ -680,7 +749,7 @@ class JsonEntityStore:
         return current
 
     def _load_from_file(self) -> None:
-        """Load data from JSON file."""
+        """Load data from JSON file (v2.2.3 compatible)."""
         if not self.json_path or not self.json_path.exists():
             return
 
@@ -688,24 +757,52 @@ class JsonEntityStore:
             with open(self.json_path, encoding="utf-8") as f:
                 data = json.load(f)
 
-            # Load entities
+            # Load entities (v2.2.3 - no cik/identifiers fields)
             for entity_data in data.get("entities", []):
+                # Convert entity_type string back to enum
+                entity_type = EntityType.ORGANIZATION
+                if entity_data.get("entity_type"):
+                    try:
+                        entity_type = EntityType(entity_data["entity_type"])
+                    except ValueError:
+                        pass
+                
+                # Convert status string back to enum
+                status = EntityStatus.ACTIVE
+                if entity_data.get("status"):
+                    try:
+                        status = EntityStatus(entity_data["status"])
+                    except ValueError:
+                        pass
+                
                 entity = Entity(
                     entity_id=entity_data["entity_id"],
                     primary_name=entity_data["primary_name"],
-                    cik=entity_data.get("cik"),
-                    identifiers=entity_data.get("identifiers", {}),
-                    aliases=entity_data.get("aliases", []),
+                    entity_type=entity_type,
+                    status=status,
+                    jurisdiction=entity_data.get("jurisdiction"),
+                    sic_code=entity_data.get("sic_code"),
+                    source_system=entity_data.get("source_system", "unknown"),
+                    source_id=entity_data.get("source_id"),
+                    aliases=tuple(entity_data.get("aliases", [])),
                     redirect_to=entity_data.get("redirect_to"),
                 )
                 self._save_entity_internal(entity)
 
             # Load securities
             for sec_data in data.get("securities", []):
+                # Convert security_type string back to enum if needed
+                sec_type = sec_data.get("security_type", "common_stock")
+                if isinstance(sec_type, str):
+                    try:
+                        sec_type = SecurityType(sec_type)
+                    except ValueError:
+                        sec_type = SecurityType.COMMON_STOCK
+                
                 security = Security(
                     security_id=sec_data["security_id"],
                     entity_id=sec_data["entity_id"],
-                    security_type=sec_data["security_type"],
+                    security_type=sec_type,
                     description=sec_data.get("description"),
                 )
                 self._save_security_internal(security)
@@ -720,6 +817,36 @@ class JsonEntityStore:
                     is_primary=listing_data.get("is_primary", False),
                 )
                 self._save_listing_internal(listing)
+
+            # Load claims (v2.2.3 - claims are source of truth for identifiers)
+            for claim_data in data.get("claims", []):
+                # Convert scheme string back to enum
+                scheme = IdentifierScheme.CIK
+                if claim_data.get("scheme"):
+                    try:
+                        scheme = IdentifierScheme(claim_data["scheme"])
+                    except ValueError:
+                        pass
+                
+                # Convert namespace string back to enum
+                namespace = VendorNamespace.SEC
+                if claim_data.get("namespace"):
+                    try:
+                        namespace = VendorNamespace(claim_data["namespace"])
+                    except ValueError:
+                        pass
+                
+                claim = IdentifierClaim(
+                    claim_id=claim_data["claim_id"],
+                    entity_id=claim_data.get("entity_id"),
+                    security_id=claim_data.get("security_id"),
+                    listing_id=claim_data.get("listing_id"),
+                    scheme=scheme,
+                    value=claim_data["value"],
+                    namespace=namespace,
+                    source=claim_data.get("source", ""),
+                )
+                self._save_claim_internal(claim)
 
             logger.info(f"Loaded {len(self._entities)} entities from {self.json_path}")
 
@@ -738,9 +865,13 @@ class JsonEntityStore:
                     {
                         "entity_id": entity.entity_id,
                         "primary_name": entity.primary_name,
-                        "cik": entity.cik,
-                        "identifiers": entity.identifiers,
-                        "aliases": entity.aliases,
+                        "entity_type": entity.entity_type.value if entity.entity_type else None,
+                        "status": entity.status.value if entity.status else None,
+                        "jurisdiction": entity.jurisdiction,
+                        "sic_code": entity.sic_code,
+                        "source_system": entity.source_system,
+                        "source_id": entity.source_id,
+                        "aliases": list(entity.aliases) if entity.aliases else [],
                         "redirect_to": entity.redirect_to,
                     }
                 )
@@ -751,7 +882,7 @@ class JsonEntityStore:
                     {
                         "security_id": security.security_id,
                         "entity_id": security.entity_id,
-                        "security_type": security.security_type,
+                        "security_type": security.security_type.value if hasattr(security.security_type, 'value') else str(security.security_type),
                         "description": security.description,
                     }
                 )
@@ -768,12 +899,29 @@ class JsonEntityStore:
                     }
                 )
 
+            # Save claims too (v2.2.3 - claims are the source of truth for identifiers)
+            claims_data = []
+            for claim in self._claims.values():
+                claims_data.append(
+                    {
+                        "claim_id": claim.claim_id,
+                        "entity_id": claim.entity_id,
+                        "security_id": getattr(claim, 'security_id', None),
+                        "listing_id": getattr(claim, 'listing_id', None),
+                        "scheme": claim.scheme.value if hasattr(claim.scheme, 'value') else str(claim.scheme),
+                        "value": claim.value,
+                        "namespace": claim.namespace.value if hasattr(claim.namespace, 'value') else str(claim.namespace),
+                        "source": claim.source,
+                    }
+                )
+
             data = {
-                "version": "2.0",
+                "version": "2.2.3",
                 "tier": 0,
                 "entities": entities_data,
                 "securities": securities_data,
                 "listings": listings_data,
+                "claims": claims_data,
             }
 
             # Ensure directory exists
