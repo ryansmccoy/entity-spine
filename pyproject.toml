@@ -1,0 +1,215 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "entityspine"
+version = "0.3.1"
+description = "Lightweight entity resolution - from company_tickers.json to enterprise"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Ryan McCoy", email = "ryansmccoy@gmail.com" }]
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Office/Business :: Financial",
+    "Typing :: Typed",
+]
+keywords = ["entity", "resolution", "sec", "edgar", "cik", "ticker"]
+
+# v0.3.0: ZERO core dependencies - stdlib only
+# Canonical domain models are pure Python dataclasses
+# Tier 0-1 stores (JSON, SQLite) are stdlib only
+dependencies = []
+
+[project.optional-dependencies]
+# Pydantic extras - for validation/serialization wrappers
+pydantic = ["pydantic>=2.5.0"]
+
+# ORM extras - SQLModel/SQLAlchemy for advanced relational queries
+orm = ["sqlmodel>=0.0.22", "pydantic>=2.5.0"]
+
+# Tier 2: DuckDB analytics
+duckdb = ["duckdb>=1.0.0"]
+
+# Tier 3: PostgreSQL production
+postgres = [
+    "asyncpg>=0.29.0",
+    "psycopg[binary]>=3.1.0",
+    "sqlmodel>=0.0.22",
+]
+
+# API service (requires pydantic for request/response models)
+api = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic-settings>=2.1.0",
+    "pydantic>=2.5.0",
+]
+
+# Search capabilities
+search = ["elasticsearch>=8.12.0"]
+
+# Full installation (all optional deps)
+full = [
+    "entityspine[pydantic]",
+    "entityspine[orm]",
+    "entityspine[duckdb]",
+    "entityspine[postgres]",
+    "entityspine[api]",
+    "entityspine[search]",
+]
+
+# Development (includes pydantic, orm for testing)
+dev = [
+    "entityspine[pydantic]",
+    "entityspine[orm]",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "httpx>=0.26.0",
+    "ruff>=0.8.0",
+    "mypy>=1.8.0",
+    "pre-commit>=3.6.0",
+    "types-python-dateutil>=2.8.0",
+]
+
+# Documentation
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.24.0",
+]
+
+[project.scripts]
+entityspine = "entityspine.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ryansmccoy/entity-spine"
+Documentation = "https://github.com/ryansmccoy/entity-spine/tree/main/docs"
+Repository = "https://github.com/ryansmccoy/entity-spine"
+Issues = "https://github.com/ryansmccoy/entity-spine/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/entityspine"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/README.md",
+    "/LICENSE",
+]
+
+# =============================================================================
+# Ruff (linting + formatting)
+# =============================================================================
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "PTH",    # flake8-use-pathlib
+    "ERA",    # eradicate
+    "PL",     # pylint
+    "RUF",    # ruff-specific
+]
+ignore = [
+    "PLR0913",  # Too many arguments
+    "PLR2004",  # Magic value comparison
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["entityspine"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["ARG", "PLR2004"]
+
+# =============================================================================
+# MyPy (type checking)
+# =============================================================================
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_configs = true
+show_error_codes = true
+files = ["src/entityspine"]
+
+[[tool.mypy.overrides]]
+module = [
+    "duckdb.*",
+    "asyncpg.*",
+]
+ignore_missing_imports = true
+
+# =============================================================================
+# Pytest
+# =============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+# =============================================================================
+# Coverage
+# =============================================================================
+[tool.coverage.run]
+source = ["src/entityspine"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+]
+show_missing = true
+fail_under = 80

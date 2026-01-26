@@ -1,0 +1,61 @@
+"""
+ULID generation and timestamp utilities (stdlib-only).
+
+STDLIB ONLY - NO PYDANTIC.
+"""
+
+import time
+import random
+import string
+from datetime import datetime, timezone
+from typing import Optional
+
+
+def utc_now() -> datetime:
+    """Get current UTC datetime."""
+    return datetime.now(timezone.utc)
+
+
+def generate_ulid() -> str:
+    """
+    Generate a ULID-like identifier.
+    
+    Format: 26 characters, base32 encoded, time-sortable.
+    This is a simplified implementation for stdlib-only usage.
+    """
+    # Time component: milliseconds since epoch (48 bits -> 10 chars)
+    timestamp_ms = int(time.time() * 1000)
+    timestamp_chars = _encode_base32(timestamp_ms, 10)
+    
+    # Random component (80 bits -> 16 chars)
+    random_part = ''.join(random.choices(_ENCODING, k=16))
+    
+    return timestamp_chars + random_part
+
+
+# ULID base32 alphabet (Crockford's)
+_ENCODING = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+_ENCODING_LEN = len(_ENCODING)
+
+
+def _encode_base32(value: int, length: int) -> str:
+    """Encode integer to base32 string of fixed length."""
+    result = []
+    for _ in range(length):
+        result.append(_ENCODING[value % _ENCODING_LEN])
+        value //= _ENCODING_LEN
+    return ''.join(reversed(result))
+
+
+def to_iso8601(dt: Optional[datetime]) -> Optional[str]:
+    """Convert datetime to ISO 8601 string."""
+    if dt is None:
+        return None
+    return dt.isoformat()
+
+
+def from_iso8601(s: Optional[str]) -> Optional[datetime]:
+    """Parse ISO 8601 string to datetime."""
+    if s is None:
+        return None
+    return datetime.fromisoformat(s)

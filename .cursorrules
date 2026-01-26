@@ -1,0 +1,221 @@
+# EntitySpine AI Assistant Rules
+
+# Project Context
+This is EntitySpine, a lightweight entity resolution library for financial data.
+Built with Python 3.11+, Protocol-based design, tiered storage (JSON→SQLite→DuckDB→Postgres).
+
+# Critical Rules
+
+## Always Do
+- Use `from __future__ import annotations` at top of every file
+- Add full type annotations to ALL functions/methods
+- Use **Google-style docstrings** with Args, Returns, Raises, Example
+- Include runnable Example (doctest) in ALL public function docstrings
+- Mirror test structure to source: `src/entityspine/x/y.py` → `tests/unit/x/test_y.py`
+- Use Protocol pattern for all backend interfaces
+- Raise specific exceptions from entityspine.core.exceptions
+- Keep imports organized: stdlib → third-party → local
+
+## Never Do
+- Don't use `Optional[T]`, use `T | None` instead
+- Don't use `List[T]`, use `list[T]` instead
+- Don't import external packages in Tier 0-1 (use stdlib only)
+- Don't skip type annotations
+- Don't use bare `except:` clauses
+- Don't use relative imports deeper than 2 levels
+- Don't access private attributes (_name) from outside class
+
+## Tier Dependencies (CRITICAL)
+- Tier 0-1: ONLY stdlib (json, sqlite3, datetime, urllib.request)
+- Tier 2: Can add `duckdb` (optional dependency)
+- Tier 3: Can add `asyncpg`, `psycopg` (optional dependency)
+
+## Naming Conventions
+- Protocols: `EntityStore`, `IdentifierResolver`
+- Implementations: `JsonStore`, `SqliteStore`, `DuckDbStore`, `PostgresStore`
+- Models: `Entity`, `SimpleEntity`, `Identifier`, `Alias`
+- Exceptions: `EntitySpineError`, `EntityNotFoundError`, `ResolutionError`
+- Test classes: `TestEntityResolverBasic`, `TestSqliteStoreQuery`
+- Test methods: `test_resolve_ticker_returns_entity`, `test_get_by_cik_missing_returns_none`
+
+## File Patterns
+
+### Protocol file template
+```python
+"""Entity storage protocol."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from entityspine.domain.entities import Entity
+
+
+class EntityStore(Protocol):
+    """Storage backend interface for entities."""
+    
+    def get(self, entity_id: str) -> Entity | None:
+        """Get entity by ID."""
+        ...
+    
+    def get_by_cik(self, cik: str) -> Entity | None:
+        """Get entity by CIK."""
+        ...
+```
+
+### Implementation file template
+```python
+"""SQLite entity storage implementation."""
+from __future__ import annotations
+
+import sqlite3
+from typing import TYPE_CHECKING
+
+from entityspine.adapters.storage.protocol import EntityStore
+
+if TYPE_CHECKING:
+    from entityspine.domain.entities import Entity
+
+
+class SqliteStore:
+    """SQLite-backed entity storage (Tier 1)."""
+    
+    def __init__(self, db_path: str = "entities.db") -> None:
+        self._db_path = db_path
+        self._conn: sqlite3.Connection | None = None
+    
+    def initialize(self) -> None:
+        """Initialize the database connection and schema."""
+        if self._conn is not None:
+            return
+        self._conn = sqlite3.connect(self._db_path)
+        self._create_schema()
+    
+    def close(self) -> None:
+        """Close the database connection."""
+        if self._conn:
+            self._conn.close()
+            self._conn = None
+```
+
+### Model file template
+```python
+"""Entity domain models."""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime
+
+
+@dataclass(frozen=True)
+class SimpleEntity:
+    """Lightweight entity for Tier 0-2.
+    
+    Attributes:
+        entity_id: ULID primary key.
+        cik: SEC Central Index Key (10-digit padded).
+        ticker: Primary stock symbol.
+        name: Company name.
+        exchange: Stock exchange (optional).
+    
+    Example:
+        >>> entity = SimpleEntity(
+        ...     entity_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        ...     cik="0000320193",
+        ...     ticker="AAPL",
+        ...     name="Apple Inc."
+        ... )
+        >>> entity.ticker
+        'AAPL'
+    """
+    entity_id: str
+    cik: str
+    ticker: str
+    name: str
+    exchange: str = ""
+```
+
+### Test file template
+```python
+"""Tests for entityspine.<module>.<submodule>."""
+from __future__ import annotations
+
+import pytest
+
+from entityspine.<module>.<submodule> import ClassUnderTest
+
+
+@pytest.fixture
+def instance() -> ClassUnderTest:
+    """Fresh instance for each test."""
+    obj = ClassUnderTest()
+    obj.initialize()
+    return obj
+
+
+class TestClassUnderTestBasic:
+    """Basic operation tests."""
+
+    def test_operation_succeeds(self, instance: ClassUnderTest) -> None:
+        """Operation works under normal conditions."""
+        result = instance.operation()
+        assert result is not None
+
+    def test_operation_with_invalid_input_raises(
+        self, instance: ClassUnderTest
+    ) -> None:
+        """Operation raises on invalid input."""
+        with pytest.raises(ValueError):
+            instance.operation(invalid="data")
+```
+
+## Directory Structure
+```
+entityspine/
+├── src/entityspine/
+│   ├── __init__.py          # Public API exports
+│   ├── py.typed             # Type hints marker
+│   │
+│   ├── core/                # Zero-dep utilities
+│   │   ├── config.py        # Settings
+│   │   ├── exceptions.py    # Custom errors
+│   │   ├── normalize.py     # ID normalization
+│   │   └── ulid.py          # ULID generator
+│   │
+│   ├── domain/              # Domain models & logic
+│   │   ├── entities/
+│   │   │   ├── model.py     # Entity, SimpleEntity
+│   │   │   └── enums.py     # EntityStatus, EntityType
+│   │   └── resolution/
+│   │       └── resolver.py  # EntityResolver
+│   │
+│   └── adapters/            # Storage backends
+│       └── storage/
+│           ├── protocol.py  # EntityStore protocol
+│           ├── json_store.py    # Tier 0
+│           ├── sqlite_store.py  # Tier 1
+│           ├── duckdb_store.py  # Tier 2
+│           └── postgres_store.py # Tier 3
+│
+├── tests/
+│   ├── unit/                # Mirrors src/entityspine/
+│   ├── integration/         # Cross-component tests
+│   └── conftest.py          # Shared fixtures
+│
+└── docs/
+    ├── MANIFESTO.md         # Design philosophy
+    ├── UNIFIED_DATA_MODEL.md # Schema contract
+    └── design/              # Design documents
+```
+
+## Key Files to Reference
+- Models: src/entityspine/domain/entities/model.py
+- Protocol: src/entityspine/adapters/storage/protocol.py
+- Resolver: src/entityspine/domain/resolution/resolver.py
+- Tests: tests/unit/adapters/storage/test_sqlite_store.py
+
+## Key Documents to Read
+- GUARDRAILS.md - Development standards (READ FIRST)
+- docs/MANIFESTO.md - Design philosophy
+- docs/UNIFIED_DATA_MODEL.md - Schema contract with py-sec-edgar
+- docs/design/00_UNIFIED_DESIGN.md - Consolidated design reference

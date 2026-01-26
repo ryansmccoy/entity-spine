@@ -1,0 +1,282 @@
+{
+  "$schema": "https://entityspine.dev/schemas/filing-facts-payload-v1.json",
+  "$description": "Mock 10-K filing facts payload for EntitySpine integration testing",
+  
+  "filing_metadata": {
+    "filing_id": "0000320193-24-000123",
+    "accession_number": "0000320193-24-000123",
+    "form_type": "10-K",
+    "filing_date": "2024-10-25",
+    "fiscal_year_end": "2024-09-28",
+    "source_system": "sec_edgar",
+    "source_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/"
+  },
+  
+  "issuer": {
+    "cik": "0000320193",
+    "name": "Apple Inc.",
+    "ticker": "AAPL",
+    "sic_code": "3571",
+    "jurisdiction": "US-CA"
+  },
+  
+  "officers": [
+    {
+      "person_id": "person_tim_cook",
+      "name": "Timothy D. Cook",
+      "title": "Chief Executive Officer",
+      "role_type": "ceo",
+      "start_date": "2011-08-24",
+      "end_date": null,
+      "evidence": {
+        "section_id": "signatures",
+        "snippet": "Timothy D. Cook, Chief Executive Officer"
+      }
+    },
+    {
+      "person_id": "person_luca_maestri",
+      "name": "Luca Maestri",
+      "title": "Senior Vice President and Chief Financial Officer",
+      "role_type": "cfo",
+      "start_date": "2014-05-01",
+      "end_date": null,
+      "evidence": {
+        "section_id": "signatures",
+        "snippet": "Luca Maestri, Senior Vice President and Chief Financial Officer"
+      }
+    }
+  ],
+  
+  "directors": [
+    {
+      "person_id": "person_arthur_levinson",
+      "name": "Arthur D. Levinson",
+      "title": "Chairman of the Board",
+      "role_type": "chair",
+      "start_date": "2011-11-15",
+      "end_date": null,
+      "evidence": {
+        "section_id": "part_iii_item_10",
+        "snippet": "Arthur D. Levinson has served as Chairman of the Board since November 2011"
+      }
+    },
+    {
+      "person_id": "person_james_bell",
+      "name": "James A. Bell",
+      "title": "Director",
+      "role_type": "director",
+      "start_date": "2015-10-01",
+      "end_date": null,
+      "evidence": {
+        "section_id": "part_iii_item_10",
+        "snippet": "James A. Bell has served as a director since October 2015"
+      }
+    }
+  ],
+  
+  "headquarters": {
+    "line1": "One Apple Park Way",
+    "line2": null,
+    "city": "Cupertino",
+    "region": "CA",
+    "postal": "95014",
+    "country": "US",
+    "address_type": "business"
+  },
+  
+  "geo_hierarchy": [
+    {
+      "geo_id": "geo_us",
+      "geo_type": "country",
+      "name": "United States",
+      "iso_code": "US",
+      "parent_geo_id": null
+    },
+    {
+      "geo_id": "geo_us_ca",
+      "geo_type": "state",
+      "name": "California",
+      "iso_code": "US-CA",
+      "parent_geo_id": "geo_us"
+    },
+    {
+      "geo_id": "geo_cupertino",
+      "geo_type": "city",
+      "name": "Cupertino",
+      "iso_code": null,
+      "parent_geo_id": "geo_us_ca"
+    }
+  ],
+  
+  "material_contracts": [
+    {
+      "contract_id": "contract_semiconductor_supply",
+      "contract_type": "supply",
+      "title": "Master Semiconductor Supply Agreement",
+      "effective_date": "2020-01-01",
+      "termination_date": "2027-12-31",
+      "value_usd": 5000000000,
+      "counterparty_cik": "0001045810",
+      "counterparty_name": "NVIDIA Corp",
+      "evidence": {
+        "filing_id": "0000320193-24-000123",
+        "section_id": "exhibit_10_1",
+        "snippet": "Material supply agreement for advanced GPU components"
+      }
+    }
+  ],
+  
+  "products": [
+    {
+      "product_id": "product_iphone",
+      "product_type": "device",
+      "name": "iPhone",
+      "description": "Smartphone product line",
+      "status": "active"
+    }
+  ],
+  
+  "brands": [
+    {
+      "brand_id": "brand_apple",
+      "name": "Apple",
+      "description": "Core corporate brand identity"
+    }
+  ],
+  
+  "assets": [
+    {
+      "asset_id": "asset_apple_park",
+      "asset_type": "facility",
+      "name": "Apple Park Campus",
+      "description": "Corporate headquarters facility in Cupertino, CA",
+      "status": "active",
+      "address": {
+        "line1": "One Apple Park Way",
+        "city": "Cupertino",
+        "region": "CA",
+        "postal": "95014",
+        "country": "US"
+      }
+    }
+  ],
+  
+  "events": [
+    {
+      "event_id": "event_ai_acquisition",
+      "event_type": "m&a",
+      "title": "Acquisition of AI Startup XYZ Labs",
+      "description": "Apple completes acquisition of artificial intelligence startup XYZ Labs",
+      "announced_on": "2024-03-15",
+      "occurred_on": "2024-06-01",
+      "status": "completed",
+      "evidence": {
+        "filing_id": "0000320193-24-000123",
+        "section_id": "part_i_item_1",
+        "snippet": "In June 2024, the Company completed the acquisition of XYZ Labs Inc."
+      },
+      "related_entities": [
+        {
+          "name": "XYZ Labs Inc.",
+          "role": "acquired"
+        }
+      ]
+    }
+  ],
+  
+  "relationships": [
+    {
+      "relationship_type": "located_in",
+      "source_type": "entity",
+      "source_ref": "issuer",
+      "target_type": "geo",
+      "target_ref": "geo_cupertino",
+      "evidence": {
+        "snippet": "Principal executive offices located in Cupertino, California"
+      }
+    },
+    {
+      "relationship_type": "employed_by",
+      "source_type": "entity",
+      "source_ref": "person_tim_cook",
+      "target_type": "entity",
+      "target_ref": "issuer",
+      "start_date": "1998-03-01",
+      "evidence": {
+        "snippet": "Mr. Cook joined Apple in March 1998"
+      }
+    },
+    {
+      "relationship_type": "officer_of",
+      "source_type": "entity",
+      "source_ref": "person_tim_cook",
+      "target_type": "entity",
+      "target_ref": "issuer",
+      "start_date": "2011-08-24",
+      "evidence": {
+        "snippet": "Timothy D. Cook has served as CEO since August 2011"
+      }
+    },
+    {
+      "relationship_type": "director_of",
+      "source_type": "entity",
+      "source_ref": "person_arthur_levinson",
+      "target_type": "entity",
+      "target_ref": "issuer",
+      "start_date": "2000-01-01",
+      "evidence": {
+        "snippet": "Arthur D. Levinson has been a director since 2000"
+      }
+    },
+    {
+      "relationship_type": "party_to",
+      "source_type": "entity",
+      "source_ref": "issuer",
+      "target_type": "contract",
+      "target_ref": "contract_semiconductor_supply",
+      "evidence": {
+        "snippet": "Apple is party to the Master Semiconductor Supply Agreement"
+      }
+    },
+    {
+      "relationship_type": "counterparty_to",
+      "source_type": "entity",
+      "source_ref": "nvidia",
+      "target_type": "contract",
+      "target_ref": "contract_semiconductor_supply",
+      "evidence": {
+        "snippet": "NVIDIA is counterparty supplier under the Agreement"
+      }
+    },
+    {
+      "relationship_type": "regulated_by",
+      "source_type": "entity",
+      "source_ref": "issuer",
+      "target_type": "entity",
+      "target_ref": "sec",
+      "evidence": {
+        "snippet": "Apple Inc. is a reporting company under the Securities Exchange Act"
+      }
+    },
+    {
+      "relationship_type": "acquired",
+      "source_type": "entity",
+      "source_ref": "issuer",
+      "target_type": "entity",
+      "target_ref": "xyz_labs",
+      "occurred_on": "2024-06-01",
+      "evidence": {
+        "filing_id": "0000320193-24-000123",
+        "snippet": "Apple completed acquisition of XYZ Labs Inc."
+      }
+    }
+  ],
+  
+  "regulators": [
+    {
+      "regulator_id": "sec",
+      "name": "U.S. Securities and Exchange Commission",
+      "jurisdiction": "US"
+    }
+  ]
+}
