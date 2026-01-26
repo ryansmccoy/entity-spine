@@ -106,3 +106,15 @@ frontend/.vite/
 
 # Docker
 docker/data/
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Lock files (using pyproject.toml)
+uv.lock
+poetry.lock
+
+# Local dev files
+*.local
+.pypirc

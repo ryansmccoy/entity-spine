@@ -1,7 +1,7 @@
 # EntitySpine Documentation
 
-> **Version**: 0.3.2  
-> **Last Updated**: 2024-12
+> **Version**: 0.3.3  
+> **Last Updated**: 2025-01
 
 ## 📚 Documentation Index
 
@@ -10,6 +10,8 @@
 | [MANIFESTO.md](MANIFESTO.md) | Core design philosophy — Entity ≠ Security ≠ Listing |
 | [UNIFIED_DATA_MODEL.md](UNIFIED_DATA_MODEL.md) | Complete schema reference |
 | [FILING_FACTS_SCHEMA.md](FILING_FACTS_SCHEMA.md) | Integration contract for py-sec-edgar |
+| [MODEL_ARCHITECTURE.md](MODEL_ARCHITECTURE.md) | Domain model layer architecture |
+| [MIGRATION.md](MIGRATION.md) | v0.3.0 migration guide |
 | [08_MODELS_AND_VALIDATION.md](08_MODELS_AND_VALIDATION.md) | Domain model details and validation |
 
 ## 🏗️ Architecture Overview
