@@ -216,6 +216,55 @@ class JsonEntityStore:
         logger.info(f"Loaded {count} entities from SEC JSON")
         return count
 
+    def load_sec_data(self, url: str | None = None) -> int:
+        """
+        Download and load SEC company data directly from the SEC website.
+
+        This is a convenience method that fetches company_tickers.json from the SEC
+        and loads it into the store. Uses only stdlib (urllib) - no external dependencies.
+
+        Args:
+            url: Optional URL to fetch data from. Defaults to SEC's company_tickers.json
+
+        Returns:
+            Number of entities loaded.
+
+        Raises:
+            urllib.error.URLError: If download fails
+            json.JSONDecodeError: If response is not valid JSON
+
+        Example:
+            >>> store = JsonEntityStore()
+            >>> store.initialize()
+            >>> count = store.load_sec_data()  # Downloads ~14,000 companies
+            >>> print(f"Loaded {count} companies")
+        """
+        import gzip
+        import json
+        import urllib.request
+
+        SEC_COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+        target_url = url or SEC_COMPANY_TICKERS_URL
+
+        # SEC requires a proper User-Agent header with contact info
+        headers = {
+            "User-Agent": "EntitySpine/0.3.3 (entityspine@example.com)",
+            "Accept-Encoding": "gzip, deflate",
+            "Host": "www.sec.gov",
+        }
+
+        logger.info(f"Downloading SEC data from {target_url}")
+        request = urllib.request.Request(target_url, headers=headers)
+
+        with urllib.request.urlopen(request, timeout=30) as response:
+            raw_data = response.read()
+            # Handle gzip compression
+            if response.headers.get("Content-Encoding") == "gzip" or raw_data[:2] == b"\x1f\x8b":
+                raw_data = gzip.decompress(raw_data)
+            data = json.loads(raw_data.decode("utf-8"))
+
+        return self.load_sec_json(data)
+
     def _create_security_and_listing(
         self, entity_id: str, name: str, ticker: str
     ) -> tuple[str, str]:

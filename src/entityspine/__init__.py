@@ -118,10 +118,18 @@ from entityspine.domain.protocols import (
     StorageLifecycleProtocol,
 )
 
-__version__ = "0.3.2"
+# =============================================================================
+# STORAGE BACKENDS (Tier 0-1, stdlib only)
+# =============================================================================
+from entityspine.stores import JsonEntityStore, SqliteStore
+
+__version__ = "0.3.3"
 
 __all__ = [
     "__version__",
+    # Storage backends (Tier 0-1, stdlib only)
+    "SqliteStore",
+    "JsonEntityStore",
     # Domain models (canonical - stdlib dataclasses)
     "Entity",
     "Security",

@@ -74,16 +74,12 @@ pip install "entityspine[full]"      # Everything
 ### 30-Second Example
 
 ```python
-from entityspine import Entity, SqliteStore
+from entityspine import SqliteStore
 
-# Create store and load SEC data
+# Create store and load ~14,000 SEC companies (auto-downloads)
 store = SqliteStore(":memory:")
 store.initialize()
-
-# Load from SEC's company_tickers.json
-import json
-sec_data = json.loads(open("company_tickers.json").read())
-store.load_sec_json(sec_data)
+store.load_sec_data()  # Fetches from SEC automatically
 
 # Resolve by ticker
 results = store.search_entities("AAPL")
@@ -91,7 +87,7 @@ entity, score = results[0]
 print(f"{entity.primary_name} (CIK: {entity.source_id})")
 # Apple Inc. (CIK: 0000320193)
 
-# Resolve by CIK
+# Resolve by CIK  
 entities = store.get_entities_by_cik("0000320193")
 print(entities[0].primary_name)
 # Apple Inc.
