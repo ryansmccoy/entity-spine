@@ -17,7 +17,6 @@ Security links to Entity (the issuer) and has Listings (where it trades).
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import Field
 
@@ -43,11 +42,11 @@ class SecurityType(str, Enum):
 
 class SecurityStatus(str, Enum):
     """Lifecycle status of a security."""
-    
-    ACTIVE = "active"        # Currently trading
-    INACTIVE = "inactive"    # No longer trading
+
+    ACTIVE = "active"  # Currently trading
+    INACTIVE = "inactive"  # No longer trading
     SUSPENDED = "suspended"  # Temporarily suspended
-    DELISTED = "delisted"    # Permanently delisted
+    DELISTED = "delisted"  # Permanently delisted
 
 
 class Security(EntitySpineModel):
@@ -100,13 +99,13 @@ class Security(EntitySpineModel):
         default=SecurityType.COMMON_STOCK,
         description="Type of security",
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Human-readable description",
     )
 
     # Security details (NOT identifiers - those go in claims)
-    currency: Optional[str] = Field(
+    currency: str | None = Field(
         default=None,
         description="Primary/issuance currency (ISO 4217)",
     )
@@ -120,7 +119,7 @@ class Security(EntitySpineModel):
         default="unknown",
         description="System that created this RECORD",
     )
-    source_id: Optional[str] = Field(
+    source_id: str | None = Field(
         default=None,
         description="ID in the source system",
     )
@@ -144,10 +143,10 @@ class Security(EntitySpineModel):
     def with_update(self, **kwargs) -> "Security":
         """
         Create a new Security with updated fields.
-        
+
         Args:
             **kwargs: Fields to update
-            
+
         Returns:
             New Security with updated fields and updated_at timestamp
         """
@@ -159,20 +158,24 @@ class Security(EntitySpineModel):
     # =========================================================================
     # Domain Model Conversion (v2.2.3 - Pydantic as thin wrapper)
     # =========================================================================
-    
+
     def to_domain(self) -> "entityspine.domain.Security":
         """
         Convert Pydantic model to domain dataclass.
-        
+
         Returns:
             Domain Security dataclass
         """
-        from entityspine.domain import Security as DomainSecurity, SecurityType as DomainSecurityType, SecurityStatus as DomainSecurityStatus
-        
+        from entityspine.domain import Security as DomainSecurity
+        from entityspine.domain import SecurityStatus as DomainSecurityStatus
+        from entityspine.domain import SecurityType as DomainSecurityType
+
         # Handle enum values - Pydantic may store as str or Enum
-        security_type_val = self.security_type.value if hasattr(self.security_type, 'value') else self.security_type
-        status_val = self.status.value if hasattr(self.status, 'value') else self.status
-        
+        security_type_val = (
+            self.security_type.value if hasattr(self.security_type, "value") else self.security_type
+        )
+        status_val = self.status.value if hasattr(self.status, "value") else self.status
+
         return DomainSecurity(
             security_id=self.security_id,
             entity_id=self.entity_id,
@@ -185,15 +188,15 @@ class Security(EntitySpineModel):
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
-    
+
     @classmethod
     def from_domain(cls, security: "entityspine.domain.Security") -> "Security":
         """
         Create Pydantic model from domain dataclass.
-        
+
         Args:
             security: Domain Security dataclass
-            
+
         Returns:
             Pydantic Security model
         """

@@ -15,7 +15,7 @@ from datetime import date
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from entityspine.adapters.pydantic import Entity, Security, Listing, IdentifierClaim
+    from entityspine.adapters.pydantic import Entity, IdentifierClaim, Listing, Security
 
 
 @runtime_checkable

@@ -8,13 +8,11 @@ Provides entity-specific queries:
 - follow redirects
 """
 
-from typing import Optional
-
-from sqlmodel import Session, select, col
+from sqlmodel import Session, col, select
 
 from entityspine.adapters.orm.repositories.base import BaseRepository
 from entityspine.adapters.orm.tables import EntityTable
-from entityspine.adapters.pydantic.entity import Entity, EntityType, EntityStatus
+from entityspine.adapters.pydantic.entity import Entity, EntityStatus, EntityType
 
 
 class EntityRepository(BaseRepository[EntityTable]):
@@ -31,7 +29,7 @@ class EntityRepository(BaseRepository[EntityTable]):
         """Initialize with EntityTable model."""
         super().__init__(session, EntityTable)
 
-    def get_by_cik(self, cik: str) -> Optional[EntityTable]:
+    def get_by_cik(self, cik: str) -> EntityTable | None:
         """
         Get entity by CIK.
 
@@ -67,7 +65,7 @@ class EntityRepository(BaseRepository[EntityTable]):
         statement = select(EntityTable).where(col(EntityTable.cik).in_(normalized))
         return list(self._session.exec(statement).all())
 
-    def get_with_redirect(self, entity_id: str, max_depth: int = 10) -> Optional[EntityTable]:
+    def get_with_redirect(self, entity_id: str, max_depth: int = 10) -> EntityTable | None:
         """
         Get entity, following redirects.
 
@@ -102,7 +100,7 @@ class EntityRepository(BaseRepository[EntityTable]):
         self,
         query: str,
         limit: int = 10,
-        status: Optional[str] = None,
+        status: str | None = None,
     ) -> list[EntityTable]:
         """
         Search entities by name using LIKE.
@@ -118,9 +116,7 @@ class EntityRepository(BaseRepository[EntityTable]):
         # Build search pattern
         pattern = f"%{query}%"
 
-        statement = select(EntityTable).where(
-            col(EntityTable.primary_name).ilike(pattern)
-        )
+        statement = select(EntityTable).where(col(EntityTable.primary_name).ilike(pattern))
 
         if status:
             statement = statement.where(EntityTable.status == status)
@@ -139,11 +135,7 @@ class EntityRepository(BaseRepository[EntityTable]):
         Returns:
             Matching entities.
         """
-        statement = (
-            select(EntityTable)
-            .where(EntityTable.status == status)
-            .limit(limit)
-        )
+        statement = select(EntityTable).where(EntityTable.status == status).limit(limit)
         return list(self._session.exec(statement).all())
 
     def to_domain(self, table: EntityTable) -> Entity:
@@ -155,7 +147,7 @@ class EntityRepository(BaseRepository[EntityTable]):
 
         Returns:
             Pydantic Entity model.
-            
+
         Note:
             v2.2.3: Entity no longer has cik/lei/ein/identifiers fields.
             Those are stored in IdentifierClaim. The table still has the
@@ -189,7 +181,7 @@ class EntityRepository(BaseRepository[EntityTable]):
 
         Returns:
             Database row.
-            
+
         Note:
             v2.2.3: Entity no longer has cik/lei/ein/identifiers fields.
             Those are stored in IdentifierClaim. The table still has the
@@ -200,12 +192,16 @@ class EntityRepository(BaseRepository[EntityTable]):
         legacy_cik = None
         if entity.source_system == "sec" and entity.source_id:
             legacy_cik = entity.source_id.strip().zfill(10)
-        
+
         return EntityTable(
             entity_id=entity.entity_id,
             primary_name=entity.primary_name,
-            entity_type=entity.entity_type.value if isinstance(entity.entity_type, EntityType) else entity.entity_type,
-            status=entity.status.value if isinstance(entity.status, EntityStatus) else entity.status,
+            entity_type=entity.entity_type.value
+            if isinstance(entity.entity_type, EntityType)
+            else entity.entity_type,
+            status=entity.status.value
+            if isinstance(entity.status, EntityStatus)
+            else entity.status,
             cik=legacy_cik,  # v2.2.3: Populated from source_id when source_system='sec'
             lei=None,  # v2.2.3: Use IdentifierClaim instead
             ein=None,  # v2.2.3: Use IdentifierClaim instead

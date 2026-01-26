@@ -13,11 +13,10 @@ NOT the optional Pydantic wrappers (entityspine.adapters.pydantic).
 """
 
 import dataclasses
-from datetime import datetime, date
 
 import pytest
 
-from entityspine.domain import Entity, EntityType, EntityStatus
+from entityspine.domain import Entity, EntityStatus, EntityType
 
 
 class TestEntityCreation:
@@ -74,7 +73,7 @@ class TestEntityCreation:
 class TestEntityScopeEnforcement:
     """
     v2.2.3 CRITICAL: Entity must NOT have ticker/exchange or identifier fields.
-    
+
     These tests enforce the fundamental v2.2.3 design rules:
     - Ticker belongs to Listing, not Entity
     - Identifiers are tracked via IdentifierClaim for provenance
@@ -86,14 +85,12 @@ class TestEntityScopeEnforcement:
             entity_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
             primary_name="Apple Inc.",
         )
-        assert not hasattr(entity, "ticker"), \
-            "v2.2 VIOLATION: Entity has ticker attribute"
+        assert not hasattr(entity, "ticker"), "v2.2 VIOLATION: Entity has ticker attribute"
 
     def test_entity_has_no_ticker_field(self):
         """Entity dataclass must NOT have ticker field."""
         field_names = {f.name for f in dataclasses.fields(Entity)}
-        assert "ticker" not in field_names, \
-            "v2.2 VIOLATION: Entity model has ticker field"
+        assert "ticker" not in field_names, "v2.2 VIOLATION: Entity model has ticker field"
 
     def test_entity_has_no_exchange_attribute(self):
         """Entity must NOT have exchange attribute."""
@@ -101,32 +98,33 @@ class TestEntityScopeEnforcement:
             entity_id="01ARZ3NDEKTSV4RRFFQ69G5FAV",
             primary_name="Apple Inc.",
         )
-        assert not hasattr(entity, "exchange"), \
-            "v2.2 VIOLATION: Entity has exchange attribute"
+        assert not hasattr(entity, "exchange"), "v2.2 VIOLATION: Entity has exchange attribute"
 
     def test_entity_has_no_exchange_field(self):
         """Entity dataclass must NOT have exchange field."""
         field_names = {f.name for f in dataclasses.fields(Entity)}
-        assert "exchange" not in field_names, \
-            "v2.2 VIOLATION: Entity model has exchange field"
+        assert "exchange" not in field_names, "v2.2 VIOLATION: Entity model has exchange field"
 
     def test_entity_has_no_cik_field(self):
         """v2.2.3: Entity must NOT have cik field - use IdentifierClaim."""
         field_names = {f.name for f in dataclasses.fields(Entity)}
-        assert "cik" not in field_names, \
+        assert "cik" not in field_names, (
             "v2.2.3 VIOLATION: Entity model has cik field (use IdentifierClaim)"
+        )
 
     def test_entity_has_no_lei_field(self):
         """v2.2.3: Entity must NOT have lei field - use IdentifierClaim."""
         field_names = {f.name for f in dataclasses.fields(Entity)}
-        assert "lei" not in field_names, \
+        assert "lei" not in field_names, (
             "v2.2.3 VIOLATION: Entity model has lei field (use IdentifierClaim)"
+        )
 
     def test_entity_has_no_identifiers_dict(self):
         """v2.2.3: Entity must NOT have identifiers dict - use IdentifierClaim."""
         field_names = {f.name for f in dataclasses.fields(Entity)}
-        assert "identifiers" not in field_names, \
+        assert "identifiers" not in field_names, (
             "v2.2.3 VIOLATION: Entity model has identifiers dict (use IdentifierClaim)"
+        )
 
     def test_entity_cannot_accept_ticker_kwarg(self):
         """Entity must reject ticker keyword argument."""
@@ -199,7 +197,7 @@ class TestEntityMerge:
             primary_name="Old Company",
         )
         merged = entity.merge_into("01NEW3NDEKTSV4RRFFQ69G5FAV", reason="acquisition")
-        
+
         assert merged.redirect_to == "01NEW3NDEKTSV4RRFFQ69G5FAV"
         assert merged.redirect_reason == "acquisition"
         assert merged.status == EntityStatus.MERGED
@@ -262,7 +260,7 @@ class TestEntityAliases:
             primary_name="Apple Inc.",
         )
         updated = entity.add_alias("Apple Computer")
-        
+
         assert "Apple Computer" in updated.aliases
 
     def test_add_duplicate_alias_ignored(self):
@@ -273,6 +271,6 @@ class TestEntityAliases:
             aliases=("Apple Computer",),  # Tuple for frozen dataclass
         )
         updated = entity.add_alias("Apple Computer")
-        
+
         # Should return same object (no change)
         assert updated is entity

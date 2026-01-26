@@ -22,28 +22,29 @@ v2.2.3 ARCHITECTURE:
 import json
 import logging
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any, Generator, Optional
+from typing import Optional
 
-from entityspine.core.ulid import generate_ulid
-from entityspine.core.timestamps import utc_now, to_iso8601, from_iso8601
 from entityspine.core.identifier import looks_like_cik, looks_like_ticker
+from entityspine.core.timestamps import from_iso8601, to_iso8601, utc_now
+from entityspine.core.ulid import generate_ulid
 
 # v2.2.3: Use DOMAIN dataclasses (stdlib-only, zero deps)
 from entityspine.domain import (
+    ClaimStatus,
     Entity,
-    EntityType,
     EntityStatus,
-    Security,
-    SecurityType,
-    SecurityStatus,
-    Listing,
-    ListingStatus,
+    EntityType,
     IdentifierClaim,
     IdentifierScheme,
-    ClaimStatus,
+    Listing,
+    ListingStatus,
+    Security,
+    SecurityStatus,
+    SecurityType,
     VendorNamespace,
 )
 
@@ -460,7 +461,7 @@ class SqliteStore:
 
     Implements the same interface as JsonEntityStore but with SQLite persistence.
     Uses ONLY stdlib sqlite3 - no SQLModel, no SQLAlchemy, no Pydantic.
-    
+
     v2.2.3: Returns DOMAIN dataclasses (not Pydantic/ORM models).
 
     Limitations (TIER CAPABILITY HONESTY):
@@ -493,7 +494,7 @@ class SqliteStore:
                     Use ":memory:" for in-memory database.
         """
         self.db_path = str(db_path)
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
         self._initialized = False
 
     @contextmanager
@@ -504,9 +505,7 @@ class SqliteStore:
             self._conn.row_factory = sqlite3.Row
         yield self._conn
 
-    def _execute(
-        self, sql: str, params: tuple = (), many: bool = False
-    ) -> sqlite3.Cursor:
+    def _execute(self, sql: str, params: tuple = (), many: bool = False) -> sqlite3.Cursor:
         """Execute SQL and return cursor."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -517,7 +516,7 @@ class SqliteStore:
             conn.commit()
             return cursor
 
-    def _fetchone(self, sql: str, params: tuple = ()) -> Optional[sqlite3.Row]:
+    def _fetchone(self, sql: str, params: tuple = ()) -> sqlite3.Row | None:
         """Execute SQL and fetch one row."""
         cursor = self._execute(sql, params)
         return cursor.fetchone()
@@ -586,7 +585,9 @@ class SqliteStore:
             listing_id=row["listing_id"],
             scheme=IdentifierScheme(row["scheme"]),
             value=row["value"],
-            namespace=VendorNamespace(row["namespace"]) if row["namespace"] else VendorNamespace.UNKNOWN,
+            namespace=VendorNamespace(row["namespace"])
+            if row["namespace"]
+            else VendorNamespace.UNKNOWN,
             status=ClaimStatus(row["status"]),
             confidence=row["confidence"],
             source=row["source"],
@@ -642,10 +643,7 @@ class SqliteStore:
         count = 0
 
         # Handle both dict and list formats
-        if isinstance(data, dict):
-            items = list(data.values())
-        else:
-            items = list(data)
+        items = list(data.values()) if isinstance(data, dict) else list(data)
 
         for item in items:
             try:
@@ -672,9 +670,7 @@ class SqliteStore:
                 if existing:
                     # Entity exists, maybe add listing
                     if ticker:
-                        self._ensure_listing_for_entity(
-                            existing["entity_id"], ticker, name
-                        )
+                        self._ensure_listing_for_entity(existing["entity_id"], ticker, name)
                     continue
 
                 # Create new entity
@@ -683,8 +679,8 @@ class SqliteStore:
                 entity_id = generate_ulid()
 
                 self._execute(
-                    """INSERT INTO entities 
-                       (entity_id, primary_name, entity_type, status, 
+                    """INSERT INTO entities
+                       (entity_id, primary_name, entity_type, status,
                         source_system, source_id, created_at, updated_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
@@ -703,7 +699,7 @@ class SqliteStore:
                 claim_id = generate_ulid()
                 self._execute(
                     """INSERT INTO claims
-                       (claim_id, entity_id, scheme, value, namespace, 
+                       (claim_id, entity_id, scheme, value, namespace,
                         status, confidence, source, captured_at, created_at, updated_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
@@ -804,9 +800,7 @@ class SqliteStore:
 
         return security_id, listing_id
 
-    def _ensure_listing_for_entity(
-        self, entity_id: str, ticker: str, name: str
-    ) -> None:
+    def _ensure_listing_for_entity(self, entity_id: str, ticker: str, name: str) -> None:
         """Ensure a listing exists for an entity/ticker combination."""
         ticker_normalized = ticker.upper().replace("-", ".")
 
@@ -825,7 +819,7 @@ class SqliteStore:
     # EntityStoreProtocol - Entity Operations
     # =========================================================================
 
-    def get_entity(self, entity_id: str) -> Optional[Entity]:
+    def get_entity(self, entity_id: str) -> Entity | None:
         """
         Get entity by ID, following redirects.
 
@@ -845,7 +839,7 @@ class SqliteStore:
         entity = self._row_to_entity(row)
         return self._follow_redirects(entity)
 
-    def get_entity_raw(self, entity_id: str) -> Optional[Entity]:
+    def get_entity_raw(self, entity_id: str) -> Entity | None:
         """
         Get entity by ID WITHOUT following redirects.
 
@@ -936,7 +930,7 @@ class SqliteStore:
 
         # Upsert
         self._execute(
-            """INSERT INTO entities 
+            """INSERT INTO entities
                (entity_id, primary_name, entity_type, status,
                 source_system, source_id, jurisdiction, sic_code, redirect_to,
                 created_at, updated_at)
@@ -1085,9 +1079,7 @@ class SqliteStore:
         now_str = to_iso8601(claim.updated_at)
 
         scheme_val = (
-            claim.scheme.value
-            if isinstance(claim.scheme, IdentifierScheme)
-            else str(claim.scheme)
+            claim.scheme.value if isinstance(claim.scheme, IdentifierScheme) else str(claim.scheme)
         )
         namespace_val = (
             claim.namespace.value
@@ -1095,9 +1087,7 @@ class SqliteStore:
             else str(claim.namespace)
         )
         status_val = (
-            claim.status.value
-            if isinstance(claim.status, ClaimStatus)
-            else str(claim.status)
+            claim.status.value if isinstance(claim.status, ClaimStatus) else str(claim.status)
         )
 
         self._execute(
@@ -1143,7 +1133,7 @@ class SqliteStore:
     # SecurityStoreProtocol
     # =========================================================================
 
-    def get_security(self, security_id: str) -> Optional[Security]:
+    def get_security(self, security_id: str) -> Security | None:
         """Get security by ID."""
         row = self._fetchone(
             "SELECT * FROM securities WHERE security_id = ?",
@@ -1316,9 +1306,7 @@ class SqliteStore:
 
             target = self.get_entity_raw(current.redirect_to)
             if not target:
-                logger.warning(
-                    f"Broken redirect: {current.entity_id} -> {current.redirect_to}"
-                )
+                logger.warning(f"Broken redirect: {current.entity_id} -> {current.redirect_to}")
                 return current
 
             seen.add(current.redirect_to)
@@ -1335,7 +1323,7 @@ class SqliteStore:
     def save_asset(self, asset: "Asset") -> None:
         """Save or update an asset."""
         from entityspine.stores.mappers import asset_to_row
-        
+
         row = asset_to_row(asset)
         with self._get_connection() as conn:
             conn.execute(
@@ -1347,10 +1335,20 @@ class SqliteStore:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    row["asset_id"], row["asset_type"], row["name"], row["description"],
-                    row["owner_entity_id"], row["operator_entity_id"], row["geo_id"],
-                    row["address_id"], row["status"], row["source_system"], row["source_id"],
-                    row["captured_at"], row["created_at"], row["updated_at"],
+                    row["asset_id"],
+                    row["asset_type"],
+                    row["name"],
+                    row["description"],
+                    row["owner_entity_id"],
+                    row["operator_entity_id"],
+                    row["geo_id"],
+                    row["address_id"],
+                    row["status"],
+                    row["source_system"],
+                    row["source_id"],
+                    row["captured_at"],
+                    row["created_at"],
+                    row["updated_at"],
                 ),
             )
             conn.commit()
@@ -1358,14 +1356,14 @@ class SqliteStore:
     def get_asset(self, asset_id: str) -> Optional["Asset"]:
         """Get asset by ID."""
         from entityspine.stores.mappers import row_to_asset
-        
+
         row = self._fetchone("SELECT * FROM assets WHERE asset_id = ?", (asset_id,))
         return row_to_asset(dict(row)) if row else None
 
     def get_assets_by_owner(self, entity_id: str) -> list["Asset"]:
         """Get all assets owned by an entity."""
         from entityspine.stores.mappers import row_to_asset
-        
+
         rows = self._fetchall(
             "SELECT * FROM assets WHERE owner_entity_id = ?",
             (entity_id,),
@@ -1385,7 +1383,7 @@ class SqliteStore:
     def save_contract(self, contract: "Contract") -> None:
         """Save or update a contract."""
         from entityspine.stores.mappers import contract_to_row
-        
+
         row = contract_to_row(contract)
         with self._get_connection() as conn:
             conn.execute(
@@ -1397,10 +1395,19 @@ class SqliteStore:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    row["contract_id"], row["contract_type"], row["title"],
-                    row["effective_date"], row["termination_date"], row["status"],
-                    row["value_usd"], row["source_system"], row["source_id"],
-                    row["filing_id"], row["captured_at"], row["created_at"], row["updated_at"],
+                    row["contract_id"],
+                    row["contract_type"],
+                    row["title"],
+                    row["effective_date"],
+                    row["termination_date"],
+                    row["status"],
+                    row["value_usd"],
+                    row["source_system"],
+                    row["source_id"],
+                    row["filing_id"],
+                    row["captured_at"],
+                    row["created_at"],
+                    row["updated_at"],
                 ),
             )
             conn.commit()
@@ -1408,7 +1415,7 @@ class SqliteStore:
     def get_contract(self, contract_id: str) -> Optional["Contract"]:
         """Get contract by ID."""
         from entityspine.stores.mappers import row_to_contract
-        
+
         row = self._fetchone("SELECT * FROM contracts WHERE contract_id = ?", (contract_id,))
         return row_to_contract(dict(row)) if row else None
 
@@ -1425,7 +1432,7 @@ class SqliteStore:
     def save_product(self, product: "Product") -> None:
         """Save or update a product."""
         from entityspine.stores.mappers import product_to_row
-        
+
         row = product_to_row(product)
         with self._get_connection() as conn:
             conn.execute(
@@ -1436,9 +1443,17 @@ class SqliteStore:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    row["product_id"], row["product_type"], row["name"], row["description"],
-                    row["owner_entity_id"], row["status"], row["source_system"],
-                    row["source_id"], row["captured_at"], row["created_at"], row["updated_at"],
+                    row["product_id"],
+                    row["product_type"],
+                    row["name"],
+                    row["description"],
+                    row["owner_entity_id"],
+                    row["status"],
+                    row["source_system"],
+                    row["source_id"],
+                    row["captured_at"],
+                    row["created_at"],
+                    row["updated_at"],
                 ),
             )
             conn.commit()
@@ -1446,14 +1461,14 @@ class SqliteStore:
     def get_product(self, product_id: str) -> Optional["Product"]:
         """Get product by ID."""
         from entityspine.stores.mappers import row_to_product
-        
+
         row = self._fetchone("SELECT * FROM products WHERE product_id = ?", (product_id,))
         return row_to_product(dict(row)) if row else None
 
     def get_products_by_owner(self, entity_id: str) -> list["Product"]:
         """Get all products owned by an entity."""
         from entityspine.stores.mappers import row_to_product
-        
+
         rows = self._fetchall(
             "SELECT * FROM products WHERE owner_entity_id = ?",
             (entity_id,),
@@ -1473,7 +1488,7 @@ class SqliteStore:
     def save_brand(self, brand: "Brand") -> None:
         """Save or update a brand."""
         from entityspine.stores.mappers import brand_to_row
-        
+
         row = brand_to_row(brand)
         with self._get_connection() as conn:
             conn.execute(
@@ -1484,9 +1499,15 @@ class SqliteStore:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    row["brand_id"], row["name"], row["owner_entity_id"],
-                    row["description"], row["source_system"], row["source_id"],
-                    row["captured_at"], row["created_at"], row["updated_at"],
+                    row["brand_id"],
+                    row["name"],
+                    row["owner_entity_id"],
+                    row["description"],
+                    row["source_system"],
+                    row["source_id"],
+                    row["captured_at"],
+                    row["created_at"],
+                    row["updated_at"],
                 ),
             )
             conn.commit()
@@ -1494,14 +1515,14 @@ class SqliteStore:
     def get_brand(self, brand_id: str) -> Optional["Brand"]:
         """Get brand by ID."""
         from entityspine.stores.mappers import row_to_brand
-        
+
         row = self._fetchone("SELECT * FROM brands WHERE brand_id = ?", (brand_id,))
         return row_to_brand(dict(row)) if row else None
 
     def get_brands_by_owner(self, entity_id: str) -> list["Brand"]:
         """Get all brands owned by an entity."""
         from entityspine.stores.mappers import row_to_brand
-        
+
         rows = self._fetchall(
             "SELECT * FROM brands WHERE owner_entity_id = ?",
             (entity_id,),
@@ -1521,7 +1542,7 @@ class SqliteStore:
     def save_event(self, event: "Event") -> None:
         """Save or update an event."""
         from entityspine.stores.mappers import event_to_row
-        
+
         row = event_to_row(event)
         with self._get_connection() as conn:
             conn.execute(
@@ -1534,11 +1555,23 @@ class SqliteStore:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    row["event_id"], row["event_type"], row["title"], row["description"],
-                    row["status"], row["occurred_on"], row["announced_on"], row["payload"],
-                    row["evidence_filing_id"], row["evidence_section_id"], row["evidence_snippet"],
-                    row["confidence"], row["source_system"], row["source_id"],
-                    row["captured_at"], row["created_at"], row["updated_at"],
+                    row["event_id"],
+                    row["event_type"],
+                    row["title"],
+                    row["description"],
+                    row["status"],
+                    row["occurred_on"],
+                    row["announced_on"],
+                    row["payload"],
+                    row["evidence_filing_id"],
+                    row["evidence_section_id"],
+                    row["evidence_snippet"],
+                    row["confidence"],
+                    row["source_system"],
+                    row["source_id"],
+                    row["captured_at"],
+                    row["created_at"],
+                    row["updated_at"],
                 ),
             )
             conn.commit()
@@ -1546,15 +1579,15 @@ class SqliteStore:
     def get_event(self, event_id: str) -> Optional["Event"]:
         """Get event by ID."""
         from entityspine.stores.mappers import row_to_event
-        
+
         row = self._fetchone("SELECT * FROM kg_events WHERE event_id = ?", (event_id,))
         return row_to_event(dict(row)) if row else None
 
     def get_events_by_type(self, event_type: "EventType") -> list["Event"]:
         """Get all events of a specific type."""
         from entityspine.stores.mappers import row_to_event
-        
-        type_value = event_type.value if hasattr(event_type, 'value') else event_type
+
+        type_value = event_type.value if hasattr(event_type, "value") else event_type
         rows = self._fetchall(
             "SELECT * FROM kg_events WHERE event_type = ?",
             (type_value,),
@@ -1573,11 +1606,10 @@ class SqliteStore:
 
     def save_geo(self, geo: "Geo") -> None:
         """Save or update a geographic location."""
-        from datetime import datetime, timezone
-        
-        now = datetime.now(timezone.utc).isoformat()
-        geo_type = geo.geo_type.value if hasattr(geo.geo_type, 'value') else geo.geo_type
-        
+
+        now = datetime.now(UTC).isoformat()
+        geo_type = geo.geo_type.value if hasattr(geo.geo_type, "value") else geo.geo_type
+
         with self._get_connection() as conn:
             conn.execute(
                 """
@@ -1587,8 +1619,13 @@ class SqliteStore:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    geo.geo_id, geo_type, geo.name, geo.iso_code,
-                    geo.parent_geo_id, now, now,
+                    geo.geo_id,
+                    geo_type,
+                    geo.name,
+                    geo.iso_code,
+                    geo.parent_geo_id,
+                    now,
+                    now,
                 ),
             )
             conn.commit()
@@ -1596,7 +1633,7 @@ class SqliteStore:
     def get_geo(self, geo_id: str) -> Optional["Geo"]:
         """Get geographic location by ID."""
         from entityspine.domain import Geo, GeoType
-        
+
         row = self._fetchone("SELECT * FROM geos WHERE geo_id = ?", (geo_id,))
         if not row:
             return None
@@ -1620,10 +1657,9 @@ class SqliteStore:
 
     def save_address(self, address: "Address") -> None:
         """Save or update an address."""
-        from datetime import datetime, timezone
-        
-        now = datetime.now(timezone.utc).isoformat()
-        
+
+        now = datetime.now(UTC).isoformat()
+
         with self._get_connection() as conn:
             conn.execute(
                 """
@@ -1633,9 +1669,16 @@ class SqliteStore:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    address.address_id, address.line1, address.line2,
-                    address.city, address.region, address.postal,
-                    address.country, address.normalized_hash, now, now,
+                    address.address_id,
+                    address.line1,
+                    address.line2,
+                    address.city,
+                    address.region,
+                    address.postal,
+                    address.country,
+                    address.normalized_hash,
+                    now,
+                    now,
                 ),
             )
             conn.commit()
@@ -1643,7 +1686,7 @@ class SqliteStore:
     def get_address(self, address_id: str) -> Optional["Address"]:
         """Get address by ID."""
         from entityspine.domain import Address
-        
+
         row = self._fetchone("SELECT * FROM addresses WHERE address_id = ?", (address_id,))
         if not row:
             return None
@@ -1661,7 +1704,7 @@ class SqliteStore:
     def get_address_by_hash(self, normalized_hash: str) -> Optional["Address"]:
         """Get address by normalized hash for deduplication."""
         from entityspine.domain import Address
-        
+
         row = self._fetchone(
             "SELECT * FROM addresses WHERE normalized_hash = ?",
             (normalized_hash,),
@@ -1691,11 +1734,10 @@ class SqliteStore:
         address_type: "AddressType",
     ) -> None:
         """Link an entity to an address."""
-        from datetime import datetime, timezone
-        
-        now = datetime.now(timezone.utc).isoformat()
-        type_value = address_type.value if hasattr(address_type, 'value') else address_type
-        
+
+        now = datetime.now(UTC).isoformat()
+        type_value = address_type.value if hasattr(address_type, "value") else address_type
+
         with self._get_connection() as conn:
             conn.execute(
                 """
@@ -1715,11 +1757,10 @@ class SqliteStore:
 
     def save_role_assignment(self, role: "RoleAssignment") -> None:
         """Save or update a role assignment."""
-        from datetime import datetime, timezone
-        
-        now = datetime.now(timezone.utc).isoformat()
-        role_type = role.role_type.value if hasattr(role.role_type, 'value') else role.role_type
-        
+
+        now = datetime.now(UTC).isoformat()
+        role_type = role.role_type.value if hasattr(role.role_type, "value") else role.role_type
+
         with self._get_connection() as conn:
             conn.execute(
                 """
@@ -1731,30 +1772,39 @@ class SqliteStore:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    role.role_assignment_id, role.person_entity_id, role.org_entity_id,
-                    role_type, role.title,
+                    role.role_assignment_id,
+                    role.person_entity_id,
+                    role.org_entity_id,
+                    role_type,
+                    role.title,
                     role.start_date.isoformat() if role.start_date else None,
                     role.end_date.isoformat() if role.end_date else None,
                     role.confidence,
-                    role.captured_at.isoformat() if hasattr(role.captured_at, 'isoformat') else now,
-                    role.source_system, role.source_ref, role.filing_id,
-                    role.section_id, role.snippet_hash, now, now,
+                    role.captured_at.isoformat() if hasattr(role.captured_at, "isoformat") else now,
+                    role.source_system,
+                    role.source_ref,
+                    role.filing_id,
+                    role.section_id,
+                    role.snippet_hash,
+                    now,
+                    now,
                 ),
             )
             conn.commit()
 
     def get_role_assignment(self, role_assignment_id: str) -> Optional["RoleAssignment"]:
         """Get role assignment by ID."""
+        from datetime import date
+
         from entityspine.domain import RoleAssignment, RoleType
-        from datetime import date, datetime, timezone
-        
+
         row = self._fetchone(
             "SELECT * FROM role_assignments WHERE role_assignment_id = ?",
             (role_assignment_id,),
         )
         if not row:
             return None
-        
+
         return RoleAssignment(
             role_assignment_id=row["role_assignment_id"],
             person_entity_id=row["person_entity_id"],
@@ -1764,7 +1814,9 @@ class SqliteStore:
             start_date=date.fromisoformat(row["start_date"]) if row["start_date"] else None,
             end_date=date.fromisoformat(row["end_date"]) if row["end_date"] else None,
             confidence=row["confidence"],
-            captured_at=datetime.fromisoformat(row["captured_at"]) if row["captured_at"] else datetime.now(timezone.utc),
+            captured_at=datetime.fromisoformat(row["captured_at"])
+            if row["captured_at"]
+            else datetime.now(UTC),
             source_system=row["source_system"] or "unknown",
             source_ref=row["source_ref"],
             filing_id=row["filing_id"],
@@ -1774,62 +1826,72 @@ class SqliteStore:
 
     def get_role_assignments_by_org(self, org_entity_id: str) -> list["RoleAssignment"]:
         """Get all role assignments for an organization."""
+        from datetime import date
+
         from entityspine.domain import RoleAssignment, RoleType
-        from datetime import date, datetime, timezone
-        
+
         rows = self._fetchall(
             "SELECT * FROM role_assignments WHERE org_entity_id = ?",
             (org_entity_id,),
         )
-        
+
         results = []
         for row in rows:
-            results.append(RoleAssignment(
-                role_assignment_id=row["role_assignment_id"],
-                person_entity_id=row["person_entity_id"],
-                org_entity_id=row["org_entity_id"],
-                role_type=RoleType(row["role_type"]),
-                title=row["title"],
-                start_date=date.fromisoformat(row["start_date"]) if row["start_date"] else None,
-                end_date=date.fromisoformat(row["end_date"]) if row["end_date"] else None,
-                confidence=row["confidence"],
-                captured_at=datetime.fromisoformat(row["captured_at"]) if row["captured_at"] else datetime.now(timezone.utc),
-                source_system=row["source_system"] or "unknown",
-                source_ref=row["source_ref"],
-                filing_id=row["filing_id"],
-                section_id=row["section_id"],
-                snippet_hash=row["snippet_hash"],
-            ))
+            results.append(
+                RoleAssignment(
+                    role_assignment_id=row["role_assignment_id"],
+                    person_entity_id=row["person_entity_id"],
+                    org_entity_id=row["org_entity_id"],
+                    role_type=RoleType(row["role_type"]),
+                    title=row["title"],
+                    start_date=date.fromisoformat(row["start_date"]) if row["start_date"] else None,
+                    end_date=date.fromisoformat(row["end_date"]) if row["end_date"] else None,
+                    confidence=row["confidence"],
+                    captured_at=datetime.fromisoformat(row["captured_at"])
+                    if row["captured_at"]
+                    else datetime.now(UTC),
+                    source_system=row["source_system"] or "unknown",
+                    source_ref=row["source_ref"],
+                    filing_id=row["filing_id"],
+                    section_id=row["section_id"],
+                    snippet_hash=row["snippet_hash"],
+                )
+            )
         return results
 
     def get_role_assignments_by_person(self, person_entity_id: str) -> list["RoleAssignment"]:
         """Get all role assignments for a person."""
+        from datetime import date
+
         from entityspine.domain import RoleAssignment, RoleType
-        from datetime import date, datetime, timezone
-        
+
         rows = self._fetchall(
             "SELECT * FROM role_assignments WHERE person_entity_id = ?",
             (person_entity_id,),
         )
-        
+
         results = []
         for row in rows:
-            results.append(RoleAssignment(
-                role_assignment_id=row["role_assignment_id"],
-                person_entity_id=row["person_entity_id"],
-                org_entity_id=row["org_entity_id"],
-                role_type=RoleType(row["role_type"]),
-                title=row["title"],
-                start_date=date.fromisoformat(row["start_date"]) if row["start_date"] else None,
-                end_date=date.fromisoformat(row["end_date"]) if row["end_date"] else None,
-                confidence=row["confidence"],
-                captured_at=datetime.fromisoformat(row["captured_at"]) if row["captured_at"] else datetime.now(timezone.utc),
-                source_system=row["source_system"] or "unknown",
-                source_ref=row["source_ref"],
-                filing_id=row["filing_id"],
-                section_id=row["section_id"],
-                snippet_hash=row["snippet_hash"],
-            ))
+            results.append(
+                RoleAssignment(
+                    role_assignment_id=row["role_assignment_id"],
+                    person_entity_id=row["person_entity_id"],
+                    org_entity_id=row["org_entity_id"],
+                    role_type=RoleType(row["role_type"]),
+                    title=row["title"],
+                    start_date=date.fromisoformat(row["start_date"]) if row["start_date"] else None,
+                    end_date=date.fromisoformat(row["end_date"]) if row["end_date"] else None,
+                    confidence=row["confidence"],
+                    captured_at=datetime.fromisoformat(row["captured_at"])
+                    if row["captured_at"]
+                    else datetime.now(UTC),
+                    source_system=row["source_system"] or "unknown",
+                    source_ref=row["source_ref"],
+                    filing_id=row["filing_id"],
+                    section_id=row["section_id"],
+                    snippet_hash=row["snippet_hash"],
+                )
+            )
         return results
 
     def role_assignment_count(self) -> int:
@@ -1844,12 +1906,14 @@ class SqliteStore:
 
     def save_relationship(self, rel: "Relationship") -> None:
         """Save or update a generic relationship."""
-        from datetime import datetime, timezone
-        import json
-        
-        now = datetime.now(timezone.utc).isoformat()
-        rel_type = rel.relationship_type.value if hasattr(rel.relationship_type, 'value') else rel.relationship_type
-        
+
+        now = datetime.now(UTC).isoformat()
+        rel_type = (
+            rel.relationship_type.value
+            if hasattr(rel.relationship_type, "value")
+            else rel.relationship_type
+        )
+
         with self._get_connection() as conn:
             conn.execute(
                 """
@@ -1863,36 +1927,46 @@ class SqliteStore:
                 """,
                 (
                     rel.relationship_id,
-                    rel.source_ref.kind.value if hasattr(rel.source_ref.kind, 'value') else rel.source_ref.kind,
+                    rel.source_ref.kind.value
+                    if hasattr(rel.source_ref.kind, "value")
+                    else rel.source_ref.kind,
                     rel.source_ref.id,
-                    rel.target_ref.kind.value if hasattr(rel.target_ref.kind, 'value') else rel.target_ref.kind,
+                    rel.target_ref.kind.value
+                    if hasattr(rel.target_ref.kind, "value")
+                    else rel.target_ref.kind,
                     rel.target_ref.id,
-                    rel_type, rel.subtype,
+                    rel_type,
+                    rel.subtype,
                     rel.valid_from.isoformat() if rel.valid_from else None,
                     rel.valid_to.isoformat() if rel.valid_to else None,
-                    rel.captured_at.isoformat() if hasattr(rel.captured_at, 'isoformat') else now,
-                    rel.source_system, rel.source_id, rel.confidence,
-                    rel.evidence_filing_id, rel.evidence_section_id,
-                    rel.evidence_excerpt_hash, rel.evidence_snippet,
+                    rel.captured_at.isoformat() if hasattr(rel.captured_at, "isoformat") else now,
+                    rel.source_system,
+                    rel.source_id,
+                    rel.confidence,
+                    rel.evidence_filing_id,
+                    rel.evidence_section_id,
+                    rel.evidence_excerpt_hash,
+                    rel.evidence_snippet,
                     json.dumps(dict(rel.metrics)) if rel.metrics else None,
-                    now, now,
+                    now,
+                    now,
                 ),
             )
             conn.commit()
 
     def get_relationship(self, relationship_id: str) -> Optional["Relationship"]:
         """Get relationship by ID."""
-        from entityspine.domain import Relationship, RelationshipType, NodeRef, NodeKind
-        from datetime import date, datetime, timezone
-        import json
-        
+        from datetime import date
+
+        from entityspine.domain import NodeKind, NodeRef, Relationship, RelationshipType
+
         row = self._fetchone(
             "SELECT * FROM relationships WHERE relationship_id = ?",
             (relationship_id,),
         )
         if not row:
             return None
-        
+
         return Relationship(
             relationship_id=row["relationship_id"],
             source_ref=NodeRef(
@@ -1907,7 +1981,9 @@ class SqliteStore:
             subtype=row["subtype"],
             valid_from=date.fromisoformat(row["valid_from"]) if row["valid_from"] else None,
             valid_to=date.fromisoformat(row["valid_to"]) if row["valid_to"] else None,
-            captured_at=datetime.fromisoformat(row["captured_at"]) if row["captured_at"] else datetime.now(timezone.utc),
+            captured_at=datetime.fromisoformat(row["captured_at"])
+            if row["captured_at"]
+            else datetime.now(UTC),
             source_system=row["source_system"] or "unknown",
             source_id=row["source_ref"],
             confidence=row["confidence"],
@@ -1924,41 +2000,45 @@ class SqliteStore:
         limit: int = 100,
     ) -> list["Relationship"]:
         """Get all relationships from a source node (by its ID)."""
-        from entityspine.domain import Relationship, RelationshipType, NodeRef, NodeKind
-        from datetime import date, datetime, timezone
-        import json
-        
+        from datetime import date
+
+        from entityspine.domain import NodeKind, NodeRef, Relationship, RelationshipType
+
         rows = self._fetchall(
             "SELECT * FROM relationships WHERE source_id = ? LIMIT ?",
             (source_id, limit),
         )
-        
+
         results = []
         for row in rows:
-            results.append(Relationship(
-                relationship_id=row["relationship_id"],
-                source_ref=NodeRef(
-                    kind=NodeKind(row["source_kind"]),
-                    id=row["source_id"],
-                ),
-                target_ref=NodeRef(
-                    kind=NodeKind(row["target_kind"]),
-                    id=row["target_id"],
-                ),
-                relationship_type=RelationshipType(row["relationship_type"]),
-                subtype=row["subtype"],
-                valid_from=date.fromisoformat(row["valid_from"]) if row["valid_from"] else None,
-                valid_to=date.fromisoformat(row["valid_to"]) if row["valid_to"] else None,
-                captured_at=datetime.fromisoformat(row["captured_at"]) if row["captured_at"] else datetime.now(timezone.utc),
-                source_system=row["source_system"] or "unknown",
-                source_id=row["source_ref"],
-                confidence=row["confidence"],
-                evidence_filing_id=row["evidence_filing_id"],
-                evidence_section_id=row["evidence_section_id"],
-                evidence_excerpt_hash=row["evidence_excerpt_hash"],
-                evidence_snippet=row["evidence_snippet"],
-                metrics=json.loads(row["metrics"]) if row["metrics"] else None,
-            ))
+            results.append(
+                Relationship(
+                    relationship_id=row["relationship_id"],
+                    source_ref=NodeRef(
+                        kind=NodeKind(row["source_kind"]),
+                        id=row["source_id"],
+                    ),
+                    target_ref=NodeRef(
+                        kind=NodeKind(row["target_kind"]),
+                        id=row["target_id"],
+                    ),
+                    relationship_type=RelationshipType(row["relationship_type"]),
+                    subtype=row["subtype"],
+                    valid_from=date.fromisoformat(row["valid_from"]) if row["valid_from"] else None,
+                    valid_to=date.fromisoformat(row["valid_to"]) if row["valid_to"] else None,
+                    captured_at=datetime.fromisoformat(row["captured_at"])
+                    if row["captured_at"]
+                    else datetime.now(UTC),
+                    source_system=row["source_system"] or "unknown",
+                    source_id=row["source_ref"],
+                    confidence=row["confidence"],
+                    evidence_filing_id=row["evidence_filing_id"],
+                    evidence_section_id=row["evidence_section_id"],
+                    evidence_excerpt_hash=row["evidence_excerpt_hash"],
+                    evidence_snippet=row["evidence_snippet"],
+                    metrics=json.loads(row["metrics"]) if row["metrics"] else None,
+                )
+            )
         return results
 
     def relationship_count(self) -> int:
@@ -1969,7 +2049,7 @@ class SqliteStore:
     def get_contract(self, contract_id: str) -> Optional["Contract"]:
         """Get contract by ID."""
         from entityspine.stores.mappers import row_to_contract
-        
+
         row = self._fetchone(
             "SELECT * FROM contracts WHERE contract_id = ?",
             (contract_id,),
@@ -1983,7 +2063,7 @@ class SqliteStore:
     def save_case(self, case: "Case") -> None:
         """Save or update a legal case."""
         from entityspine.stores.mappers import case_to_row
-        
+
         row = case_to_row(case)
         with self._get_connection() as conn:
             conn.execute(
@@ -1997,11 +2077,22 @@ class SqliteStore:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    row["case_id"], row["case_type"], row["case_number"], row["title"],
-                    row["status"], row["authority_entity_id"], row["target_entity_id"],
-                    row["opened_date"], row["closed_date"], row["description"],
-                    row["source_system"], row["source_ref"], row["filing_id"],
-                    row["captured_at"], row["created_at"], row["updated_at"],
+                    row["case_id"],
+                    row["case_type"],
+                    row["case_number"],
+                    row["title"],
+                    row["status"],
+                    row["authority_entity_id"],
+                    row["target_entity_id"],
+                    row["opened_date"],
+                    row["closed_date"],
+                    row["description"],
+                    row["source_system"],
+                    row["source_ref"],
+                    row["filing_id"],
+                    row["captured_at"],
+                    row["created_at"],
+                    row["updated_at"],
                 ),
             )
             conn.commit()
@@ -2009,7 +2100,7 @@ class SqliteStore:
     def get_case(self, case_id: str) -> Optional["Case"]:
         """Get case by ID."""
         from entityspine.stores.mappers import row_to_case
-        
+
         row = self._fetchone(
             "SELECT * FROM cases WHERE case_id = ?",
             (case_id,),
@@ -2019,7 +2110,7 @@ class SqliteStore:
     def get_cases_by_target(self, target_entity_id: str) -> list["Case"]:
         """Get all cases involving a target entity."""
         from entityspine.stores.mappers import row_to_case
-        
+
         rows = self._fetchall(
             "SELECT * FROM cases WHERE target_entity_id = ?",
             (target_entity_id,),
@@ -2029,7 +2120,7 @@ class SqliteStore:
     def get_cases_by_authority(self, authority_entity_id: str) -> list["Case"]:
         """Get all cases from an authority (court/regulator)."""
         from entityspine.stores.mappers import row_to_case
-        
+
         rows = self._fetchall(
             "SELECT * FROM cases WHERE authority_entity_id = ?",
             (authority_entity_id,),
@@ -2048,7 +2139,7 @@ class SqliteStore:
     def save_cluster(self, cluster: "EntityCluster") -> None:
         """Save or update an entity cluster."""
         from entityspine.stores.mappers import cluster_to_row
-        
+
         row = cluster_to_row(cluster)
         with self._get_connection() as conn:
             conn.execute(
@@ -2064,7 +2155,7 @@ class SqliteStore:
     def get_cluster(self, cluster_id: str) -> Optional["EntityCluster"]:
         """Get cluster by ID."""
         from entityspine.stores.mappers import row_to_cluster
-        
+
         row = self._fetchone(
             "SELECT * FROM entity_clusters WHERE cluster_id = ?",
             (cluster_id,),
@@ -2083,7 +2174,7 @@ class SqliteStore:
     def save_cluster_member(self, member: "EntityClusterMember") -> None:
         """Save or update a cluster membership."""
         from entityspine.stores.mappers import cluster_member_to_row
-        
+
         row = cluster_member_to_row(member)
         with self._get_connection() as conn:
             conn.execute(
@@ -2093,8 +2184,12 @@ class SqliteStore:
                 ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    row["cluster_id"], row["entity_id"], row["role"],
-                    row["confidence"], row["created_at"], row["updated_at"],
+                    row["cluster_id"],
+                    row["entity_id"],
+                    row["role"],
+                    row["confidence"],
+                    row["created_at"],
+                    row["updated_at"],
                 ),
             )
             conn.commit()
@@ -2102,7 +2197,7 @@ class SqliteStore:
     def get_cluster_members(self, cluster_id: str) -> list["EntityClusterMember"]:
         """Get all members of a cluster."""
         from entityspine.stores.mappers import row_to_cluster_member
-        
+
         rows = self._fetchall(
             "SELECT * FROM entity_cluster_members WHERE cluster_id = ?",
             (cluster_id,),
@@ -2112,7 +2207,7 @@ class SqliteStore:
     def get_clusters_for_entity(self, entity_id: str) -> list["EntityClusterMember"]:
         """Get all cluster memberships for an entity."""
         from entityspine.stores.mappers import row_to_cluster_member
-        
+
         rows = self._fetchall(
             "SELECT * FROM entity_cluster_members WHERE entity_id = ?",
             (entity_id,),

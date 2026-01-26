@@ -6,51 +6,52 @@ Used for consistent matching across different data sources.
 
 import re
 import unicodedata
-from typing import Optional
 
 # Corporate suffixes to strip for matching
-CORP_SUFFIXES: frozenset[str] = frozenset({
-    "inc",
-    "inc.",
-    "incorporated",
-    "corp",
-    "corp.",
-    "corporation",
-    "co",
-    "co.",
-    "company",
-    "ltd",
-    "ltd.",
-    "limited",
-    "llc",
-    "l.l.c.",
-    "llp",
-    "l.l.p.",
-    "lp",
-    "l.p.",
-    "plc",
-    "p.l.c.",
-    "sa",
-    "s.a.",
-    "ag",
-    "a.g.",
-    "nv",
-    "n.v.",
-    "bv",
-    "b.v.",
-    "gmbh",
-    "g.m.b.h.",
-    "ab",
-    "oy",
-    "oyj",
-    "asa",
-    "as",
-    "se",
-    "spa",
-    "s.p.a.",
-    "srl",
-    "s.r.l.",
-})
+CORP_SUFFIXES: frozenset[str] = frozenset(
+    {
+        "inc",
+        "inc.",
+        "incorporated",
+        "corp",
+        "corp.",
+        "corporation",
+        "co",
+        "co.",
+        "company",
+        "ltd",
+        "ltd.",
+        "limited",
+        "llc",
+        "l.l.c.",
+        "llp",
+        "l.l.p.",
+        "lp",
+        "l.p.",
+        "plc",
+        "p.l.c.",
+        "sa",
+        "s.a.",
+        "ag",
+        "a.g.",
+        "nv",
+        "n.v.",
+        "bv",
+        "b.v.",
+        "gmbh",
+        "g.m.b.h.",
+        "ab",
+        "oy",
+        "oyj",
+        "asa",
+        "as",
+        "se",
+        "spa",
+        "s.p.a.",
+        "srl",
+        "s.r.l.",
+    }
+)
 
 # Noise words to remove
 NOISE_WORDS: frozenset[str] = frozenset({"the", "a", "an", "of", "and", "&"})
@@ -150,7 +151,7 @@ def normalize_ticker(ticker: str) -> str:
     return ticker.upper().strip()
 
 
-def normalize_lei(lei: str) -> Optional[str]:
+def normalize_lei(lei: str) -> str | None:
     """
     Normalize and validate LEI (Legal Entity Identifier).
 
@@ -182,7 +183,7 @@ def normalize_lei(lei: str) -> Optional[str]:
     return cleaned
 
 
-def normalize_isin(isin: str) -> Optional[str]:
+def normalize_isin(isin: str) -> str | None:
     """
     Normalize and validate ISIN (International Securities Identification Number).
 
@@ -219,7 +220,7 @@ def normalize_isin(isin: str) -> Optional[str]:
     return cleaned
 
 
-def normalize_cusip(cusip: str) -> Optional[str]:
+def normalize_cusip(cusip: str) -> str | None:
     """
     Normalize and validate CUSIP.
 

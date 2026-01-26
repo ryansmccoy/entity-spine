@@ -6,27 +6,26 @@ Uses pytest fixtures for dependency injection.
 """
 
 import json
-import sqlite3
 import tempfile
+from collections.abc import Generator
 from datetime import date, datetime
 from pathlib import Path
-from typing import Generator
 
 import pytest
-
 
 # =============================================================================
 # Temporary Files & Directories
 # =============================================================================
 
+
 @pytest.fixture
 def temp_db() -> Generator[Path, None, None]:
     """
     Create temporary SQLite database file.
-    
+
     Yields:
         Path to temporary database file.
-    
+
     Example:
         >>> def test_something(temp_db):
         ...     store = SQLiteStore(temp_db)
@@ -41,7 +40,7 @@ def temp_db() -> Generator[Path, None, None]:
 def temp_json(tmp_path: Path) -> Path:
     """
     Create temporary JSON file path.
-    
+
     Returns:
         Path for temporary JSON file.
     """
@@ -52,14 +51,15 @@ def temp_json(tmp_path: Path) -> Path:
 # Sample SEC Data
 # =============================================================================
 
+
 @pytest.fixture
 def sample_sec_json() -> dict:
     """
     Sample SEC company_tickers.json data structure.
-    
+
     Returns:
         Dict matching SEC JSON format.
-    
+
     Note:
         This matches the real SEC JSON structure where keys are
         string indices ("0", "1", etc.) and values have cik_str,
@@ -79,11 +79,11 @@ def sample_sec_json() -> dict:
 def sample_sec_json_file(sample_sec_json: dict, tmp_path: Path) -> Path:
     """
     Create sample SEC JSON file on disk.
-    
+
     Args:
         sample_sec_json: Sample data dict.
         tmp_path: Pytest temporary path.
-    
+
     Returns:
         Path to created JSON file.
     """
@@ -95,6 +95,7 @@ def sample_sec_json_file(sample_sec_json: dict, tmp_path: Path) -> Path:
 # =============================================================================
 # Sample Domain Objects
 # =============================================================================
+
 
 @pytest.fixture
 def sample_entity_id() -> str:
@@ -124,6 +125,7 @@ def sample_claim_id() -> str:
 # Date/Time Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def today() -> date:
     """Today's date for testing."""
@@ -152,15 +154,16 @@ def future_date() -> date:
 # Ticker Reuse Test Data
 # =============================================================================
 
+
 @pytest.fixture
 def ticker_reuse_data() -> dict:
     """
     Data for testing ticker reuse scenarios.
-    
+
     AAPL ticker history:
     - Before 1995: Company X (fictional)
     - After 1995: Apple Inc.
-    
+
     This tests v2.2 point-in-time resolution.
     """
     return {
@@ -197,13 +200,14 @@ def ticker_reuse_data() -> dict:
 # Merge Test Data
 # =============================================================================
 
+
 @pytest.fixture
 def merge_chain_data() -> dict:
     """
     Data for testing merge redirect chains.
-    
+
     A → B → C (A merged into B, B merged into C)
-    
+
     Getting A should return C (follow full chain).
     """
     return {
@@ -232,42 +236,43 @@ def merge_chain_data() -> dict:
 # Assertion Helpers
 # =============================================================================
 
+
 def assert_entity_has_no_ticker(entity) -> None:
     """
     Assert that entity does not have ticker attribute.
-    
+
     v2.2 CRITICAL: Entity must NOT have ticker.
-    
+
     Args:
         entity: Entity object to check.
-    
+
     Raises:
         AssertionError: If entity has ticker attribute.
     """
     assert not hasattr(entity, "ticker"), "v2.2 violation: Entity has ticker attribute"
     # Check Pydantic model_fields
     if hasattr(entity, "model_fields"):
-        assert "ticker" not in entity.model_fields, \
-            "v2.2 violation: Entity model has ticker field"
+        assert "ticker" not in entity.model_fields, "v2.2 violation: Entity model has ticker field"
 
 
 def assert_resolution_returns_result(result) -> None:
     """
     Assert that resolution returns ResolutionResult.
-    
+
     v2.2 CRITICAL: resolve() must return ResolutionResult, not Entity.
-    
+
     Args:
         result: Result from resolve().
-    
+
     Raises:
         AssertionError: If result is not ResolutionResult.
     """
     from entityspine.adapters.pydantic import ResolutionResult
-    
-    assert isinstance(result, ResolutionResult), \
+
+    assert isinstance(result, ResolutionResult), (
         f"v2.2 violation: resolve() returned {type(result).__name__}, expected ResolutionResult"
-    assert hasattr(result, "alternatives"), \
+    )
+    assert hasattr(result, "alternatives"), (
         "v2.2 violation: ResolutionResult missing alternatives list"
-    assert isinstance(result.candidates, list), \
-        "v2.2 violation: candidates is not a list"
+    )
+    assert isinstance(result.candidates, list), "v2.2 violation: candidates is not a list"

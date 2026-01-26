@@ -5,9 +5,8 @@ CRITICAL: Listings are WHERE TICKER LIVES!
 """
 
 from datetime import date
-from typing import Optional
 
-from sqlmodel import Session, select, col, or_
+from sqlmodel import Session, or_, select
 
 from entityspine.adapters.orm.repositories.base import BaseRepository
 from entityspine.adapters.orm.tables import ListingTable
@@ -28,8 +27,8 @@ class ListingRepository(BaseRepository[ListingTable]):
     def get_by_ticker(
         self,
         ticker: str,
-        exchange: Optional[str] = None,
-        mic: Optional[str] = None,
+        exchange: str | None = None,
+        mic: str | None = None,
         active_only: bool = True,
     ) -> list[ListingTable]:
         """
@@ -74,12 +73,12 @@ class ListingRepository(BaseRepository[ListingTable]):
         statement = select(ListingTable).where(ListingTable.security_id == security_id)
         return list(self._session.exec(statement).all())
 
-    def get_primary_listing(self, security_id: str) -> Optional[ListingTable]:
+    def get_primary_listing(self, security_id: str) -> ListingTable | None:
         """Get the primary listing for a security."""
         statement = (
             select(ListingTable)
             .where(ListingTable.security_id == security_id)
-            .where(ListingTable.is_primary == True)
+            .where(ListingTable.is_primary)
         )
         return self._session.exec(statement).first()
 

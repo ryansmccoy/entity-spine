@@ -17,15 +17,14 @@ the result MUST include a warning. This allows callers to:
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import Field
 
 from entityspine.adapters.pydantic.base import MutableEntitySpineModel
+from entityspine.adapters.pydantic.candidate import ResolutionCandidate
 from entityspine.adapters.pydantic.entity import Entity
-from entityspine.adapters.pydantic.security import Security
 from entityspine.adapters.pydantic.listing import Listing
-from entityspine.adapters.pydantic.candidate import ResolutionCandidate, MatchReason
+from entityspine.adapters.pydantic.security import Security
 from entityspine.core.timestamps import utc_now
 
 
@@ -70,7 +69,7 @@ class ResolutionResult(MutableEntitySpineModel):
     - entity/security/listing fields for backward compatibility and convenience
     - candidates field for efficient multi-match scenarios
     - best property returns top candidate
-    
+
     TIER CAPABILITY HONESTY:
     - If `as_of` was requested but the tier can't honor it,
       `warnings` will include the as_of_ignored warning
@@ -108,19 +107,19 @@ class ResolutionResult(MutableEntitySpineModel):
     """
 
     # Core result - hydrated objects (for backward compat and convenience)
-    entity: Optional[Entity] = Field(
+    entity: Entity | None = Field(
         default=None,
         description="Resolved entity (hydrated)",
     )
-    security: Optional[Security] = Field(
+    security: Security | None = Field(
         default=None,
         description="Resolved security (hydrated)",
     )
-    listing: Optional[Listing] = Field(
+    listing: Listing | None = Field(
         default=None,
         description="Resolved listing (hydrated)",
     )
-    
+
     # v2.2.3: Lightweight candidates for efficient multi-match
     candidates: list[ResolutionCandidate] = Field(
         default_factory=list,
@@ -141,7 +140,7 @@ class ResolutionResult(MutableEntitySpineModel):
         default="",
         description="Original query",
     )
-    as_of: Optional[date] = Field(
+    as_of: date | None = Field(
         default=None,
         description="Requested point-in-time",
     )
@@ -219,10 +218,10 @@ class ResolutionResult(MutableEntitySpineModel):
         return len(self.candidates) > 0
 
     @property
-    def best(self) -> Optional[ResolutionCandidate]:
+    def best(self) -> ResolutionCandidate | None:
         """
         Get the best (highest-scoring) candidate.
-        
+
         Returns:
             Top-ranked candidate or None if no candidates
         """
@@ -237,7 +236,9 @@ class ResolutionResult(MutableEntitySpineModel):
 
     def add_warning(self, warning_type: ResolutionWarning | str, detail: str = "") -> None:
         """Add a warning to the result."""
-        warning_key = warning_type.value if isinstance(warning_type, ResolutionWarning) else warning_type
+        warning_key = (
+            warning_type.value if isinstance(warning_type, ResolutionWarning) else warning_type
+        )
         if detail:
             self.warnings.append(f"{warning_key}: {detail}")
         else:
@@ -246,7 +247,7 @@ class ResolutionResult(MutableEntitySpineModel):
     def add_candidate(self, candidate: ResolutionCandidate) -> None:
         """
         Add a candidate to the result.
-        
+
         Args:
             candidate: Resolution candidate to add
         """
@@ -255,7 +256,7 @@ class ResolutionResult(MutableEntitySpineModel):
     def add_candidates(self, candidates: list[ResolutionCandidate]) -> None:
         """
         Add multiple candidates to the result.
-        
+
         Args:
             candidates: List of resolution candidates to add
         """
@@ -264,7 +265,7 @@ class ResolutionResult(MutableEntitySpineModel):
     def sort_candidates(self, descending: bool = True) -> None:
         """
         Sort candidates by score.
-        
+
         Args:
             descending: Sort high-to-low (default) or low-to-high
         """
@@ -273,10 +274,10 @@ class ResolutionResult(MutableEntitySpineModel):
     def top_candidates(self, n: int = 5) -> list[ResolutionCandidate]:
         """
         Get top N candidates by score.
-        
+
         Args:
             n: Number of candidates to return
-            
+
         Returns:
             Top N candidates sorted by score
         """
@@ -286,30 +287,34 @@ class ResolutionResult(MutableEntitySpineModel):
     # =========================================================================
     # Domain Model Conversion (v2.2.3 - Pydantic as thin wrapper)
     # =========================================================================
-    
+
     def to_domain(self) -> "entityspine.domain.ResolutionResult":
         """
         Convert Pydantic model to domain dataclass.
-        
+
         Returns:
             Domain ResolutionResult dataclass
         """
         from entityspine.domain import (
             ResolutionResult as DomainResult,
+        )
+        from entityspine.domain import (
             ResolutionStatus as DomainStatus,
+        )
+        from entityspine.domain import (
             ResolutionTier as DomainTier,
         )
-        
+
         # Convert nested objects
         domain_entity = self.entity.to_domain() if self.entity else None
         domain_security = self.security.to_domain() if self.security else None
         domain_listing = self.listing.to_domain() if self.listing else None
         domain_candidates = [c.to_domain() for c in self.candidates]
-        
+
         # Handle enum values - Pydantic may store as str or Enum
-        status_val = self.status.value if hasattr(self.status, 'value') else self.status
-        tier_val = self.tier.value if hasattr(self.tier, 'value') else self.tier
-        
+        status_val = self.status.value if hasattr(self.status, "value") else self.status
+        tier_val = self.tier.value if hasattr(self.tier, "value") else self.tier
+
         return DomainResult(
             query=self.query,
             status=DomainStatus(status_val),
@@ -327,15 +332,15 @@ class ResolutionResult(MutableEntitySpineModel):
             resolved_at=self.resolved_at,
             elapsed_ms=self.elapsed_ms,
         )
-    
+
     @classmethod
     def from_domain(cls, result: "entityspine.domain.ResolutionResult") -> "ResolutionResult":
         """
         Create Pydantic model from domain dataclass.
-        
+
         Args:
             result: Domain ResolutionResult dataclass
-            
+
         Returns:
             Pydantic ResolutionResult model
         """
@@ -344,7 +349,7 @@ class ResolutionResult(MutableEntitySpineModel):
         pydantic_security = Security.from_domain(result.security) if result.security else None
         pydantic_listing = Listing.from_domain(result.listing) if result.listing else None
         pydantic_candidates = [ResolutionCandidate.from_domain(c) for c in result.candidates]
-        
+
         return cls(
             query=result.query,
             status=ResolutionStatus(result.status.value),
@@ -369,13 +374,13 @@ def found_result(
     entity: Entity,
     query: str,
     tier: ResolutionTier,
-    as_of: Optional[date] = None,
+    as_of: date | None = None,
     as_of_honored: bool = True,
     elapsed_ms: float = 0.0,
     confidence: float = 1.0,
-    warnings: Optional[list[str]] = None,
-    security: Optional[Security] = None,
-    listing: Optional[Listing] = None,
+    warnings: list[str] | None = None,
+    security: Security | None = None,
+    listing: Listing | None = None,
 ) -> ResolutionResult:
     """Create a successful resolution result."""
     result = ResolutionResult(
@@ -402,9 +407,9 @@ def found_result(
 def not_found_result(
     query: str,
     tier: ResolutionTier,
-    as_of: Optional[date] = None,
+    as_of: date | None = None,
     elapsed_ms: float = 0.0,
-    warnings: Optional[list[str]] = None,
+    warnings: list[str] | None = None,
 ) -> ResolutionResult:
     """Create a not-found resolution result."""
     return ResolutionResult(

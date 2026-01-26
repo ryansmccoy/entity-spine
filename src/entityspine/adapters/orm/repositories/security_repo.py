@@ -2,9 +2,7 @@
 Security repository for database operations.
 """
 
-from typing import Optional
-
-from sqlmodel import Session, select, col
+from sqlmodel import Session, select
 
 from entityspine.adapters.orm.repositories.base import BaseRepository
 from entityspine.adapters.orm.tables import SecurityTable
@@ -23,19 +21,19 @@ class SecurityRepository(BaseRepository[SecurityTable]):
         statement = select(SecurityTable).where(SecurityTable.entity_id == entity_id)
         return list(self._session.exec(statement).all())
 
-    def get_by_isin(self, isin: str) -> Optional[SecurityTable]:
+    def get_by_isin(self, isin: str) -> SecurityTable | None:
         """Get security by ISIN."""
         statement = select(SecurityTable).where(SecurityTable.isin == isin.upper())
         return self._session.exec(statement).first()
 
-    def get_by_cusip(self, cusip: str) -> Optional[SecurityTable]:
+    def get_by_cusip(self, cusip: str) -> SecurityTable | None:
         """Get security by CUSIP."""
         statement = select(SecurityTable).where(SecurityTable.cusip == cusip.upper())
         return self._session.exec(statement).first()
 
     def to_domain(self, table: SecurityTable) -> Security:
         """Convert table row to domain model.
-        
+
         v2.2.3: Security no longer has isin/cusip/sedol/figi fields.
         Identifiers are tracked via IdentifierClaim.
         """
@@ -54,7 +52,7 @@ class SecurityRepository(BaseRepository[SecurityTable]):
 
     def from_domain(self, security: Security) -> SecurityTable:
         """Convert domain model to table row.
-        
+
         v2.2.3: Security no longer has isin/cusip/sedol/figi fields.
         Identifiers are tracked via IdentifierClaim.
         Legacy columns kept for backward compatibility but set to None.
@@ -62,7 +60,9 @@ class SecurityRepository(BaseRepository[SecurityTable]):
         return SecurityTable(
             security_id=security.security_id,
             entity_id=security.entity_id,
-            security_type=security.security_type.value if isinstance(security.security_type, SecurityType) else security.security_type,
+            security_type=security.security_type.value
+            if isinstance(security.security_type, SecurityType)
+            else security.security_type,
             description=security.description,
             # Legacy identifier columns - set to None
             isin=None,
@@ -70,8 +70,8 @@ class SecurityRepository(BaseRepository[SecurityTable]):
             sedol=None,
             figi=None,
             # v2.2.3: Record provenance
-            source_system=getattr(security, 'source_system', 'unknown'),
-            source_id=getattr(security, 'source_id', None),
+            source_system=getattr(security, "source_system", "unknown"),
+            source_id=getattr(security, "source_id", None),
             created_at=security.created_at,
             updated_at=security.updated_at,
             metadata_=security.metadata,

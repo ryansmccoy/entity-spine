@@ -25,22 +25,26 @@ Entity → Security → Listing hierarchy:
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import Field, field_validator, model_validator
 
 from entityspine.adapters.pydantic.base import EntitySpineModel, generate_id
-from entityspine.adapters.pydantic.validators import normalize_ticker, normalize_mic, validate_ticker, validate_mic
+from entityspine.adapters.pydantic.validators import (
+    normalize_mic,
+    normalize_ticker,
+    validate_mic,
+    validate_ticker,
+)
 from entityspine.core.timestamps import utc_now
 
 
 class ListingStatus(str, Enum):
     """Lifecycle status of a listing."""
-    
-    ACTIVE = "active"        # Currently trading
-    INACTIVE = "inactive"    # No longer trading
+
+    ACTIVE = "active"  # Currently trading
+    INACTIVE = "inactive"  # No longer trading
     SUSPENDED = "suspended"  # Temporarily suspended
-    DELISTED = "delisted"    # Permanently delisted
+    DELISTED = "delisted"  # Permanently delisted
 
 
 class Listing(EntitySpineModel):
@@ -98,17 +102,17 @@ class Listing(EntitySpineModel):
     )
 
     # Standard exchange identifiers
-    mic: Optional[str] = Field(
+    mic: str | None = Field(
         default=None,
         description="Market Identifier Code (ISO 10383, 4 chars)",
     )
 
     # Validity period
-    start_date: Optional[date] = Field(
+    start_date: date | None = Field(
         default=None,
         description="When listing became active",
     )
-    end_date: Optional[date] = Field(
+    end_date: date | None = Field(
         default=None,
         description="When listing ended (None if still active)",
     )
@@ -118,7 +122,7 @@ class Listing(EntitySpineModel):
         default=False,
         description="Primary listing for this security?",
     )
-    currency: Optional[str] = Field(
+    currency: str | None = Field(
         default=None,
         description="Trading currency (ISO 4217, 3 chars)",
     )
@@ -134,7 +138,7 @@ class Listing(EntitySpineModel):
         default="unknown",
         description="System that created this RECORD",
     )
-    source_id: Optional[str] = Field(
+    source_id: str | None = Field(
         default=None,
         description="ID in the source system",
     )
@@ -163,7 +167,7 @@ class Listing(EntitySpineModel):
 
     @field_validator("mic", mode="before")
     @classmethod
-    def normalize_mic_field(cls, v: Optional[str]) -> Optional[str]:
+    def normalize_mic_field(cls, v: str | None) -> str | None:
         """Normalize and validate MIC format."""
         if v is None:
             return None
@@ -175,7 +179,7 @@ class Listing(EntitySpineModel):
 
     @field_validator("currency", mode="before")
     @classmethod
-    def normalize_currency(cls, v: Optional[str]) -> Optional[str]:
+    def normalize_currency(cls, v: str | None) -> str | None:
         """Normalize and validate currency format (ISO 4217)."""
         if v is None:
             return None
@@ -191,7 +195,7 @@ class Listing(EntitySpineModel):
         is_valid, error = validate_ticker(self.ticker)
         if not is_valid:
             raise ValueError(error)
-        
+
         # Validate date range
         if self.start_date and self.end_date and self.start_date > self.end_date:
             raise ValueError(
@@ -211,26 +215,24 @@ class Listing(EntitySpineModel):
     def was_active_on(self, check_date: date) -> bool:
         """
         Check if listing was active on a specific date.
-        
+
         Args:
             check_date: Date to check
-            
+
         Returns:
             True if listing was active on that date
         """
         if self.start_date and check_date < self.start_date:
             return False
-        if self.end_date and check_date > self.end_date:
-            return False
-        return True
+        return not (self.end_date and check_date > self.end_date)
 
     def with_update(self, **kwargs) -> "Listing":
         """
         Create a new Listing with updated fields.
-        
+
         Args:
             **kwargs: Fields to update
-            
+
         Returns:
             New Listing with updated fields and updated_at timestamp
         """
@@ -239,13 +241,13 @@ class Listing(EntitySpineModel):
         data["updated_at"] = utc_now()
         return Listing(**data)
 
-    def delist(self, end_date: Optional[date] = None) -> "Listing":
+    def delist(self, end_date: date | None = None) -> "Listing":
         """
         Create a delisted version of this listing.
-        
+
         Args:
             end_date: When the listing ended (defaults to today)
-            
+
         Returns:
             New Listing with DELISTED status and end_date set
         """
@@ -257,19 +259,20 @@ class Listing(EntitySpineModel):
     # =========================================================================
     # Domain Model Conversion (v2.2.3 - Pydantic as thin wrapper)
     # =========================================================================
-    
+
     def to_domain(self) -> "entityspine.domain.Listing":
         """
         Convert Pydantic model to domain dataclass.
-        
+
         Returns:
             Domain Listing dataclass
         """
-        from entityspine.domain import Listing as DomainListing, ListingStatus as DomainListingStatus
-        
+        from entityspine.domain import Listing as DomainListing
+        from entityspine.domain import ListingStatus as DomainListingStatus
+
         # Handle enum values - Pydantic may store as str or Enum
-        status_val = self.status.value if hasattr(self.status, 'value') else self.status
-        
+        status_val = self.status.value if hasattr(self.status, "value") else self.status
+
         return DomainListing(
             listing_id=self.listing_id,
             security_id=self.security_id,
@@ -286,15 +289,15 @@ class Listing(EntitySpineModel):
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
-    
+
     @classmethod
     def from_domain(cls, listing: "entityspine.domain.Listing") -> "Listing":
         """
         Create Pydantic model from domain dataclass.
-        
+
         Args:
             listing: Domain Listing dataclass
-            
+
         Returns:
             Pydantic Listing model
         """

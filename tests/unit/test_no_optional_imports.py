@@ -8,6 +8,7 @@ This test enforces the "zero-dependency core" rule:
 
 If this test fails, you have accidentally imported an optional dependency in the core.
 """
+
 import sys
 
 
@@ -17,19 +18,14 @@ def test_core_import_does_not_require_pydantic():
     pydantic_modules = [k for k in sys.modules if k.startswith("pydantic")]
     for mod in pydantic_modules:
         del sys.modules[mod]
-    
+
     # Also clear entityspine modules to force re-import
     entityspine_modules = [k for k in sys.modules if k.startswith("entityspine")]
     for mod in entityspine_modules:
         del sys.modules[mod]
-    
+
     # Now import core
-    import entityspine
-    from entityspine.domain import Entity, Security, Listing, IdentifierClaim
-    from entityspine.domain import Asset, Contract, Product, Brand, Event
-    from entityspine.domain import NodeKind, RelationshipType
-    from entityspine.stores import SqliteStore
-    
+
     # Check pydantic was NOT imported
     pydantic_imported = any(k.startswith("pydantic") for k in sys.modules)
     assert not pydantic_imported, (
@@ -44,19 +40,14 @@ def test_core_import_does_not_require_sqlalchemy():
     sqlalchemy_modules = [k for k in sys.modules if k.startswith("sqlalchemy")]
     for mod in sqlalchemy_modules:
         del sys.modules[mod]
-    
+
     # Also clear entityspine modules to force re-import
     entityspine_modules = [k for k in sys.modules if k.startswith("entityspine")]
     for mod in entityspine_modules:
         del sys.modules[mod]
-    
+
     # Now import core
-    import entityspine
-    from entityspine.domain import Entity, Security, Listing, IdentifierClaim
-    from entityspine.domain import Asset, Contract, Product, Brand, Event
-    from entityspine.domain import NodeKind, RelationshipType
-    from entityspine.stores import SqliteStore
-    
+
     # Check sqlalchemy was NOT imported
     sqlalchemy_imported = any(k.startswith("sqlalchemy") for k in sys.modules)
     assert not sqlalchemy_imported, (
@@ -71,19 +62,14 @@ def test_core_import_does_not_require_sqlmodel():
     sqlmodel_modules = [k for k in sys.modules if k.startswith("sqlmodel")]
     for mod in sqlmodel_modules:
         del sys.modules[mod]
-    
+
     # Also clear entityspine modules to force re-import
     entityspine_modules = [k for k in sys.modules if k.startswith("entityspine")]
     for mod in entityspine_modules:
         del sys.modules[mod]
-    
+
     # Now import core
-    import entityspine
-    from entityspine.domain import Entity, Security, Listing, IdentifierClaim
-    from entityspine.domain import Asset, Contract, Product, Brand, Event
-    from entityspine.domain import NodeKind, RelationshipType
-    from entityspine.stores import SqliteStore
-    
+
     # Check sqlmodel was NOT imported
     sqlmodel_imported = any(k.startswith("sqlmodel") for k in sys.modules)
     assert not sqlmodel_imported, (
@@ -95,20 +81,45 @@ def test_core_import_does_not_require_sqlmodel():
 def test_all_domain_exports_are_stdlib_dataclasses():
     """All domain models should be stdlib dataclasses."""
     import dataclasses
+
     from entityspine.domain import (
-        Entity, Security, Listing, IdentifierClaim,
-        Asset, Contract, Product, Brand, Event,
-        NodeRef, Relationship, PersonRole, RoleAssignment,
-        Address, Geo, Case
+        Address,
+        Asset,
+        Brand,
+        Case,
+        Contract,
+        Entity,
+        Event,
+        Geo,
+        IdentifierClaim,
+        Listing,
+        NodeRef,
+        PersonRole,
+        Product,
+        Relationship,
+        RoleAssignment,
+        Security,
     )
-    
+
     models = [
-        Entity, Security, Listing, IdentifierClaim,
-        Asset, Contract, Product, Brand, Event,
-        NodeRef, Relationship, PersonRole, RoleAssignment,
-        Address, Geo, Case
+        Entity,
+        Security,
+        Listing,
+        IdentifierClaim,
+        Asset,
+        Contract,
+        Product,
+        Brand,
+        Event,
+        NodeRef,
+        Relationship,
+        PersonRole,
+        RoleAssignment,
+        Address,
+        Geo,
+        Case,
     ]
-    
+
     for model in models:
         assert dataclasses.is_dataclass(model), (
             f"{model.__name__} is not a stdlib dataclass! "
@@ -119,19 +130,43 @@ def test_all_domain_exports_are_stdlib_dataclasses():
 def test_domain_module_has_no_pydantic_base():
     """Domain models should NOT inherit from pydantic BaseModel."""
     from entityspine.domain import (
-        Entity, Security, Listing, IdentifierClaim,
-        Asset, Contract, Product, Brand, Event,
-        NodeRef, Relationship, PersonRole, RoleAssignment,
-        Address, Geo, Case
+        Address,
+        Asset,
+        Brand,
+        Case,
+        Contract,
+        Entity,
+        Event,
+        Geo,
+        IdentifierClaim,
+        Listing,
+        NodeRef,
+        PersonRole,
+        Product,
+        Relationship,
+        RoleAssignment,
+        Security,
     )
-    
+
     models = [
-        Entity, Security, Listing, IdentifierClaim,
-        Asset, Contract, Product, Brand, Event,
-        NodeRef, Relationship, PersonRole, RoleAssignment,
-        Address, Geo, Case
+        Entity,
+        Security,
+        Listing,
+        IdentifierClaim,
+        Asset,
+        Contract,
+        Product,
+        Brand,
+        Event,
+        NodeRef,
+        Relationship,
+        PersonRole,
+        RoleAssignment,
+        Address,
+        Geo,
+        Case,
     ]
-    
+
     for model in models:
         # Check MRO for any pydantic.BaseModel
         mro_names = [cls.__name__ for cls in model.__mro__]
@@ -143,23 +178,21 @@ def test_domain_module_has_no_pydantic_base():
 
 def test_stores_return_domain_dataclasses():
     """SqliteStore methods should return domain dataclasses, not ORM models."""
-    from entityspine.stores import SqliteStore
-    from entityspine.domain import Entity, EntityType
     import dataclasses
-    
+
+    from entityspine.domain import Entity, EntityType
+    from entityspine.stores import SqliteStore
+
     store = SqliteStore(":memory:")
     store.initialize()
-    
+
     # Create and save an entity
-    entity = Entity(
-        primary_name="Test Corp",
-        entity_type=EntityType.ORGANIZATION
-    )
+    entity = Entity(primary_name="Test Corp", entity_type=EntityType.ORGANIZATION)
     store.save_entity(entity)
-    
+
     # Get it back
     retrieved = store.get_entity(entity.entity_id)
-    
+
     # Should be a domain dataclass
     assert dataclasses.is_dataclass(retrieved), (
         "SqliteStore.get_entity() should return a domain dataclass"
@@ -175,7 +208,7 @@ def test_stores_return_domain_dataclasses():
 def test_core_has_no_optional_module_imports_at_toplevel():
     """Check that core modules don't import optional packages at module level."""
     import importlib.util
-    
+
     # Core modules that MUST NOT import optional deps at top level
     core_modules = [
         "entityspine",
@@ -187,12 +220,12 @@ def test_core_has_no_optional_module_imports_at_toplevel():
         "entityspine.stores.sqlite_store",
         "entityspine.stores.protocol",
     ]
-    
+
     for mod_name in core_modules:
         spec = importlib.util.find_spec(mod_name)
         if spec is None:
             continue  # Module doesn't exist yet
-        
+
         # This should NOT raise ImportError for pydantic/sqlalchemy
         # because those should only be in adapters
         loader = spec.loader
@@ -205,12 +238,28 @@ def test_core_has_no_optional_module_imports_at_toplevel():
                 for i, line in enumerate(lines):
                     stripped = line.strip()
                     # Skip comments and strings
-                    if stripped.startswith("#") or stripped.startswith('"""') or stripped.startswith("'''"):
+                    if (
+                        stripped.startswith("#")
+                        or stripped.startswith('"""')
+                        or stripped.startswith("'''")
+                    ):
                         continue
                     # Check for direct pydantic/sqlalchemy imports
-                    if stripped.startswith("from pydantic") or stripped.startswith("import pydantic"):
-                        assert False, f"{mod_name} line {i+1}: Direct pydantic import found: {stripped}"
-                    if stripped.startswith("from sqlalchemy") or stripped.startswith("import sqlalchemy"):
-                        assert False, f"{mod_name} line {i+1}: Direct sqlalchemy import found: {stripped}"
-                    if stripped.startswith("from sqlmodel") or stripped.startswith("import sqlmodel"):
-                        assert False, f"{mod_name} line {i+1}: Direct sqlmodel import found: {stripped}"
+                    if stripped.startswith("from pydantic") or stripped.startswith(
+                        "import pydantic"
+                    ):
+                        assert False, (
+                            f"{mod_name} line {i + 1}: Direct pydantic import found: {stripped}"
+                        )
+                    if stripped.startswith("from sqlalchemy") or stripped.startswith(
+                        "import sqlalchemy"
+                    ):
+                        assert False, (
+                            f"{mod_name} line {i + 1}: Direct sqlalchemy import found: {stripped}"
+                        )
+                    if stripped.startswith("from sqlmodel") or stripped.startswith(
+                        "import sqlmodel"
+                    ):
+                        assert False, (
+                            f"{mod_name} line {i + 1}: Direct sqlmodel import found: {stripped}"
+                        )

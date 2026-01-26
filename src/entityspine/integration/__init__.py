@@ -13,14 +13,14 @@ The integration module:
 All integration functions return domain dataclasses - no foreign types leak out.
 """
 
-from .contracts import FilingFacts, FilingEvidence
+from .contracts import FilingEvidence, FilingFacts
 from .ingest import ingest_filing, ingest_filing_facts
 from .normalize import normalize_cik, normalize_ticker
 
 __all__ = [
+    "FilingEvidence",
     # Contracts
     "FilingFacts",
-    "FilingEvidence",
     # Ingest functions
     "ingest_filing",
     "ingest_filing_facts",

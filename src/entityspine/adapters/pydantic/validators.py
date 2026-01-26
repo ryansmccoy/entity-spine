@@ -18,33 +18,33 @@ Decision Log:
 
 import re
 from enum import Enum
-from typing import Optional
 
 
 class VendorNamespace(str, Enum):
     """
     Vendor/source namespaces for identifier claims.
-    
+
     This distinguishes WHERE an identifier came from, enabling
     multi-vendor crosswalks (Bloomberg vs FactSet vs Reuters, etc.)
     """
+
     # Regulatory sources
-    SEC = "sec"              # SEC EDGAR
-    GLEIF = "gleif"          # Global LEI Foundation
-    
+    SEC = "sec"  # SEC EDGAR
+    GLEIF = "gleif"  # Global LEI Foundation
+
     # Market data vendors
     BLOOMBERG = "bloomberg"  # Bloomberg
-    FACTSET = "factset"      # FactSet
-    REUTERS = "reuters"      # Refinitiv/Reuters
-    OPENFIGI = "openfigi"    # OpenFIGI
-    
+    FACTSET = "factset"  # FactSet
+    REUTERS = "reuters"  # Refinitiv/Reuters
+    OPENFIGI = "openfigi"  # OpenFIGI
+
     # Exchanges
-    EXCHANGE = "exchange"    # Exchange-provided data
-    
+    EXCHANGE = "exchange"  # Exchange-provided data
+
     # Internal
-    USER = "user"            # User-provided
-    INTERNAL = "internal"    # Internal system
-    
+    USER = "user"  # User-provided
+    INTERNAL = "internal"  # Internal system
+
     # Other
     OTHER = "other"
 
@@ -52,13 +52,14 @@ class VendorNamespace(str, Enum):
 class IdentifierScope(str, Enum):
     """
     Which object type an identifier scheme applies to.
-    
+
     Enforced by IdentifierClaim validators.
     """
-    ENTITY = "entity"        # CIK, LEI, EIN, DUNS
-    SECURITY = "security"    # ISIN, CUSIP, SEDOL, FIGI
-    LISTING = "listing"      # TICKER (exchange-specific)
-    ANY = "any"              # INTERNAL, OTHER
+
+    ENTITY = "entity"  # CIK, LEI, EIN, DUNS
+    SECURITY = "security"  # ISIN, CUSIP, SEDOL, FIGI
+    LISTING = "listing"  # TICKER (exchange-specific)
+    ANY = "any"  # INTERNAL, OTHER
 
 
 # Scheme-to-scope mapping
@@ -82,16 +83,17 @@ SCHEME_SCOPES: dict[str, IdentifierScope] = {
 # Normalization Functions
 # ============================================================================
 
-def normalize_cik(value: Optional[str]) -> Optional[str]:
+
+def normalize_cik(value: str | None) -> str | None:
     """
     Normalize CIK to 10-digit zero-padded format.
-    
+
     Args:
         value: Raw CIK value (may have leading zeros, spaces)
-        
+
     Returns:
         10-digit zero-padded CIK or None
-        
+
     Example:
         >>> normalize_cik("320193")
         '0000320193'
@@ -105,13 +107,13 @@ def normalize_cik(value: Optional[str]) -> Optional[str]:
     return cleaned.zfill(10)
 
 
-def normalize_lei(value: Optional[str]) -> Optional[str]:
+def normalize_lei(value: str | None) -> str | None:
     """
     Normalize LEI to 20-character uppercase format.
-    
+
     Args:
         value: Raw LEI value
-        
+
     Returns:
         20-char uppercase LEI or None
     """
@@ -120,13 +122,13 @@ def normalize_lei(value: Optional[str]) -> Optional[str]:
     return value.strip().upper()
 
 
-def normalize_isin(value: Optional[str]) -> Optional[str]:
+def normalize_isin(value: str | None) -> str | None:
     """
     Normalize ISIN to 12-character uppercase format.
-    
+
     Args:
         value: Raw ISIN value
-        
+
     Returns:
         12-char uppercase ISIN or None
     """
@@ -135,13 +137,13 @@ def normalize_isin(value: Optional[str]) -> Optional[str]:
     return value.strip().upper()
 
 
-def normalize_cusip(value: Optional[str]) -> Optional[str]:
+def normalize_cusip(value: str | None) -> str | None:
     """
     Normalize CUSIP to 9-character uppercase format.
-    
+
     Args:
         value: Raw CUSIP value
-        
+
     Returns:
         9-char uppercase CUSIP or None
     """
@@ -150,13 +152,13 @@ def normalize_cusip(value: Optional[str]) -> Optional[str]:
     return value.strip().upper()
 
 
-def normalize_sedol(value: Optional[str]) -> Optional[str]:
+def normalize_sedol(value: str | None) -> str | None:
     """
     Normalize SEDOL to 7-character uppercase format.
-    
+
     Args:
         value: Raw SEDOL value
-        
+
     Returns:
         7-char uppercase SEDOL or None
     """
@@ -165,13 +167,13 @@ def normalize_sedol(value: Optional[str]) -> Optional[str]:
     return value.strip().upper()
 
 
-def normalize_figi(value: Optional[str]) -> Optional[str]:
+def normalize_figi(value: str | None) -> str | None:
     """
     Normalize FIGI to 12-character uppercase format.
-    
+
     Args:
         value: Raw FIGI value
-        
+
     Returns:
         12-char uppercase FIGI or None
     """
@@ -180,13 +182,13 @@ def normalize_figi(value: Optional[str]) -> Optional[str]:
     return value.strip().upper()
 
 
-def normalize_ein(value: Optional[str]) -> Optional[str]:
+def normalize_ein(value: str | None) -> str | None:
     """
     Normalize EIN to 9-digit format (no hyphen).
-    
+
     Args:
         value: Raw EIN value (may have hyphen: XX-XXXXXXX)
-        
+
     Returns:
         9-digit EIN or None
     """
@@ -199,27 +201,27 @@ def normalize_ein(value: Optional[str]) -> Optional[str]:
 def normalize_ticker(value: str) -> str:
     """
     Normalize ticker symbol.
-    
+
     - Uppercase
     - Replace dashes with dots (BRK-B → BRK.B)
     - Strip whitespace
-    
+
     Args:
         value: Raw ticker value
-        
+
     Returns:
         Normalized ticker
     """
     return value.strip().upper().replace("-", ".")
 
 
-def normalize_mic(value: Optional[str]) -> Optional[str]:
+def normalize_mic(value: str | None) -> str | None:
     """
     Normalize MIC (Market Identifier Code) to 4-char uppercase.
-    
+
     Args:
         value: Raw MIC value
-        
+
     Returns:
         4-char uppercase MIC or None
     """
@@ -247,10 +249,10 @@ _TICKER_PATTERN = re.compile(r"^[A-Z0-9.]{1,12}$")
 def validate_cik(value: str) -> tuple[bool, str]:
     """
     Validate CIK format.
-    
+
     Args:
         value: Normalized CIK value
-        
+
     Returns:
         (is_valid, error_message)
     """
@@ -262,10 +264,10 @@ def validate_cik(value: str) -> tuple[bool, str]:
 def validate_lei(value: str) -> tuple[bool, str]:
     """
     Validate LEI format (ISO 17442).
-    
+
     Args:
         value: Normalized LEI value
-        
+
     Returns:
         (is_valid, error_message)
     """
@@ -279,12 +281,12 @@ def validate_lei(value: str) -> tuple[bool, str]:
 def validate_isin(value: str) -> tuple[bool, str]:
     """
     Validate ISIN format (ISO 6166).
-    
+
     Format: 2-char country + 9-char identifier + 1 check digit
-    
+
     Args:
         value: Normalized ISIN value
-        
+
     Returns:
         (is_valid, error_message)
     """
@@ -298,10 +300,10 @@ def validate_isin(value: str) -> tuple[bool, str]:
 def validate_cusip(value: str) -> tuple[bool, str]:
     """
     Validate CUSIP format.
-    
+
     Args:
         value: Normalized CUSIP value
-        
+
     Returns:
         (is_valid, error_message)
     """
@@ -315,10 +317,10 @@ def validate_cusip(value: str) -> tuple[bool, str]:
 def validate_sedol(value: str) -> tuple[bool, str]:
     """
     Validate SEDOL format.
-    
+
     Args:
         value: Normalized SEDOL value
-        
+
     Returns:
         (is_valid, error_message)
     """
@@ -332,12 +334,12 @@ def validate_sedol(value: str) -> tuple[bool, str]:
 def validate_figi(value: str) -> tuple[bool, str]:
     """
     Validate FIGI format.
-    
+
     Format: BBG + 9 alphanumeric characters
-    
+
     Args:
         value: Normalized FIGI value
-        
+
     Returns:
         (is_valid, error_message)
     """
@@ -351,10 +353,10 @@ def validate_figi(value: str) -> tuple[bool, str]:
 def validate_ein(value: str) -> tuple[bool, str]:
     """
     Validate EIN format.
-    
+
     Args:
         value: Normalized EIN value (no hyphen)
-        
+
     Returns:
         (is_valid, error_message)
     """
@@ -366,10 +368,10 @@ def validate_ein(value: str) -> tuple[bool, str]:
 def validate_mic(value: str) -> tuple[bool, str]:
     """
     Validate MIC format (ISO 10383).
-    
+
     Args:
         value: Normalized MIC value
-        
+
     Returns:
         (is_valid, error_message)
     """
@@ -381,17 +383,20 @@ def validate_mic(value: str) -> tuple[bool, str]:
 def validate_ticker(value: str) -> tuple[bool, str]:
     """
     Validate ticker format.
-    
+
     Args:
         value: Normalized ticker value
-        
+
     Returns:
         (is_valid, error_message)
     """
     if not value:
         return False, "Ticker cannot be empty"
     if not _TICKER_PATTERN.match(value):
-        return False, f"Ticker must be 1-12 uppercase alphanumeric chars (dots allowed), got: {value!r}"
+        return (
+            False,
+            f"Ticker must be 1-12 uppercase alphanumeric chars (dots allowed), got: {value!r}",
+        )
     return True, ""
 
 
@@ -411,14 +416,14 @@ SCHEME_VALIDATORS: dict[str, tuple[callable, callable]] = {
 def normalize_and_validate(scheme: str, value: str) -> tuple[str, list[str]]:
     """
     Normalize and validate an identifier value for a given scheme.
-    
+
     Args:
         scheme: Identifier scheme (cik, lei, isin, etc.)
         value: Raw identifier value
-        
+
     Returns:
         (normalized_value, list_of_errors)
-        
+
     Example:
         >>> normalize_and_validate("cik", "320193")
         ('0000320193', [])
@@ -427,7 +432,7 @@ def normalize_and_validate(scheme: str, value: str) -> tuple[str, list[str]]:
     """
     errors = []
     scheme_lower = scheme.lower()
-    
+
     if scheme_lower in SCHEME_VALIDATORS:
         normalizer, validator = SCHEME_VALIDATORS[scheme_lower]
         normalized = normalizer(value)
@@ -436,7 +441,7 @@ def normalize_and_validate(scheme: str, value: str) -> tuple[str, list[str]]:
             if not is_valid:
                 errors.append(error)
             return normalized, errors
-    
+
     # No specific validator, just return stripped uppercase
     return value.strip().upper(), errors
 
@@ -444,10 +449,10 @@ def normalize_and_validate(scheme: str, value: str) -> tuple[str, list[str]]:
 def get_scope_for_scheme(scheme: str) -> IdentifierScope:
     """
     Get the expected scope for a given identifier scheme.
-    
+
     Args:
         scheme: Identifier scheme (cik, lei, isin, etc.)
-        
+
     Returns:
         IdentifierScope indicating which object type this scheme applies to
     """
@@ -456,22 +461,22 @@ def get_scope_for_scheme(scheme: str) -> IdentifierScope:
 
 def validate_scheme_scope(
     scheme: str,
-    entity_id: Optional[str],
-    security_id: Optional[str],
-    listing_id: Optional[str],
+    entity_id: str | None,
+    security_id: str | None,
+    listing_id: str | None,
 ) -> tuple[bool, str]:
     """
     Validate that a scheme is used with the correct target type.
-    
+
     Args:
         scheme: Identifier scheme
         entity_id: Entity ID if claim is for entity
         security_id: Security ID if claim is for security
         listing_id: Listing ID if claim is for listing
-        
+
     Returns:
         (is_valid, error_message)
-        
+
     Example:
         >>> validate_scheme_scope("cik", "ent123", None, None)
         (True, "")
@@ -479,7 +484,7 @@ def validate_scheme_scope(
         (False, "Scheme 'cik' requires entity_id but got security_id")
     """
     scope = get_scope_for_scheme(scheme)
-    
+
     # Determine actual target
     if entity_id:
         actual = "entity_id"
@@ -492,14 +497,14 @@ def validate_scheme_scope(
         actual_scope = IdentifierScope.LISTING
     else:
         return False, "No target ID provided"
-    
+
     # ANY scope allows any target
     if scope == IdentifierScope.ANY:
         return True, ""
-    
+
     # Check scope match
     if scope != actual_scope:
         expected_id = f"{scope.value}_id"
         return False, f"Scheme '{scheme}' requires {expected_id} but got {actual}"
-    
+
     return True, ""

@@ -9,7 +9,6 @@ All domain models inherit from EntitySpineModel to get consistent:
 """
 
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, field_serializer
 

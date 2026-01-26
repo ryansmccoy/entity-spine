@@ -3,11 +3,10 @@
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 try:
-    from pydantic_settings import BaseSettings, SettingsConfigDict
     from pydantic import Field
+    from pydantic_settings import BaseSettings, SettingsConfigDict
 
     PYDANTIC_AVAILABLE = True
 except ImportError:
@@ -52,7 +51,7 @@ if PYDANTIC_AVAILABLE:
         # Storage
         backend: StorageBackend = StorageBackend.SQLITE
         db_path: str = "./data/entityspine.db"
-        json_path: Optional[str] = None
+        json_path: str | None = None
 
         # PostgreSQL
         postgres_host: str = "localhost"
@@ -60,7 +59,7 @@ if PYDANTIC_AVAILABLE:
         postgres_user: str = "entityspine"
         postgres_password: str = "entityspine"
         postgres_db: str = "entityspine"
-        database_url: Optional[str] = None
+        database_url: str | None = None
 
         # API
         api_host: str = "0.0.0.0"
@@ -74,11 +73,11 @@ if PYDANTIC_AVAILABLE:
         sec_user_agent: str = "EntitySpine/1.0 (research)"
 
         # Optional: Elasticsearch
-        elasticsearch_url: Optional[str] = None
+        elasticsearch_url: str | None = None
         elasticsearch_index: str = "entities"
 
         # Optional: Redis
-        redis_url: Optional[str] = None
+        redis_url: str | None = None
 
         @property
         def postgres_dsn(self) -> str:
@@ -109,9 +108,7 @@ else:
             self.backend = os.getenv("ENTITYSPINE_BACKEND", "sqlite")
             self.db_path = os.getenv("ENTITYSPINE_DB_PATH", "./data/entityspine.db")
             self.json_path = os.getenv("ENTITYSPINE_JSON_PATH")
-            self.auto_download = (
-                os.getenv("ENTITYSPINE_AUTO_DOWNLOAD", "true").lower() == "true"
-            )
+            self.auto_download = os.getenv("ENTITYSPINE_AUTO_DOWNLOAD", "true").lower() == "true"
             self.sec_user_agent = os.getenv(
                 "ENTITYSPINE_SEC_USER_AGENT", "EntitySpine/1.0 (research)"
             )

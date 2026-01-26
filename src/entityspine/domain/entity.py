@@ -12,22 +12,21 @@ v2.2.3 DESIGN:
 
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from typing import Optional, List
 
-from entityspine.domain.enums import EntityType, EntityStatus
-from entityspine.domain.timestamps import utc_now, generate_ulid
+from entityspine.domain.enums import EntityStatus, EntityType
+from entityspine.domain.timestamps import generate_ulid, utc_now
 
 
 @dataclass(frozen=True, slots=True)
 class Entity:
     """
     Legal/organizational identity.
-    
+
     v2.2.3 DESIGN:
     - NO identifier convenience fields - use IdentifierClaim
     - NO ticker - tickers belong on Listing
     - Immutable (frozen) for thread safety
-    
+
     Attributes:
         entity_id: ULID primary key
         primary_name: Current legal/trading name
@@ -45,38 +44,38 @@ class Entity:
         created_at: Record creation timestamp
         updated_at: Last update timestamp
     """
-    
+
     # Required fields
     primary_name: str
-    
+
     # Primary key (auto-generated if not provided)
     entity_id: str = field(default_factory=generate_ulid)
-    
+
     # Entity classification
     entity_type: EntityType = EntityType.ORGANIZATION
     status: EntityStatus = EntityStatus.ACTIVE
-    
+
     # Entity details
-    jurisdiction: Optional[str] = None
-    sic_code: Optional[str] = None
-    incorporation_date: Optional[date] = None
-    
+    jurisdiction: str | None = None
+    sic_code: str | None = None
+    incorporation_date: date | None = None
+
     # Record provenance (NOT identifier provenance)
     source_system: str = "unknown"
-    source_id: Optional[str] = None
-    
+    source_id: str | None = None
+
     # Redirect support (for merges)
-    redirect_to: Optional[str] = None
-    redirect_reason: Optional[str] = None
-    merged_at: Optional[datetime] = None
-    
+    redirect_to: str | None = None
+    redirect_reason: str | None = None
+    merged_at: datetime | None = None
+
     # Aliases
     aliases: tuple = field(default_factory=tuple)  # Use tuple for frozen dataclass
-    
+
     # Timestamps
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-    
+
     def __post_init__(self):
         """Validate entity after creation."""
         if not self.primary_name or not self.primary_name.strip():
@@ -85,25 +84,25 @@ class Entity:
             raise ValueError("entity_id cannot be empty")
         # Convert aliases list to tuple if needed (for hashability)
         if isinstance(self.aliases, list):
-            object.__setattr__(self, 'aliases', tuple(self.aliases))
-    
+            object.__setattr__(self, "aliases", tuple(self.aliases))
+
     @property
     def is_redirect(self) -> bool:
         """Check if this entity redirects to another."""
         return self.redirect_to is not None
-    
+
     def with_update(self, **kwargs) -> "Entity":
         """Create a new Entity with updated fields."""
         kwargs.setdefault("updated_at", utc_now())
         return replace(self, **kwargs)
-    
+
     def add_alias(self, alias: str) -> "Entity":
         """Create a new Entity with an additional alias."""
         if alias in self.aliases or alias == self.primary_name:
             return self
-        new_aliases = self.aliases + (alias,)
+        new_aliases = (*self.aliases, alias)
         return self.with_update(aliases=new_aliases)
-    
+
     def merge_into(self, target_entity_id: str, reason: str = "merged") -> "Entity":
         """Create a merged version pointing to the target."""
         return self.with_update(

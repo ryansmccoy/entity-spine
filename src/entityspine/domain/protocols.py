@@ -20,39 +20,39 @@ Design Principle:
 
 from abc import abstractmethod
 from datetime import date
-from typing import Protocol, runtime_checkable, List, Optional, Dict, Any
+from typing import Any, Protocol, runtime_checkable
+
+from entityspine.domain.claim import IdentifierClaim
 
 # Import domain types (stdlib dataclasses)
 from entityspine.domain.entity import Entity
-from entityspine.domain.security import Security
 from entityspine.domain.listing import Listing
-from entityspine.domain.claim import IdentifierClaim
 from entityspine.domain.resolution import ResolutionResult
-from entityspine.domain.candidate import ResolutionCandidate
+from entityspine.domain.security import Security
 
 
 @runtime_checkable
 class StorageLifecycleProtocol(Protocol):
     """
     Lifecycle management for storage backends.
-    
+
     ALL storage implementations must satisfy this interface.
     """
-    
+
     @abstractmethod
     def initialize(self) -> None:
         """
         Initialize storage (create tables/indexes, load data).
-        
+
         Idempotent: safe to call multiple times.
         """
         ...
-    
+
     @abstractmethod
     def close(self) -> None:
         """
         Close storage and release resources.
-        
+
         May persist pending changes before closing.
         """
         ...
@@ -74,7 +74,7 @@ class EntityStoreProtocol(Protocol):
     # =========================================================================
 
     @abstractmethod
-    def get_entity(self, entity_id: str) -> Optional[Entity]:
+    def get_entity(self, entity_id: str) -> Entity | None:
         """
         Get entity by ID, following merge redirects.
 
@@ -91,7 +91,7 @@ class EntityStoreProtocol(Protocol):
         ...
 
     @abstractmethod
-    def get_entity_raw(self, entity_id: str) -> Optional[Entity]:
+    def get_entity_raw(self, entity_id: str) -> Entity | None:
         """
         Get entity by ID WITHOUT following merge redirects.
 
@@ -104,7 +104,7 @@ class EntityStoreProtocol(Protocol):
         ...
 
     @abstractmethod
-    def get_entities_by_cik(self, cik: str) -> List[Entity]:
+    def get_entities_by_cik(self, cik: str) -> list[Entity]:
         """
         Get entities matching CIK (via claims lookup).
 
@@ -134,7 +134,7 @@ class EntityStoreProtocol(Protocol):
 class ListingStoreProtocol(Protocol):
     """
     Protocol for listing/ticker operations.
-    
+
     CRITICAL: All methods return DOMAIN dataclasses.
     """
 
@@ -142,9 +142,9 @@ class ListingStoreProtocol(Protocol):
     def get_listings_by_ticker(
         self,
         ticker: str,
-        mic: Optional[str] = None,
-        as_of: Optional[date] = None,
-    ) -> List[Listing]:
+        mic: str | None = None,
+        as_of: date | None = None,
+    ) -> list[Listing]:
         """
         Get listings matching ticker symbol.
 
@@ -177,12 +177,12 @@ class ListingStoreProtocol(Protocol):
 class SecurityStoreProtocol(Protocol):
     """
     Protocol for security operations.
-    
+
     CRITICAL: All methods return DOMAIN dataclasses.
     """
 
     @abstractmethod
-    def get_security(self, security_id: str) -> Optional[Security]:
+    def get_security(self, security_id: str) -> Security | None:
         """
         Get security by ID.
 
@@ -195,7 +195,7 @@ class SecurityStoreProtocol(Protocol):
         ...
 
     @abstractmethod
-    def get_securities_by_entity(self, entity_id: str) -> List[Security]:
+    def get_securities_by_entity(self, entity_id: str) -> list[Security]:
         """
         Get all securities for an entity.
 
@@ -222,12 +222,12 @@ class SecurityStoreProtocol(Protocol):
 class ClaimStoreProtocol(Protocol):
     """
     Protocol for identifier claim operations.
-    
+
     CRITICAL: All methods return DOMAIN dataclasses.
     """
 
     @abstractmethod
-    def get_claims_by_entity(self, entity_id: str) -> List[IdentifierClaim]:
+    def get_claims_by_entity(self, entity_id: str) -> list[IdentifierClaim]:
         """
         Get all claims for an entity.
 
@@ -244,7 +244,7 @@ class ClaimStoreProtocol(Protocol):
         self,
         scheme: str,
         value: str,
-    ) -> List[IdentifierClaim]:
+    ) -> list[IdentifierClaim]:
         """
         Get claims by identifier scheme and value.
 
@@ -272,7 +272,7 @@ class ClaimStoreProtocol(Protocol):
 class SearchProtocol(Protocol):
     """
     Protocol for search operations.
-    
+
     Capabilities vary by tier:
     - Tier 0: Exact match only
     - Tier 1: LIKE pattern matching
@@ -284,7 +284,7 @@ class SearchProtocol(Protocol):
         self,
         query: str,
         limit: int = 10,
-    ) -> List[Entity]:
+    ) -> list[Entity]:
         """
         Search entities by name.
 
@@ -302,7 +302,7 @@ class SearchProtocol(Protocol):
 class ResolverProtocol(Protocol):
     """
     Full resolution protocol.
-    
+
     The main interface for entity resolution.
     Returns ResolutionResult with tier honesty (warnings/limits).
     """
@@ -311,8 +311,8 @@ class ResolverProtocol(Protocol):
     def resolve(
         self,
         query: str,
-        as_of: Optional[date] = None,
-        mic: Optional[str] = None,
+        as_of: date | None = None,
+        mic: str | None = None,
     ) -> ResolutionResult:
         """
         Resolve any identifier to entity/security/listing.
@@ -352,17 +352,17 @@ class FullStoreProtocol(
 ):
     """
     Combined protocol for full-featured stores.
-    
+
     Tier 1+ stores should implement this complete interface.
     """
-    
+
     # Tier metadata
     tier: int
     tier_name: str
     supports_temporal: bool
-    
+
     @abstractmethod
-    def load_sec_json(self, data: Dict[str, Any]) -> int:
+    def load_sec_json(self, data: dict[str, Any]) -> int:
         """
         Load entities from SEC company_tickers.json format.
 

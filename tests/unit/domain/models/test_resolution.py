@@ -15,23 +15,22 @@ from datetime import date
 import pytest
 
 from entityspine.domain import (
-    ResolutionResult,
+    Entity,
+    MatchReason,
+    ResolutionCandidate,
     ResolutionStatus,
     ResolutionTier,
     ResolutionWarning,
+    ambiguous_result,
     found_result,
     not_found_result,
-    ambiguous_result,
-    Entity,
-    ResolutionCandidate,
-    MatchReason,
 )
 
 
 @pytest.fixture
 def sample_entity():
     """Create a sample entity for testing.
-    
+
     v2.2.3: Entity no longer has cik field - identifiers tracked via IdentifierClaim.
     """
     return Entity(
